@@ -21,6 +21,8 @@
 | [`docs/architecture.md`](docs/architecture.md) | 아키텍처 다이어그램 |
 | [`docs/contracts/`](docs/contracts/) | FE · BE · AI 사이 API · JSON 계약 |
 | [`docs/decisions/`](docs/decisions/) | 기술 설계 · 선택의 이유(ADR) |
+| [`docs/ai-scope.md`](docs/ai-scope.md) | 직접 구현 vs 외부 기술 · AI 기능과 검증 · 목 · 샘플 · 출처 · 한계 |
+| [`docs/hackathon.md`](docs/hackathon.md) | 대회 규칙 · 일정 · 제출물 · 배점 (팀 내부용) |
 
 ## 팀원용 — 작업 방식
 
@@ -38,9 +40,13 @@
 3. 브랜치 → PR → 머지. main 직접 push 금지, 계약 · SPEC 을 바꾸는 PR 은 반대편 담당이 승인.
 4. 공통 규칙 · 스킬 · 템플릿을 바꾸려면 ETC 에서 고치고 `scripts/sync-shared.sh` 를 돌린 뒤 각 레포에 PR.
 
-## 제출 체크 (11-15 18:00)
+## 링크
 
-- [ ] 11-15 17:00 main 동결
-- [ ] 레포마다 마감 시점 main 커밋 해시 — `git fetch && git rev-parse --short origin/main`
-- [ ] 네 레포 모두 Public
-- [ ] README: 개요 · 기술 설계와 선택(ADR) · 아키텍처 다이어그램 · 실행/확인 방법
+> 제출 전에 채운다.
+
+- 배포:
+- 시연 영상:
+- 발표 자료:
+- Notion:
+
+제출 전 확인 목록은 [`docs/hackathon.md`](docs/hackathon.md) 「마감 직전 체크」.

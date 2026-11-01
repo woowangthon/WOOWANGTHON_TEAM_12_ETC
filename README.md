@@ -37,6 +37,8 @@
 
    AI 에이전트는 이 상위 폴더에서 열면 레포를 넘나들며 명세 · 계약을 읽는다.
 2. 할 일은 **GitHub Issue** 에서 본다. 회의 · 일정은 Notion.
+   스프린트로 간다([ADR-002](docs/decisions/ADR-002-sprints.md)) — 흐름 하나씩 화면부터 DB · AI 까지 잇고, PM 이 써 보며 고친다. 지금 스프린트는 Milestone 에서 본다.
+   화면 배치 · 문구는 묻지 말고 만들어서 PR 에 스크린샷을 붙인다(덜 된 화면이어도 된다).
 3. 브랜치 → PR → 머지. main 직접 push 금지, 계약 · SPEC 을 바꾸는 PR 은 반대편 담당이 승인.
 4. 공통 규칙 · 스킬 · 템플릿을 바꾸려면 ETC 에서 고치고 `scripts/sync-shared.sh` 를 돌린 뒤 각 레포에 PR.
 

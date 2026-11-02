@@ -24,6 +24,7 @@
 | 외부 기술 | Tailwind CSS 4 (FE) | 설정 · 연동만 |
 | 외부 기술 | shadcn/ui (button · sheet · dialog) · Radix UI (FE) | 부품 코드를 레포에 복사해 DESIGN.md 대로 색 · 크기를 고쳐 씀 |
 | 외부 기술 | Vercel (FE 배포 · PR 미리보기) | GitHub 연동 설정만 |
+| 외부 기술 | Docker · Docker Compose · Oracle Cloud(OCI) 서버 · Cloudflare Tunnel · Access (BE · AI · DB 배포) | 이미지 · Compose 구성 · 설정만. 공개 전엔 Access 로 팀원만 통과 |
 
 ## 2. AI 기능
 
@@ -82,6 +83,11 @@
 | PostgreSQL | https://www.postgresql.org/about/licence/ | PostgreSQL License | DB |
 | pgvector | https://github.com/pgvector/pgvector | PostgreSQL License | DB 이미지(확장은 아직 안 켬) |
 | Testcontainers | https://github.com/testcontainers/testcontainers-java | MIT | BE 통합 테스트 |
+| Docker Engine · Docker Compose | https://github.com/moby/moby · https://github.com/docker/compose | Apache 2.0 | 서버 배포(BE `docker-compose.yml`) |
+| Eclipse Temurin (JDK · JRE 이미지) | https://adoptium.net | GPLv2 + Classpath Exception | BE 이미지 빌드 · 실행 |
+| cloudflared | https://github.com/cloudflare/cloudflared | Apache 2.0 | 서버 → Cloudflare Tunnel 연결 컨테이너 |
+| Cloudflare Zero Trust (Tunnel · Access) | https://www.cloudflare.com/terms/ | Cloudflare 서비스 약관 | BE 외부 공개 · 공개 전 팀원만 접근 |
+| Oracle Cloud Infrastructure | https://www.oracle.com/cloud/ | Oracle Cloud 서비스 약관 | 배포 서버(BE · AI · DB) |
 
 ## 5. 알려진 한계
 

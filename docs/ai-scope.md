@@ -15,6 +15,10 @@
 | 외부 기술 | OpenAI API — 기본, 팀 크레딧 (AI 서버) | 활동 · 경험을 나누고 문장을 쓰는 건 LLM 이 한다 — 우리는 호출 · 검사만. 모델은 §2 |
 | 외부 기술 | Google Gemini API — 선택 폴백, 키가 있을 때만 (AI 서버) | 위와 같음 |
 | 외부 기술 | FastAPI · Pydantic · uvicorn · openai SDK · google-genai SDK · uv (AI 서버) | 연동만 |
+| 직접 구현 | 원본 · 활동 · 경험 · 근거 저장 · 조회 · 수정 API (BE) | 저장 구조 · 계약대로 응답 · 사용자가 고치면 출처 상태를 「내가 입력」으로 바꾸고 근거는 남기는 규칙을 코드가 정함 |
+| 외부 기술 | Spring Boot 4 · Spring Data JPA(Hibernate) · Flyway (BE) | 연동만 |
+| 외부 기술 | PostgreSQL 18 (`pgvector/pgvector` 이미지 — 확장은 켜지 않음) (BE · DB) | 설정만 |
+| 외부 기술 | Testcontainers (BE 테스트) | 연동만 |
 | 외부 기술 | Next.js 16 · React 19 · TypeScript 5 (FE) | `create-next-app` 기본 설정 · 연동만 |
 | 외부 기술 | Tailwind CSS 4 (FE) | 설정 · 연동만 |
 | 외부 기술 | shadcn/ui (button · sheet) · Radix UI (FE) | 부품 코드를 레포에 복사해 DESIGN.md 대로 색 · 크기를 고쳐 씀 |
@@ -52,6 +56,8 @@
 | `design-mockup-data` | SAMPLE | `ETC docs/design/timeline.html` | 디자인 시안용 가상 활동 · 경험 · 근거(제품 코드 아님) | 아니오 |
 | `extract-samples` | SAMPLE | `AI samples/` | 추출 결과를 손으로 볼 지어낸 README · 회고 · 목록형 노트 3건(제품 동작엔 안 쓰인다) | 아니오 |
 | `timeline-activities` | MOCK | `FE src/lib/mock/activities.ts` · `src/lib/api/experience.ts` | BE 활동 API 대신 가상 대학생 활동 · 경험 · 근거를 돌려준다. FE#7 에서 뺀다 | 아니오 |
+| `fixed-user` | SAMPLE | `BE src/main/resources/db/migration/V1__experience_schema.sql` · `src/main/java/.../common/CurrentUser.java` | 로그인(BE#10) 전까지 모든 원본 · 활동 · 경험을 사용자 1 하나의 것으로 본다 | 아니오 |
+| `dev-seed-activities` | SAMPLE | `BE src/main/java/.../seed/SampleSeeder.java` | `SEED_SAMPLE=true` 일 때 계약 예시(「바꿔요」 회고 · 알고리즘 스터디) 원본 · 활동 2 · 경험 5 · 근거를 손으로 넣는다 — AI 추출 결과가 아니다. 로컬 · 개발 서버(Access 뒤)에서만, 공개 전에 끄고 지운다 | 아니오 |
 
 - `<id>` 는 kebab-case, 네 레포 통틀어 하나. 마커를 빼면 이 줄도 뺀다.
 - 테스트 계정 비밀번호는 여기 적지 않는다 — README 와 제출 폼에만.
@@ -68,6 +74,12 @@
 | Gemini API | https://ai.google.dev/gemini-api/terms | Google Gemini API 추가 이용약관 | AI 서버 추출(선택 폴백) |
 | FastAPI | https://github.com/fastapi/fastapi | MIT | AI 서버 |
 | google-genai (Python SDK) | https://github.com/googleapis/python-genai | Apache 2.0 | AI 서버 Gemini 호출 |
+| Spring Boot | https://github.com/spring-projects/spring-boot | Apache 2.0 | BE |
+| Hibernate ORM | https://github.com/hibernate/hibernate-orm | Apache 2.0 | BE (Spring Data JPA) |
+| Flyway | https://github.com/flyway/flyway | Apache 2.0 | BE DB 마이그레이션 |
+| PostgreSQL | https://www.postgresql.org/about/licence/ | PostgreSQL License | DB |
+| pgvector | https://github.com/pgvector/pgvector | PostgreSQL License | DB 이미지(확장은 아직 안 켬) |
+| Testcontainers | https://github.com/testcontainers/testcontainers-java | MIT | BE 통합 테스트 |
 
 ## 5. 알려진 한계
 

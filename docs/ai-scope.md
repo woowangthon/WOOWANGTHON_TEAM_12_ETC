@@ -16,6 +16,7 @@
 | 외부 기술 | Google Gemini API — 선택 폴백, 키가 있을 때만 (AI 서버) | 위와 같음 |
 | 외부 기술 | FastAPI · Pydantic · uvicorn · openai SDK · google-genai SDK · uv (AI 서버) | 연동만 |
 | 직접 구현 | 원본 · 활동 · 경험 · 근거 저장 · 조회 · 수정 API (BE) | 저장 구조 · 계약대로 응답 · 사용자가 고치면 출처 상태를 「내가 입력」으로 바꾸고 근거는 남기는 규칙을 코드가 정함 |
+| 직접 구현 | 자료 넣기 → 분석 작업 → 추출 결과 저장 (BE) | 작업 상태(분석 중 · 완료 · 실패) · 다시 시도 · AI 서버 오류 · 제한 시간을 실패 이유로 남김(정해진 결과로 대신 채우지 않음) · AI 응답이 계약을 어기면(대조하지 않은 근거로 「원문에서 확인」 등) 아무것도 저장하지 않고 실패로 둠 |
 | 외부 기술 | Spring Boot 4 · Spring Data JPA(Hibernate) · Flyway (BE) | 연동만 |
 | 외부 기술 | PostgreSQL 18 (`pgvector/pgvector` 이미지 — 확장은 켜지 않음) (BE · DB) | 설정만 |
 | 외부 기술 | Testcontainers (BE 테스트) | 연동만 |

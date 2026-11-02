@@ -104,7 +104,7 @@ FE ─PATCH · POST · DELETE …─────▶ BE  고치기 · 더하기 �
 | 400 | `INVALID_REQUEST` | 필드가 없거나 `kind` 값이 틀림 |
 | 413 | `TEXT_TOO_LONG` | `text` 가 한도를 넘음 |
 
-- 한도: **BE 가 정해 여기 적는다** — 제안 `50000`자(README · 회고 몇 개 분량, LLM 한 번에 들어가는 크기). FE 는 같은 숫자로 미리 막아도 된다.
+- 한도: **`50000`자**(BE#5 — README · 회고 몇 개 분량, LLM 한 번에 들어가는 크기). BE 는 Java `String.length()`(UTF-16 단위)로 세므로 JS `text.length` 와 같은 숫자다 — FE 는 같은 숫자로 미리 막아도 된다. AI 서버 한도(코드 포인트 수 50000, `ai-api.md`)보다 크지 않다.
 - 같은 자료를 두 번 넣으면 새 원본 · 새 활동이 생긴다(BE#5 기본값). 자동으로 합치지 않는다(SPEC 미결정 3).
 
 ## GET /api/jobs/{jobId} — 분석 작업 상태

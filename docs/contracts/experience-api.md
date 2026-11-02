@@ -11,7 +11,7 @@ FE ─POST /api/sources──────────▶ BE  원본 저장 · �
 FE ─GET /api/jobs/{id} (폴링)───▶ BE  ANALYZING → COMPLETED / FAILED
 FE ─GET /api/activities─────────▶ BE  타임라인
 FE ─GET /api/activities/{id}────▶ BE  세부(경험 · 근거)
-FE ─PATCH · POST …──────────────▶ BE  고치기 · 옮기기 · 합치기
+FE ─PATCH · POST · DELETE …─────▶ BE  고치기 · 더하기 · 지우기 · 옮기기 · 합치기
 ```
 
 - 기본 주소: `/api` 아래. 스프린트 1 은 고정 사용자 하나라 인증 헤더가 없다.
@@ -385,6 +385,54 @@ FE 는 `jobId` 를 들고 있다가(새로고침 대비 주소 · 브라우저 �
 
 오류: 400 `INVALID_REQUEST` 빈 `content` · 틀린 `actor` 값 · 404 `EXPERIENCE_NOT_FOUND`
 
+## POST /api/activities/{activityId}/experiences — 경험 직접 추가
+
+- 쓰는 곳: FE 활동 세부의 「경험 직접 추가」
+- SPEC: `F-04` / `S-11`
+
+사용자가 활동에 경험을 직접 적어 넣는다. **`sourceStatus` 는 `USER_ENTERED`, `citations` 는 `[]`** — BE 가 붙인다(근거 없는 AI 경험의 `NEEDS_REVIEW` 와 다르다). 활동의 경험 맨 뒤에 붙는다.
+
+요청 — `POST /api/activities/7/experiences`
+
+```json
+{ "content": "결제 실패 알림을 슬랙으로 받게 붙였다", "perspective": null, "actor": "ME" }
+```
+
+| 필드 | 값 |
+| --- | --- |
+| `content` | 비지 않은 문자열(필수) |
+| `perspective` | 문자열 또는 `null` |
+| `actor` | `ME` · `TEAM` · `UNKNOWN`(필수 — 화면에서 미리 고를 값은 FE 가 정한다) |
+
+응답 201 — 만든 `Experience`
+
+```json
+{
+  "id": 107,
+  "activityId": 7,
+  "content": "결제 실패 알림을 슬랙으로 받게 붙였다",
+  "perspective": null,
+  "actor": "ME",
+  "sourceStatus": "USER_ENTERED",
+  "citations": []
+}
+```
+
+오류: 400 `INVALID_REQUEST` 빈 `content` · 틀린 `actor` 값 · 404 `ACTIVITY_NOT_FOUND`
+
+## DELETE /api/experiences/{experienceId} — 경험 지우기
+
+- 쓰는 곳: FE 활동 세부의 경험 메뉴 「지우기」
+- SPEC: `F-04` / `S-11`
+
+경험과 그 경험의 근거를 지운다. **원본은 남는다**(다른 경험의 근거일 수 있다). 경험이 다 빠진 활동도 남는다 — 없애려면 합치기를 쓴다. 요청 본문 없음.
+
+응답 204 — 본문 없음
+
+오류: 404 `EXPERIENCE_NOT_FOUND`
+
+- 지운 것을 되살리는 API 는 없다. 화면에서 「되돌리기」를 보여 주려면 FE 가 알림이 닫힐 때까지 요청을 늦춘다(기본값).
+
 ## POST /api/experiences/{experienceId}/move — 경험 옮기기 (`P1`)
 
 - 쓰는 곳: FE 활동 세부 — 끌어다 놓기 · 메뉴
@@ -486,6 +534,5 @@ FE 는 `jobId` 를 들고 있다가(새로고침 대비 주소 · 브라우저 �
 
 ## 이 계약에 없는 것
 
-- 경험 직접 추가 · 지우기(`S-11`, `P1`) — 이슈가 생길 때 더한다
 - 원본 목록 · 원본 다시 보기 — 근거에 `sourceName` · `quote` 가 실려 오므로 스프린트 1 엔 따로 두지 않는다
 - 로그인 · 사용 한도(R-02) — 그때 인증 헤더와 `401` · `429` 를 더한다

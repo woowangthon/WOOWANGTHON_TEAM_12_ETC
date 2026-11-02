@@ -37,7 +37,7 @@
       "experiences": [
         {
           "content": "채팅 메시지가 늦게 도착하는 문제를 폴링에서 WebSocket 으로 바꿔 해결했다",
-          "perspective": "문제 해결",
+          "competencies": ["PROBLEM_SOLVING", "IMPLEMENTATION"],
           "actor": "ME",
           "sourceStatus": "SOURCE_CONFIRMED",
           "citations": [
@@ -50,7 +50,7 @@
         },
         {
           "content": "매주 금요일 스프린트 회고를 했다",
-          "perspective": "협업",
+          "competencies": ["COLLABORATION"],
           "actor": "TEAM",
           "sourceStatus": "SOURCE_CONFIRMED",
           "citations": [
@@ -59,7 +59,7 @@
         },
         {
           "content": "서비스를 AWS 에 배포했다",
-          "perspective": "기술 구현",
+          "competencies": ["IMPLEMENTATION"],
           "actor": "TEAM",
           "sourceStatus": "SOURCE_CONFIRMED",
           "citations": [
@@ -68,7 +68,7 @@
         },
         {
           "content": "백엔드 API 설계를 맡았다",
-          "perspective": "기술 구현",
+          "competencies": ["IMPLEMENTATION"],
           "actor": "ME",
           "sourceStatus": "NEEDS_REVIEW",
           "citations": [
@@ -83,7 +83,7 @@
       "experiences": [
         {
           "content": "매주 풀 문제를 고른다",
-          "perspective": "운영",
+          "competencies": ["OPERATION"],
           "actor": "ME",
           "sourceStatus": "SOURCE_CONFIRMED",
           "citations": [
@@ -108,7 +108,7 @@
 | `activities[].period` | README 「기간」 규칙. 원본에 없는 날짜를 지어내지 않는다 — 모르면 `null` |
 | `activities[].experiences` | 1개 이상. 경험이 없는 활동은 돌려주지 않는다 |
 | `experiences[].content` | 비지 않은 문자열. 원본에 없는 수치 · 역할 · 결과를 넣지 않는다(S-05) |
-| `experiences[].perspective` | 비지 않은 자유 문자열(SPEC 미결정 2 의 기본값) |
+| `experiences[].competencies` | 배열 **1 ~ 3개**. README 「값 목록」의 역량 값만 · 중복 없음 · 가장 잘 맞는 것부터. 원문에서 확인한 사실이 아니라 AI 해석이다(SPEC 미결정 2) |
 | `experiences[].actor` | `ME` · `TEAM` · `UNKNOWN`. 원본이 「팀이 했다」면 `ME` 로 바꾸지 않는다 |
 | `experiences[].sourceStatus` | `SOURCE_CONFIRMED` · `NEEDS_REVIEW` 만. `USER_ENTERED` 는 BE 만 붙인다 |
 | `experiences[].citations` | 배열(0개 가능 — 그러면 `NEEDS_REVIEW`) |

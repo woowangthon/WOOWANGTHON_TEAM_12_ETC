@@ -40,6 +40,21 @@
 | `status` 작업 상태 | `ANALYZING` | 분석 중 |
 | | `COMPLETED` | 완료 |
 | | `FAILED` | 실패 — `error` 에 이유 |
+| `competencies` 역량 | `IMPLEMENTATION` | 기술 구현 |
+| | `PROBLEM_SOLVING` | 문제 해결 |
+| | `PLANNING` | 기획 |
+| | `ANALYSIS` | 분석 |
+| | `OPERATION` | 운영 |
+| | `COLLABORATION` | 협업 |
+| | `COMMUNICATION` | 소통 |
+| | `LEADERSHIP` | 리더십 |
+| | `INITIATIVE` | 주도성 |
+| | `RESPONSIBILITY` | 책임감 |
+| | `PERSEVERANCE` | 끈기 |
+| | `LEARNING` | 학습 |
+| | `PRESENTATION` | 발표 |
+
+`competencies` 는 **배열**이다 — 경험 하나에 0 ~ 3개, 중복 없음, 앞에 둔 것이 더 잘 맞는다. 없으면 `[]`(`null` 이 아니다). 목록은 닫혀 있다 — 새 값은 SPEC 미결정 2 의 결정을 고치고 이 표에 먼저 더한 뒤 쓴다(동의어가 생기면 검색 · 매칭이 쪼개진다).
 
 ### 기간 `period`
 

@@ -21,7 +21,7 @@
 | 외부 기술 | Testcontainers (BE 테스트) | 연동만 |
 | 외부 기술 | Next.js 16 · React 19 · TypeScript 5 (FE) | `create-next-app` 기본 설정 · 연동만 |
 | 외부 기술 | Tailwind CSS 4 (FE) | 설정 · 연동만 |
-| 외부 기술 | shadcn/ui (button · sheet) · Radix UI (FE) | 부품 코드를 레포에 복사해 DESIGN.md 대로 색 · 크기를 고쳐 씀 |
+| 외부 기술 | shadcn/ui (button · sheet · dialog) · Radix UI (FE) | 부품 코드를 레포에 복사해 DESIGN.md 대로 색 · 크기를 고쳐 씀 |
 | 외부 기술 | Vercel (FE 배포 · PR 미리보기) | GitHub 연동 설정만 |
 
 ## 2. AI 기능
@@ -58,6 +58,7 @@
 | `timeline-activities` | MOCK | `FE src/lib/mock/activities.ts` · `src/lib/api/experience.ts` | BE 활동 API 대신 가상 대학생 활동 · 경험 · 근거를 돌려준다. FE#7 에서 뺀다 | 아니오 |
 | `fixed-user` | SAMPLE | `BE src/main/resources/db/migration/V1__experience_schema.sql` · `src/main/java/.../common/CurrentUser.java` | 로그인(BE#10) 전까지 모든 원본 · 활동 · 경험을 사용자 1 하나의 것으로 본다 | 아니오 |
 | `dev-seed-activities` | SAMPLE | `BE src/main/java/.../seed/SampleSeeder.java` | `SEED_SAMPLE=true` 일 때 계약 예시(「바꿔요」 회고 · 알고리즘 스터디) 원본 · 활동 2 · 경험 5 · 근거를 손으로 넣는다 — AI 추출 결과가 아니다. 로컬 · 개발 서버(Access 뒤)에서만, 공개 전에 끄고 지운다 | 아니오 |
+| `source-analysis` | MOCK | `FE src/lib/mock/analysis.ts` · `src/lib/api/experience.ts` | BE 자료 넣기 · 분석 작업 API 대신 탭 저장소에 작업을 두고 5초 뒤 정해진 결과(「— 목 결과」 활동 하나)로 끝낸다. FE#7 에서 뺀다 | 아니오 |
 
 - `<id>` 는 kebab-case, 네 레포 통틀어 하나. 마커를 빼면 이 줄도 뺀다.
 - 테스트 계정 비밀번호는 여기 적지 않는다 — README 와 제출 폼에만.

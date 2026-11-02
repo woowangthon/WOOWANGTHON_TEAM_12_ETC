@@ -17,7 +17,7 @@
 | 외부 기술 | FastAPI · Pydantic · uvicorn · openai SDK · google-genai SDK · uv (AI 서버) | 연동만 |
 | 외부 기술 | Next.js 16 · React 19 · TypeScript 5 (FE) | `create-next-app` 기본 설정 · 연동만 |
 | 외부 기술 | Tailwind CSS 4 (FE) | 설정 · 연동만 |
-| 외부 기술 | shadcn/ui (button · sheet) · Radix UI (FE) | 부품 코드를 레포에 복사해 DESIGN.md 대로 색 · 크기를 고쳐 씀 |
+| 외부 기술 | shadcn/ui (button · sheet · dialog) · Radix UI (FE) | 부품 코드를 레포에 복사해 DESIGN.md 대로 색 · 크기를 고쳐 씀 |
 | 외부 기술 | Vercel (FE 배포 · PR 미리보기) | GitHub 연동 설정만 |
 
 ## 2. AI 기능
@@ -52,6 +52,7 @@
 | `design-mockup-data` | SAMPLE | `ETC docs/design/timeline.html` | 디자인 시안용 가상 활동 · 경험 · 근거(제품 코드 아님) | 아니오 |
 | `extract-samples` | SAMPLE | `AI samples/` | 추출 결과를 손으로 볼 지어낸 README · 회고 · 목록형 노트 3건(제품 동작엔 안 쓰인다) | 아니오 |
 | `timeline-activities` | MOCK | `FE src/lib/mock/activities.ts` · `src/lib/api/experience.ts` | BE 활동 API 대신 가상 대학생 활동 · 경험 · 근거를 돌려준다. FE#7 에서 뺀다 | 아니오 |
+| `source-analysis` | MOCK | `FE src/lib/mock/analysis.ts` · `src/lib/api/experience.ts` | BE 자료 넣기 · 분석 작업 API 대신 탭 저장소에 작업을 두고 5초 뒤 정해진 결과(「— 목 결과」 활동 하나)로 끝낸다. FE#7 에서 뺀다 | 아니오 |
 
 - `<id>` 는 kebab-case, 네 레포 통틀어 하나. 마커를 빼면 이 줄도 뺀다.
 - 테스트 계정 비밀번호는 여기 적지 않는다 — README 와 제출 폼에만.

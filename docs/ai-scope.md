@@ -56,10 +56,10 @@
 | `example-id` | MOCK / SAMPLE / 테스트 계정 | `FE src/…` | | 예 → 영상에 「모킹」 표시 / 아니오 |
 | `design-mockup-data` | SAMPLE | `ETC docs/design/timeline.html` | 디자인 시안용 가상 활동 · 경험 · 근거(제품 코드 아님) | 아니오 |
 | `extract-samples` | SAMPLE | `AI samples/` | 추출 결과를 손으로 볼 지어낸 README · 회고 · 목록형 노트 3건(제품 동작엔 안 쓰인다) | 아니오 |
-| `timeline-activities` | MOCK | `FE src/lib/mock/activities.ts` · `src/lib/api/experience.ts` | BE 활동 API 대신 가상 대학생 활동 · 경험 · 근거를 돌려준다. FE#7 에서 뺀다 | 아니오 |
+| `timeline-activities` | MOCK | `FE src/lib/mock/activities.ts` · `src/lib/api/experience.ts` | API 주소(`NEXT_PUBLIC_API_BASE_URL`)가 비어 있는 목 모드에서만 가상 대학생 활동 · 경험 · 근거를 돌려준다. 화면에 「목 모드」 표시, 저장은 실패로 보여 준다. 실제 API 실패 때 대신 쓰지 않는다(FE#7) | 아니오 |
 | `fixed-user` | SAMPLE | `BE src/main/resources/db/migration/V1__experience_schema.sql` · `src/main/java/.../common/CurrentUser.java` | 로그인(BE#10) 전까지 모든 원본 · 활동 · 경험을 사용자 1 하나의 것으로 본다 | 아니오 |
 | `dev-seed-activities` | SAMPLE | `BE src/main/java/.../seed/SampleSeeder.java` | `SEED_SAMPLE=true` 일 때 계약 예시(「바꿔요」 회고 · 알고리즘 스터디) 원본 · 활동 2 · 경험 5 · 근거를 손으로 넣는다 — AI 추출 결과가 아니다. 로컬 · 개발 서버(Access 뒤)에서만, 공개 전에 끄고 지운다 | 아니오 |
-| `source-analysis` | MOCK | `FE src/lib/mock/analysis.ts` · `src/lib/api/experience.ts` | BE 자료 넣기 · 분석 작업 API 대신 탭 저장소에 작업을 두고 5초 뒤 정해진 결과(「— 목 결과」 활동 하나)로 끝낸다. FE#7 에서 뺀다 | 아니오 |
+| `source-analysis` | MOCK | `FE src/lib/mock/analysis.ts` · `src/lib/api/experience.ts` | API 주소가 비어 있는 목 모드에서만 탭 저장소에 작업을 두고 몇 초 뒤 정해진 결과(「— 목 결과」 활동 하나)로 끝낸다. 실제 API 모드에서는 BE `POST /api/sources` · `GET /api/jobs/{id}` · 재시도를 쓴다(FE#7) | 아니오 |
 
 - `<id>` 는 kebab-case, 네 레포 통틀어 하나. 마커를 빼면 이 줄도 뺀다.
 - 테스트 계정 비밀번호는 여기 적지 않는다 — README 와 제출 폼에만.

@@ -45,7 +45,7 @@ FE ─PATCH · POST · DELETE …─────▶ BE  고치기 · 더하기 �
 ```
 
 - `citations` 는 아래 `Citation` 의 배열. AI 가 뽑은 경험은 1개 이상이지만, 근거가 없는 경험도 올 수 있다(그때 `NEEDS_REVIEW`).
-- `perspective` 는 자유 문자열 — AI 가 붙인 그대로 저장하고 FE 는 받은 대로 보여 준다(SPEC 미결정 2 의 기본값. 목록으로 정해지면 이 계약을 고친다).
+- `perspective` 는 자유 문자열 또는 `null`(직접 추가 · 수정에서 비운 경우) — AI 가 붙인 그대로 저장하고 FE 는 받은 대로 보여 준다(SPEC 미결정 2 의 기본값. 목록으로 정해지면 이 계약을 고친다).
 
 근거 `Citation`
 
@@ -357,7 +357,7 @@ FE 는 `jobId` 를 들고 있다가(새로고침 대비 주소 · 브라우저 �
 | 필드 | 값 |
 | --- | --- |
 | `content` | 비지 않은 문자열 |
-| `perspective` | 문자열 |
+| `perspective` | 문자열 또는 `null` — `null` 이면 관점을 지운다 |
 | `actor` | `ME` · `TEAM` · `UNKNOWN` |
 
 응답 200 — 바뀐 `Experience`

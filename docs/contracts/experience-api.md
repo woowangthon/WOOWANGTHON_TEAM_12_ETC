@@ -37,7 +37,7 @@ FE ─PATCH · POST · DELETE …─────▶ BE  고치기 · 더하기 �
   "id": 101,
   "activityId": 7,
   "content": "채팅 메시지가 늦게 도착하는 문제를 폴링에서 WebSocket 으로 바꿔 해결했다",
-  "perspective": "문제 해결",
+  "competencies": ["PROBLEM_SOLVING", "IMPLEMENTATION"],
   "actor": "ME",
   "sourceStatus": "SOURCE_CONFIRMED",
   "citations": []
@@ -45,7 +45,7 @@ FE ─PATCH · POST · DELETE …─────▶ BE  고치기 · 더하기 �
 ```
 
 - `citations` 는 아래 `Citation` 의 배열. AI 가 뽑은 경험은 1개 이상이지만, 근거가 없는 경험도 올 수 있다(그때 `NEEDS_REVIEW`).
-- `perspective` 는 자유 문자열 또는 `null`(직접 추가 · 수정에서 비운 경우) — AI 가 붙인 그대로 저장하고 FE 는 받은 대로 보여 준다(SPEC 미결정 2 의 기본값. 목록으로 정해지면 이 계약을 고친다).
+- `competencies` 는 역량 값의 배열(README 「값 목록」 — 0 ~ 3개, 중복 없음, 앞이 더 잘 맞는 것). 없으면 `[]`. AI 가 붙인 것은 **해석**이라 FE 는 원문 사실처럼 보이지 않게 한다(SPEC 미결정 2 · DESIGN). BE 는 받은 순서대로 저장하고 돌려준다.
 
 근거 `Citation`
 
@@ -227,7 +227,7 @@ FE 는 `jobId` 를 들고 있다가(새로고침 대비 주소 · 브라우저 �
       "id": 101,
       "activityId": 7,
       "content": "채팅 메시지가 늦게 도착하는 문제를 폴링에서 WebSocket 으로 바꿔 해결했다",
-      "perspective": "문제 해결",
+      "competencies": ["PROBLEM_SOLVING", "IMPLEMENTATION"],
       "actor": "ME",
       "sourceStatus": "SOURCE_CONFIRMED",
       "citations": [
@@ -245,7 +245,7 @@ FE 는 `jobId` 를 들고 있다가(새로고침 대비 주소 · 브라우저 �
       "id": 102,
       "activityId": 7,
       "content": "매주 금요일 스프린트 회고를 했다",
-      "perspective": "협업",
+      "competencies": ["COLLABORATION"],
       "actor": "TEAM",
       "sourceStatus": "SOURCE_CONFIRMED",
       "citations": [
@@ -263,7 +263,7 @@ FE 는 `jobId` 를 들고 있다가(새로고침 대비 주소 · 브라우저 �
       "id": 103,
       "activityId": 7,
       "content": "서비스를 AWS 에 배포했다",
-      "perspective": "기술 구현",
+      "competencies": ["IMPLEMENTATION"],
       "actor": "TEAM",
       "sourceStatus": "SOURCE_CONFIRMED",
       "citations": [
@@ -281,7 +281,7 @@ FE 는 `jobId` 를 들고 있다가(새로고침 대비 주소 · 브라우저 �
       "id": 104,
       "activityId": 7,
       "content": "백엔드 API 설계를 맡았다",
-      "perspective": "기술 구현",
+      "competencies": ["IMPLEMENTATION"],
       "actor": "ME",
       "sourceStatus": "NEEDS_REVIEW",
       "citations": [
@@ -357,7 +357,7 @@ FE 는 `jobId` 를 들고 있다가(새로고침 대비 주소 · 브라우저 �
 | 필드 | 값 |
 | --- | --- |
 | `content` | 비지 않은 문자열 |
-| `perspective` | 문자열 또는 `null` — `null` 이면 관점을 지운다 |
+| `competencies` | 역량 값 배열 — **통째로 바꾼다**(빼면 그대로). `[]` 이면 역량을 지운다. 순서가 다르면 바뀐 것으로 본다 |
 | `actor` | `ME` · `TEAM` · `UNKNOWN` |
 
 응답 200 — 바뀐 `Experience`
@@ -367,7 +367,7 @@ FE 는 `jobId` 를 들고 있다가(새로고침 대비 주소 · 브라우저 �
   "id": 104,
   "activityId": 7,
   "content": "백엔드 API 중 채팅 · 거래 API 를 설계했다",
-  "perspective": "기술 구현",
+  "competencies": ["IMPLEMENTATION"],
   "actor": "ME",
   "sourceStatus": "USER_ENTERED",
   "citations": [
@@ -383,7 +383,7 @@ FE 는 `jobId` 를 들고 있다가(새로고침 대비 주소 · 브라우저 �
 }
 ```
 
-오류: 400 `INVALID_REQUEST` 빈 `content` · 틀린 `actor` 값 · 404 `EXPERIENCE_NOT_FOUND`
+오류: 400 `INVALID_REQUEST` 빈 `content` · 틀린 `actor` 값 · `competencies` 가 목록 밖 값 · 중복 · 4개 이상 · `null` · 404 `EXPERIENCE_NOT_FOUND`
 
 ## POST /api/activities/{activityId}/experiences — 경험 직접 추가
 
@@ -395,13 +395,13 @@ FE 는 `jobId` 를 들고 있다가(새로고침 대비 주소 · 브라우저 �
 요청 — `POST /api/activities/7/experiences`
 
 ```json
-{ "content": "결제 실패 알림을 슬랙으로 받게 붙였다", "perspective": null, "actor": "ME" }
+{ "content": "결제 실패 알림을 슬랙으로 받게 붙였다", "competencies": [], "actor": "ME" }
 ```
 
 | 필드 | 값 |
 | --- | --- |
 | `content` | 비지 않은 문자열(필수) |
-| `perspective` | 문자열 또는 `null` |
+| `competencies` | 역량 값 배열(선택 — 빼면 `[]`) |
 | `actor` | `ME` · `TEAM` · `UNKNOWN`(필수 — 화면에서 미리 고를 값은 FE 가 정한다) |
 
 응답 201 — 만든 `Experience`
@@ -411,14 +411,14 @@ FE 는 `jobId` 를 들고 있다가(새로고침 대비 주소 · 브라우저 �
   "id": 107,
   "activityId": 7,
   "content": "결제 실패 알림을 슬랙으로 받게 붙였다",
-  "perspective": null,
+  "competencies": [],
   "actor": "ME",
   "sourceStatus": "USER_ENTERED",
   "citations": []
 }
 ```
 
-오류: 400 `INVALID_REQUEST` 빈 `content` · 틀린 `actor` 값 · 404 `ACTIVITY_NOT_FOUND`
+오류: 400 `INVALID_REQUEST` 빈 `content` · 틀린 `actor` 값 · `competencies` 가 목록 밖 값 · 중복 · 4개 이상 · `null` · 404 `ACTIVITY_NOT_FOUND`
 
 ## DELETE /api/experiences/{experienceId} — 경험 지우기
 
@@ -453,7 +453,7 @@ FE 는 `jobId` 를 들고 있다가(새로고침 대비 주소 · 브라우저 �
   "id": 102,
   "activityId": 8,
   "content": "매주 금요일 스프린트 회고를 했다",
-  "perspective": "협업",
+  "competencies": ["COLLABORATION"],
   "actor": "TEAM",
   "sourceStatus": "SOURCE_CONFIRMED",
   "citations": [
@@ -497,25 +497,25 @@ FE 는 `jobId` 를 들고 있다가(새로고침 대비 주소 · 브라우저 �
     {
       "id": 101, "activityId": 7,
       "content": "채팅 메시지가 늦게 도착하는 문제를 폴링에서 WebSocket 으로 바꿔 해결했다",
-      "perspective": "문제 해결", "actor": "ME", "sourceStatus": "SOURCE_CONFIRMED",
+      "competencies": ["PROBLEM_SOLVING", "IMPLEMENTATION"], "actor": "ME", "sourceStatus": "SOURCE_CONFIRMED",
       "citations": [{ "id": 201, "sourceId": 12, "sourceName": "바꿔요-회고.md", "quote": "채팅 메시지가 늦게 도착하는 문제가 있었다. 내가 폴링을 WebSocket 으로 바꿔 해결했다.", "matched": true, "location": { "startLine": 5, "endLine": 5 } }]
     },
     {
       "id": 102, "activityId": 7,
       "content": "매주 금요일 스프린트 회고를 했다",
-      "perspective": "협업", "actor": "TEAM", "sourceStatus": "SOURCE_CONFIRMED",
+      "competencies": ["COLLABORATION"], "actor": "TEAM", "sourceStatus": "SOURCE_CONFIRMED",
       "citations": [{ "id": 202, "sourceId": 12, "sourceName": "바꿔요-회고.md", "quote": "팀은 매주 금요일 스프린트 회고를 했다.", "matched": true, "location": { "startLine": 6, "endLine": 6 } }]
     },
     {
       "id": 104, "activityId": 7,
       "content": "백엔드 API 설계를 맡았다",
-      "perspective": "기술 구현", "actor": "ME", "sourceStatus": "NEEDS_REVIEW",
+      "competencies": ["IMPLEMENTATION"], "actor": "ME", "sourceStatus": "NEEDS_REVIEW",
       "citations": [{ "id": 204, "sourceId": 12, "sourceName": "바꿔요-회고.md", "quote": "나는 백엔드 API 설계를 전부 맡았다.", "matched": false, "location": null }]
     },
     {
       "id": 103, "activityId": 7,
       "content": "서비스를 AWS 에 배포했다",
-      "perspective": "기술 구현", "actor": "TEAM", "sourceStatus": "SOURCE_CONFIRMED",
+      "competencies": ["IMPLEMENTATION"], "actor": "TEAM", "sourceStatus": "SOURCE_CONFIRMED",
       "citations": [{ "id": 203, "sourceId": 12, "sourceName": "바꿔요-회고.md", "quote": "배포는 팀원이 맡아 AWS 에 올렸다.", "matched": true, "location": { "startLine": 7, "endLine": 7 } }]
     }
   ]

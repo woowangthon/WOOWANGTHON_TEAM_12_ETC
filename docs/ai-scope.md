@@ -53,7 +53,9 @@
 
 | 항목 | 출처 (URL) | 라이선스 · 이용 조건 | 어디에 썼나 |
 | --- | --- | --- | --- |
-| | | | |
+| Airbnb DESIGN.md (디자인 방식 참고) | https://getdesign.md | 공개 분석 문서 — 방식만 참고, 색값 · 글꼴 · 로고는 쓰지 않음 | ETC `docs/design/DESIGN.md` 출발점 |
+| Pretendard | https://github.com/orioncactus/pretendard | SIL OFL 1.1 | 디자인 시안 · DESIGN.md 글꼴 |
+| Phosphor Icons | https://phosphoricons.com | MIT | 디자인 시안 · DESIGN.md 아이콘 |
 
 ## 5. 알려진 한계
 

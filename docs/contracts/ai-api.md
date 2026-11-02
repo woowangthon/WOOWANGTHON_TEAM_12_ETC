@@ -5,7 +5,7 @@
 
 - 부르는 곳: BE 만, 내부망으로([ADR-004](../decisions/ADR-004-deploy.md)). 인증 없음.
 - 주소: `http://<AI 서버>:<포트>` — 값은 BE 설정(compose 서비스 이름).
-- 시간: 한 번 부르는 데 수십 초 걸릴 수 있다. BE 는 제한 시간(BE 설정, 제안 120초)을 넘으면 끊고 작업을 `FAILED`(`AI_TIMEOUT`)로 둔다. AI 서버는 BE 의 작업 상태를 모른다.
+- 시간: 한 번 부르는 데 수십 초 걸릴 수 있다. BE 는 제한 시간(BE 설정, 제안 120초)을 넘으면 끊고 작업을 `FAILED`(`AI_TIMEOUT`)로 둔다. AI 서버는 BE 의 작업 상태를 모른다. AI 서버는 LLM 폴백 · 다시 시도까지 합쳐 100초 안에 답하거나 `LLM_TIMEOUT` 으로 돌려준다(`LLM_TIMEOUT_SECONDS`).
 
 ## POST /extract — 활동 · 경험 · 근거 추출
 
@@ -115,7 +115,7 @@
 | `citations[].quote` | 원본에서 그대로 옮긴 발췌문. 비지 않은 문자열 |
 | `citations[].matched` | 원본에서 찾았으면 `true` · 못 찾았으면 `false` · 대조하지 않았으면 `null` |
 | `citations[].location` | 선택. `{ "startLine", "endLine" }` — 요청 `text` 기준 1부터 세는 줄 번호. 모르면 `null` |
-| `model` | 이번 추출에 쓴 LLM 이름(로그 · `ai-scope.md` 용). 선택 |
+| `model` | 이번 추출에 실제로 답한 LLM 이름(로그 · `ai-scope.md` 용). 모델 폴백이 있어 요청마다 다를 수 있다. 선택 |
 
 `sourceStatus` 는 근거 대조 결과로 **코드가** 정한다(LLM 이 정하지 않는다).
 
@@ -129,7 +129,7 @@
 | HTTP | `code` | 언제 |
 | --- | --- | --- |
 | 400 | `INVALID_REQUEST` | `text` 가 없거나 비었음 |
-| 413 | `TEXT_TOO_LONG` | AI 서버가 한 번에 다룰 수 없는 길이 — 한도는 AI 서버가 정해 여기 적는다(BE 한도보다 작으면 안 된다) |
+| 413 | `TEXT_TOO_LONG` | `text` 가 **50000자**를 넘음(파이썬 `len` — 유니코드 코드 포인트 수, AI 서버 `MAX_TEXT_CHARS`). BE 한도는 이 숫자보다 크면 안 된다 |
 | 502 | `LLM_ERROR` | LLM API 호출이 실패함(키 · 한도 · 네트워크) |
 | 502 | `LLM_INVALID_OUTPUT` | LLM 출력이 위 규칙을 벗어남(AI 서버 안에서 다시 시도한 뒤에도). 그럴듯하게 고쳐서 돌려주지 않는다 |
 | 504 | `LLM_TIMEOUT` | LLM 이 AI 서버의 제한 시간 안에 답하지 않음 |

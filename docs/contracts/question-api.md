@@ -7,13 +7,17 @@
 ## 흐름
 
 ```
-FE ─POST /api/questions─────────────▶ BE  문항 저장 · 추천 시작 → 202 { questionId }
+FE ─POST /api/applications──────────▶ BE  지원 + 문항 여러 개 저장 · 문항마다 추천 시작 → 202 { applicationId, questionIds }
+FE ─POST /api/applications/{id}/questions ▶ BE  그 지원에 문항 더하기 → 202 { questionId }
+FE ─GET /api/applications───────────▶ BE  넣었던 지원 목록(문항 요약 포함)
+FE ─POST /api/questions─────────────▶ BE  (문항 하나짜리 지원) 문항 저장 · 추천 시작 → 202 { questionId, applicationId }
                                        BE ─POST /match──▶ AI  (문항 + 사용자 경험 전부 + 보완)
 FE ─GET /api/questions/{id} (폴링)───▶ BE  ANALYZING → COMPLETED(요구사항 · 추천 · 되묻기) / FAILED
 FE ─POST /api/clarifications/{id}/answer ▶ BE  답 → 그 경험의 보완
 FE ─GET /api/questions──────────────▶ BE  넣었던 문항 목록
 ```
 
+- **지원**(SPEC R-03 용어 · 2026-11-03 PM) = 지원처 하나 + 문항 여러 개. 문항은 늘 어느 지원에 딸린다(`applicationId`). 추천은 지금처럼 **문항마다 따로** 돈다 — AI 는 문항 사이를 같이 보지 않는다(SPEC 미결정 15). 한 지원 안에서 같은 경험이 여러 문항에 추천됐는지는 FE 가 문항들의 `recommendations` 로 계산해 표시한다(S-21).
 - 문항 하나 = 추천 작업 하나다. 상태(`status` · `error`)는 문항에 붙는다 — `/api/jobs` 를 쓰지 않는다. 폴링 간격은 자료 넣기와 같이 FE 가 정한다.
 - 추천은 **문항을 넣을 때 한 번** 돈다. 되묻기에 답해도 저절로 다시 돌지 않는다(AI#21 기본값). 보완을 반영한 추천을 보려면 새 문항을 넣는다 — 그게 데모 6 이다.
 
@@ -24,6 +28,7 @@ FE ─GET /api/questions──────────────▶ BE  넣었
 ```json
 {
   "id": 41,
+  "applicationId": 21,
   "organization": "OO 백엔드 부트캠프",
   "text": "기술적인 문제를 해결한 경험을 구체적으로 적어 주세요.",
   "status": "COMPLETED",
@@ -31,7 +36,8 @@ FE ─GET /api/questions──────────────▶ BE  넣었
 }
 ```
 
-- `organization` — 지원처 이름. 선택이라 `null` 일 수 있다.
+- `applicationId` — 이 문항이 딸린 지원.
+- `organization` — 지원처 이름(그 지원의 것). 선택이라 `null` 일 수 있다.
 - `status` — README 「값 목록」 작업 상태(`ANALYZING` · `COMPLETED` · `FAILED`).
 
 요구사항 `Requirement` — AI 가 문항을 쪼갠 「이 지원처가 보려는 것」 하나(SPEC R-03 용어)
@@ -71,6 +77,94 @@ FE ─GET /api/questions──────────────▶ BE  넣었
 - `supplementId` — 답했으면 그 보완의 ID(`experience.supplements[]` 에 있다), 아직이면 `null`. 건너뛰기는 서버에 아무것도 보내지 않는 것이라 따로 표시가 없다(SPEC S-23).
 - 문항 하나에 0 ~ 3개(SPEC S-22). 경험이 그새 지워졌으면 빠진다.
 
+지원 `Application`
+
+```json
+{
+  "id": 21,
+  "organization": "OO 백엔드 부트캠프",
+  "questions": [
+    { "id": 41, "applicationId": 21, "organization": "OO 백엔드 부트캠프", "text": "기술적인 문제를 해결한 경험을 구체적으로 적어 주세요.", "status": "COMPLETED", "createdAt": "2026-11-04T10:00:00+09:00" },
+    { "id": 43, "applicationId": 21, "organization": "OO 백엔드 부트캠프", "text": "지원 동기와 수료 후 목표를 적어 주세요.", "status": "ANALYZING", "createdAt": "2026-11-04T10:00:00+09:00" }
+  ],
+  "createdAt": "2026-11-04T10:00:00+09:00"
+}
+```
+
+- `questions` — 문항 요약(`QuestionSummary`), **넣은 순서대로**(지원서의 문항 순서). 추천 결과는 문항마다 `GET /api/questions/{questionId}`.
+
+---
+
+## POST /api/applications — 지원 넣기(문항 여러 개)
+
+- 쓰는 곳: FE 지원 넣기
+- SPEC: `F-06` / `S-18`
+
+요청
+
+```json
+{
+  "organization": "OO 백엔드 부트캠프",
+  "questions": [
+    { "text": "기술적인 문제를 해결한 경험을 구체적으로 적어 주세요." },
+    { "text": "지원 동기와 수료 후 목표를 적어 주세요." }
+  ]
+}
+```
+
+| 필드 | 값 |
+| --- | --- |
+| `organization` | 지원처 이름(선택 — 없으면 `null`). 최대 100자 |
+| `questions` | 문항 **1 ~ 10개**, 넣은 순서가 지원서의 문항 순서. 각 `text` 는 `POST /api/questions` 의 `text` 와 같은 규칙(공백만 안 됨 · 최대 5000자) |
+
+응답 202 — 지원과 문항을 저장하고 문항마다 추천을 뒤에서 돌린다.
+
+```json
+{ "applicationId": 21, "questionIds": [41, 43] }
+```
+
+- 문항마다 분석 1회로 센다([`auth-api.md`](auth-api.md) `dailyAnalysis`). 남은 횟수가 문항 수보다 적으면 **아무것도 저장하지 않고** 429 — 일부만 넣지 않는다.
+
+오류
+
+| HTTP | `code` | 언제 |
+| --- | --- | --- |
+| 400 | `EMPTY_TEXT` | 어떤 문항의 `text` 가 비었거나 공백뿐 |
+| 400 | `INVALID_REQUEST` | `questions` 가 없거나 0개 · 10개를 넘음 · `text` 가 없음 · `organization` 이 100자를 넘음 |
+| 413 | `TEXT_TOO_LONG` | 어떤 문항의 `text` 가 5000자를 넘음 |
+| 429 | `DAILY_LIMIT_EXCEEDED` | 오늘 남은 분석 횟수가 문항 수보다 적음 |
+
+## POST /api/applications/{applicationId}/questions — 지원에 문항 더하기
+
+- 쓰는 곳: FE 지원 화면의 「문항 더하기」
+- SPEC: `F-06` / `S-18`
+
+요청 · 규칙은 `POST /api/questions` 와 같다(`organization` 은 받지 않는다 — 지원의 것을 쓴다).
+
+```json
+{ "text": "본인의 장단점을 적어 주세요." }
+```
+
+응답 202 — `{ "questionId": 44, "status": "ANALYZING" }`. 지원 하나의 문항은 **최대 20개** — 넘으면 400 `INVALID_REQUEST`.
+
+오류: `POST /api/questions` 와 같은 것 + 404 `APPLICATION_NOT_FOUND`
+
+## GET /api/applications — 넣었던 지원 목록
+
+- 쓰는 곳: FE 지원 목록
+- SPEC: `F-06` / `S-21`
+
+최근에 넣은 지원부터. 페이지 나누기 없음.
+
+응답 200 — `{ "applications": [Application, …] }`
+
+## GET /api/applications/{applicationId} — 지원 하나
+
+- 쓰는 곳: FE 지원 화면(문항 목록 · 분석 중 폴링)
+- SPEC: `F-06` / `S-18` · `S-21`
+
+응답 200 — `Application`. 오류: 404 `APPLICATION_NOT_FOUND`
+
 ---
 
 ## POST /api/questions — 지원 문항 넣기
@@ -89,10 +183,10 @@ FE ─GET /api/questions──────────────▶ BE  넣었
 | `organization` | 지원처 이름(선택 — 없으면 `null`). 최대 100자 |
 | `text` | 문항 텍스트. 공고 일부를 같이 붙여도 된다. 공백만 있으면 안 된다. 최대 **5000자**(Java `String.length()` — JS `text.length` 와 같은 숫자) |
 
-응답 202 — 문항을 저장하고 추천을 뒤에서 돌린다.
+응답 202 — 문항을 저장하고 추천을 뒤에서 돌린다. 문항 하나짜리 **지원을 새로 만든다**(`organization` 은 그 지원의 것) — 스프린트 2 처음 모양을 깨지 않으려고 남겨 둔다.
 
 ```json
-{ "questionId": 41, "status": "ANALYZING" }
+{ "questionId": 41, "applicationId": 21, "status": "ANALYZING" }
 ```
 
 - 경험이 하나도 없어도 받는다 — AI 가 요구사항을 전부 `NOT_FOUND` · 추천 `[]` 로 돌려준다.
@@ -118,8 +212,8 @@ FE ─GET /api/questions──────────────▶ BE  넣었
 ```json
 {
   "questions": [
-    { "id": 42, "organization": "OO 연합 동아리", "text": "팀 프로젝트에서 맡은 역할과, 팀과 함께 일한 방식을 적어 주세요.", "status": "COMPLETED", "createdAt": "2026-11-04T10:20:00+09:00" },
-    { "id": 41, "organization": "OO 백엔드 부트캠프", "text": "기술적인 문제를 해결한 경험을 구체적으로 적어 주세요.", "status": "COMPLETED", "createdAt": "2026-11-04T10:00:00+09:00" }
+    { "id": 42, "applicationId": 22, "organization": "OO 연합 동아리", "text": "팀 프로젝트에서 맡은 역할과, 팀과 함께 일한 방식을 적어 주세요.", "status": "COMPLETED", "createdAt": "2026-11-04T10:20:00+09:00" },
+    { "id": 41, "applicationId": 21, "organization": "OO 백엔드 부트캠프", "text": "기술적인 문제를 해결한 경험을 구체적으로 적어 주세요.", "status": "COMPLETED", "createdAt": "2026-11-04T10:00:00+09:00" }
   ]
 }
 ```
@@ -136,6 +230,7 @@ FE ─GET /api/questions──────────────▶ BE  넣었
 ```json
 {
   "id": 41,
+  "applicationId": 21,
   "organization": "OO 백엔드 부트캠프",
   "text": "기술적인 문제를 해결한 경험을 구체적으로 적어 주세요.",
   "status": "COMPLETED",
@@ -184,6 +279,7 @@ FE ─GET /api/questions──────────────▶ BE  넣었
 ```json
 {
   "id": 42,
+  "applicationId": 22,
   "organization": "OO 연합 동아리",
   "text": "팀 프로젝트에서 맡은 역할과, 팀과 함께 일한 방식을 적어 주세요.",
   "status": "COMPLETED",
@@ -287,5 +383,6 @@ FE ─GET /api/questions──────────────▶ BE  넣었
 
 ## 이 계약에 없는 것
 
-- 문항 지우기 · 고치기 — 스프린트 2 엔 없다. 잘못 넣었으면 새로 넣는다
-- 답변 초안 · 문장 생성(ETC#26) · 공고 링크에서 본문 가져오기
+- 지원 · 문항 지우기 · 고치기, 지원처 이름 고치기 — 스프린트 2 엔 없다. 넣기 전엔 FE 에서 자유롭게 고치고, 넣은 뒤 잘못 넣었으면 그 지원에 새로 더한다(SPEC S-18)
+- 「자주 나오는 문항」 목록(S-26) — FE 에 둔다. API 없음
+- 답변 초안(SPEC S-27 · ETC#26) · 공고 링크에서 본문 가져오기(SPEC 미결정 12)

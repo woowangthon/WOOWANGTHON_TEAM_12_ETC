@@ -1,6 +1,6 @@
 # experience-api — FE → BE
 
-> 스프린트 1 「경험 관리」(SPEC R-01). 이름 규칙 · 값 목록 · 기간 · 오류 모양은 [README 「공통」](README.md#공통--모든-계약이-같이-쓰는-것).
+> 스프린트 1 「경험 관리」(SPEC R-01) · 스프린트 2 보완(SPEC R-03 — 「보완 `Supplement`」 · 보완 고치기 · 지우기). 이름 규칙 · 값 목록 · 기간 · 오류 모양은 [README 「공통」](README.md#공통--모든-계약이-같이-쓰는-것).
 > 예시는 가상의 팀 프로젝트 회고 하나(「바꿔요」 · 알고리즘 스터디)로 이어진다 — [`ai-api.md`](ai-api.md) 예시와 같은 자료다.
 
 ## 흐름
@@ -40,10 +40,12 @@ FE ─PATCH · POST · DELETE …─────▶ BE  고치기 · 더하기 �
   "competencies": ["PROBLEM_SOLVING", "IMPLEMENTATION"],
   "actor": "ME",
   "sourceStatus": "SOURCE_CONFIRMED",
-  "citations": []
+  "citations": [],
+  "supplements": []
 }
 ```
 
+- `supplements` 는 아래 `Supplement` 의 배열 — 되묻기에 답해 그 경험에 쌓인 보완(SPEC R-03 · S-23). 없으면 `[]`. 만든 순서. **스프린트 2 부터 모든 `Experience` 응답에 실린다** — 이 파일의 스프린트 1 예시엔 줄였다(전부 `[]`).
 - `citations` 는 아래 `Citation` 의 배열. AI 가 뽑은 경험은 1개 이상이지만, 근거가 없는 경험도 올 수 있다(그때 `NEEDS_REVIEW`).
 - `competencies` 는 역량 값의 배열(README 「값 목록」 — 0 ~ 3개, 중복 없음, 앞이 더 잘 맞는 것). 없으면 `[]`. AI 가 붙인 것은 **해석**이라 FE 는 원문 사실처럼 보이지 않게 한다(SPEC 미결정 2 · DESIGN). BE 는 받은 순서대로 저장하고 돌려준다.
 
@@ -63,6 +65,24 @@ FE ─PATCH · POST · DELETE …─────▶ BE  고치기 · 더하기 �
 - 필수는 `sourceId` · `quote`. `location` 은 선택(`null` 가능) — 원본 텍스트 기준 1부터 세는 줄 번호.
 - `matched` — 발췌문을 원본에서 찾았나(`true` / `false`), 대조하지 않았으면 `null`. AI 결과를 그대로 저장한다.
 - 근거는 **사용자가 고치거나 옮겨도 바뀌지 않는다**(S-10 · S-12).
+
+보완 `Supplement` — 스프린트 2 (SPEC R-03)
+
+```json
+{
+  "id": 301,
+  "question": "폴링을 WebSocket 으로 바꿀 때 직접 고친 부분은 어디였나요?",
+  "answer": "서버에 STOMP 엔드포인트를 만들고, 앱의 3초 폴링 코드를 구독 방식으로 바꿨다",
+  "questionId": 41,
+  "createdAt": "2026-11-04T10:05:00+09:00",
+  "updatedAt": "2026-11-04T10:05:00+09:00"
+}
+```
+
+- 되묻기 질문과 사용자의 답 한 쌍. 만드는 곳은 `question-api.md` 「POST /api/clarifications/{id}/answer」.
+- 보완은 늘 「내가 입력」이다 — 따로 출처 칸이 없다. 보완이 생기거나 바뀌어도 **경험의 `content` · `citations` · `sourceStatus` 는 그대로**다(원문 사실과 사용자 말을 섞지 않는다 — SPEC 미결정 10). 경험 수정(`PATCH /api/experiences/{id}`)은 보완을 바꾸지 않는다.
+- `questionId` — 이 보완이 나온 지원 문항. 문항이 없어지면 `null`(스프린트 2 엔 문항 지우기가 없다).
+- 경험을 지우면 보완도 지워지고, 경험을 옮기거나 활동을 합치면 보완은 경험을 따라간다.
 
 ---
 
@@ -425,7 +445,7 @@ FE 는 `jobId` 를 들고 있다가(새로고침 대비 주소 · 브라우저 �
 - 쓰는 곳: FE 활동 세부의 경험 메뉴 「지우기」
 - SPEC: `F-04` / `S-11`
 
-경험과 그 경험의 근거를 지운다. **원본은 남는다**(다른 경험의 근거일 수 있다). 경험이 다 빠진 활동도 남는다 — 없애려면 합치기를 쓴다. 요청 본문 없음.
+경험과 그 경험의 근거 · 보완을 지운다. **원본은 남는다**(다른 경험의 근거일 수 있다). 경험이 다 빠진 활동도 남는다 — 없애려면 합치기를 쓴다. 요청 본문 없음.
 
 응답 204 — 본문 없음
 
@@ -529,6 +549,36 @@ FE 는 `jobId` 를 들고 있다가(새로고침 대비 주소 · 브라우저 �
 | 400 | `INVALID_REQUEST` | `fromActivityId` 없음 |
 | 400 | `SAME_ACTIVITY` | `fromActivityId` 가 남길 활동과 같음 |
 | 404 | `ACTIVITY_NOT_FOUND` | 둘 중 하나가 없음(이미 합쳐진 활동 포함) |
+
+---
+
+## PATCH /api/supplements/{supplementId} — 보완 고치기 (`P1`)
+
+- 쓰는 곳: FE 활동 세부의 보완 바로 고치기
+- SPEC: `F-07` / `S-24`
+
+답만 고친다(질문은 되묻기 그대로). `updatedAt` 이 바뀐다. 경험의 출처 상태는 그대로다.
+
+요청
+
+```json
+{ "answer": "서버에 STOMP 엔드포인트를 만들고, 앱의 폴링 코드를 구독 방식으로 바꿨다. 재연결도 붙였다" }
+```
+
+응답 200 — 바뀐 `Supplement`
+
+오류: 400 `EMPTY_ANSWER` 빈 `answer` · 400 `INVALID_REQUEST` `answer` 없음 · 2000자 넘음 · 404 `SUPPLEMENT_NOT_FOUND`
+
+## DELETE /api/supplements/{supplementId} — 보완 지우기 (`P1`)
+
+- 쓰는 곳: FE 활동 세부의 보완 지우기
+- SPEC: `F-07` / `S-24`
+
+보완을 지운다. 다음 추천부터 AI 후보에 실리지 않고, 이미 끝난 추천의 `evidence` 에서도 빠진다. 그 보완을 만든 되묻기는 `supplementId: null` 로 돌아간다(다시 답할 수 있다). 요청 본문 없음.
+
+응답 204 — 본문 없음
+
+오류: 404 `SUPPLEMENT_NOT_FOUND`
 
 ---
 

@@ -614,3 +614,10 @@
 .band { position: relative; }
 .hd { position: absolute; top: 50%; width: 6px; height: 18px; margin-left: -3px; transform: translateY(-50%); border-radius: 4px; background: var(--black); box-shadow: 0 0 0 2px var(--white); cursor: ew-resize; opacity: 0; transition: opacity .15s; }
 .row:hover .hd { opacity: 1; }
+/* 내 경험 머리의 블록은 그림만 — 「N개의 경험이 차곡차곡」 글은 뺀다 */
+.ex__pile .pile__cap { display: none; }
+/* 보기 전환 아이콘 */
+.vt button { width: 38px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
+.vt button svg { width: 17px; height: 17px; }
+.ask-note { display: inline-flex; align-items: center; gap: 5px; }
+.ask-note[hidden] { display: none; }

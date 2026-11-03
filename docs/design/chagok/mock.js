@@ -88,6 +88,9 @@ const ICON = {
   bookmark: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M6 3h12v18l-6-4-6 4z"/></svg>',
   panel: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M15 4v16"/></svg>',
   link: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>',
+  lock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>',
+  tl: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h9M8 12h12M4 18h7"/></svg>',
+  grid: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg>',
   up: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>',
 };
 const WHO = { TEAM: "팀", UNKNOWN: "누가 했는지 모름" };
@@ -189,7 +192,7 @@ function home() {
         </div>
       </form>
       <div class="modes" role="tablist"${note("모드는 꺼내기 / 쌓기 둘. 꺼내기는 한 줄 질문이면 근거 달린 경험, 지원 문항 · 공고면 「지원서로 만들까요?」(ETC#75). 쌓기의 칩은 「오늘 한 일 · 요즘 든 생각」처럼 일상 쪽 말로")}>${Object.entries(MODES).map(([k, v]) => `<button type="button" class="${k === "out" ? "is-active" : ""}" data-pick-mode="${k}"><i style="background:${v.color}"></i>${v.name}</button>`).join("")}</div>
-      <p class="ask-note" hidden>🔒 넣은 자료는 분석을 위해 외부 AI 제공사(OpenAI)로 보내져요 · 학습엔 안 쓰여요</p>
+      <p class="ask-note" hidden>${ICON.lock.replace("<svg", '<svg width="13" height="13"')} 넣은 자료는 분석을 위해 외부 AI 제공사(OpenAI)로 보내져요 · 학습엔 안 쓰여요</p>
       <div class="suggest">${chipsHtml(m)}</div>
       <div class="answer" hidden></div>
     </section>
@@ -272,8 +275,8 @@ function experience() {
   <div class="split">
     <div class="workspace__scroll"><div class="ex">
       <div class="ex__head"><div class="ex__pile"${note("「쌓인 블록」 — 경험 하나가 블록 하나, 해마다 쌓인다(색 = 분류, 노란 테 = 확인 필요). 로고의 쌓인 모양과 같은 말이라 이 서비스만의 그림이 된다", true)}>${pile()}</div><div><h1>내 경험</h1><p>활동 ${ACTS.length} · 경험 ${ALL_X.length} · 자료 ${SOURCES.length} — 누르면 그 안에서 한 일과 근거가 옆에 열려요.</p></div>
-        <div class="vt" role="tablist"${note("보기 전환 — 타임라인 · 목록 · 자료별. 같은 경험 데이터를 보는 방법만 바꾼다(노션 데이터베이스의 보기처럼)")}>
-          ${[["timeline", "타임라인"], ["list", "목록"], ["source", "자료별"]].map(([v, l]) => `<button type="button" data-view="${v}" class="${view === v ? "is-active" : ""}">${l}</button>`).join("")}
+        <div class="vt" role="tablist"${note("보기 전환을 아이콘으로 — 올리면 이름이 말풍선으로(접힌 사이드바와 같은 방식). 타임라인 · 목록 · 자료별. 같은 경험 데이터를 보는 방법만 바꾼다(노션 데이터베이스의 보기처럼)")}>
+          ${[["timeline", "타임라인", ICON.tl], ["list", "목록", ICON.grid], ["source", "자료별", ICON.file]].map(([v, l, ic]) => `<button type="button" data-view="${v}" data-tip="${l}" aria-label="${l}" class="${view === v ? "is-active" : ""}">${ic}</button>`).join("")}
         </div></div>
       <div class="fbar" style="display:flex;align-items:center;gap:8px;margin:18px 0 4px;flex-wrap:wrap"${note("거르기: 분류 · 저장한 것 · 확인 필요. 사이드바에 있던 활동 분류 · 자주 쓰인 역량 · 「저장한 경험」 메뉴가 여기 칩으로. 자세한 필터(역량 · 기간)는 「필터」를 눌러야 펼친다")}>
         <button type="button" class="chip is-active" data-f="all">전체</button>
@@ -474,7 +477,7 @@ function overlays() {
         <p class="dlg__desc" data-src-desc>README · 회고 · 노트를 붙여 넣거나, 오늘 한 일 한 줄만 적어도 돼요. AI 가 활동과 경험으로 나눠 둘게요.</p>
         <textarea data-src-text placeholder="붙여 넣거나 적어 주세요"></textarea>
         <div style="display:flex;align-items:center;gap:8px"><button type="button" class="btn btn--line" data-attach>${ICON.clip.replace("<svg", '<svg width="15" height="15"')} 파일 올리기</button><span class="attach" hidden></span></div>
-        <p class="notice">🔒<span>넣은 자료는 분석을 위해 외부 AI 제공사(OpenAI)로 보내져요. OpenAI API 는 보낸 내용을 학습에 쓰지 않아요. 회사 · 고객의 비공개 자료는 빼고 넣어 주세요.</span></p>
+        <p class="notice">${ICON.lock.replace("<svg", '<svg width="16" height="16" style="flex-shrink:0;margin-top:1px"')}<span>넣은 자료는 분석을 위해 외부 AI 제공사(OpenAI)로 보내져요. OpenAI API 는 보낸 내용을 학습에 쓰지 않아요. 회사 · 고객의 비공개 자료는 빼고 넣어 주세요.</span></p>
         <div class="dlg__foot"><button type="button" class="btn btn--line" data-close-dlg>취소</button><button type="button" class="btn btn--dark" data-run>넣기</button></div>
       </div>
       <div data-step="run" hidden>
@@ -715,10 +718,14 @@ document.addEventListener("wheel", (e) => { const sc = e.target.closest?.(".work
 
 // 접힌 레일: 아이콘에 마우스를 올리면 이름이 말풍선으로
 document.addEventListener("mouseover", (e) => {
-  const el = e.target.closest(".drawer [data-tip]"), tip = $(".tip");
-  if (!el || !document.documentElement.classList.contains("drawer-collapsed")) return tip.classList.remove("is-on");
+  const el = e.target.closest(".drawer [data-tip], .vt [data-tip]"), tip = $(".tip");
+  const inDrawer = el?.closest(".drawer");
+  if (!el || (inDrawer && !document.documentElement.classList.contains("drawer-collapsed"))) return tip.classList.remove("is-on");
   const r = el.getBoundingClientRect();
-  tip.textContent = el.dataset.tip; tip.style.left = `${r.right + 10}px`; tip.style.top = `${r.top + r.height / 2}px`; tip.classList.add("is-on");
+  tip.textContent = el.dataset.tip;
+  if (inDrawer) { tip.style.left = `${r.right + 10}px`; tip.style.top = `${r.top + r.height / 2}px`; tip.style.transform = "translateY(-50%)"; }
+  else { tip.style.left = `${r.left + r.width / 2}px`; tip.style.top = `${r.bottom + 8}px`; tip.style.transform = "translateX(-50%)"; }
+  tip.classList.add("is-on");
 });
 
 if (page === "exp") { if (params.get("f")) applyFilter(params.get("f")); if (params.get("a")) openDetail(params.get("a")); }

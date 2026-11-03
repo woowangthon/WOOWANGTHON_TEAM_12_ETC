@@ -14,7 +14,7 @@ FE ─GET /api/activities/{id}────▶ BE  세부(경험 · 근거)
 FE ─PATCH · POST · DELETE …─────▶ BE  고치기 · 더하기 · 지우기 · 옮기기 · 합치기
 ```
 
-- 기본 주소: `/api` 아래. 스프린트 1 은 고정 사용자 하나라 인증 헤더가 없다.
+- 기본 주소: `/api` 아래. 로그인한 사용자의 것만 보이고 고칠 수 있다 — 쿠키 · 401 은 [`auth-api.md`](auth-api.md).
 - 폴링 간격은 FE 가 정한다(제안 2초). 실시간 스트리밍은 하지 않는다.
 
 ## 모양 — 응답에 되풀이해 나오는 것
@@ -125,6 +125,7 @@ FE ─PATCH · POST · DELETE …─────▶ BE  고치기 · 더하기 �
 | 400 | `UNSUPPORTED_FILE_TYPE` | `FILE` 인데 이름이 `.md` · `.txt` 가 아님 |
 | 400 | `INVALID_REQUEST` | 필드가 없거나 `kind` 값이 틀림 |
 | 413 | `TEXT_TOO_LONG` | `text` 가 한도를 넘음 |
+| 429 | `DAILY_LIMIT_EXCEEDED` | 오늘 분석 횟수를 다 씀 — 원본을 저장하지 않는다([`auth-api.md`](auth-api.md)) |
 
 - 한도: **`50000`자**(BE#5 — README · 회고 몇 개 분량, LLM 한 번에 들어가는 크기). BE 는 Java `String.length()`(UTF-16 단위)로 세므로 JS `text.length` 와 같은 숫자다 — FE 는 같은 숫자로 미리 막아도 된다. AI 서버 한도(코드 포인트 수 50000, `ai-api.md`)보다 크지 않다.
 - 같은 자료를 두 번 넣으면 새 원본 · 새 활동이 생긴다(BE#5 기본값). 자동으로 합치지 않는다(SPEC 미결정 3).
@@ -200,7 +201,7 @@ FE 는 `jobId` 를 들고 있다가(새로고침 대비 주소 · 브라우저 �
 
 응답 202 — `GET /api/jobs/{jobId}` 와 같은 모양, `status: "ANALYZING"` · `error: null`.
 
-오류: 404 `JOB_NOT_FOUND` · 409 `JOB_NOT_FAILED` 실패 상태가 아닌 작업
+오류: 404 `JOB_NOT_FOUND` · 409 `JOB_NOT_FAILED` 실패 상태가 아닌 작업 · 429 `DAILY_LIMIT_EXCEEDED` 오늘 분석 횟수를 다 씀(다시 시도도 한 번으로 센다)
 
 ## GET /api/activities — 타임라인용 활동 목록
 
@@ -589,4 +590,3 @@ FE 는 `jobId` 를 들고 있다가(새로고침 대비 주소 · 브라우저 �
 ## 이 계약에 없는 것
 
 - 원본 목록 · 원본 다시 보기 — 근거에 `sourceName` · `quote` 가 실려 오므로 스프린트 1 엔 따로 두지 않는다
-- 로그인 · 사용 한도(R-02) — 그때 인증 헤더와 `401` · `429` 를 더한다

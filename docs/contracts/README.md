@@ -13,6 +13,7 @@
 | 파일 | 누가 → 누구 | 내용 |
 | --- | --- | --- |
 | `<영역>-api.md` | FE → BE | 엔드포인트 · 요청 · 응답 · 오류 — 영역마다 한 파일 |
+| [`auth-api.md`](auth-api.md) | FE → BE | 가입 · 로그인 · 내 정보 · 하루 분석 한도, 모든 API 의 401 · 429 (R-02) |
 | [`experience-api.md`](experience-api.md) | FE → BE | 자료 넣기 · 분석 작업 · 활동 · 경험 · 근거 (스프린트 1) · 보완 (스프린트 2) |
 | [`question-api.md`](question-api.md) | FE → BE | 지원 문항 · 추천 · 되묻기에 답하기 (스프린트 2) |
 | [`ai-api.md`](ai-api.md) | BE → AI | 추출 `/extract` (스프린트 1) · 매칭 `/match` (스프린트 2) |
@@ -24,7 +25,7 @@
 - JSON 필드 이름은 `camelCase`. ID 는 BE 가 매기는 정수(`number`).
 - 시각은 ISO 8601 + 시간대 — `"2026-11-03T14:05:00+09:00"`.
 - 값이 없으면 필드를 빼지 않고 `null` 로 둔다(배열은 `[]`).
-- 스프린트 1 은 고정 사용자 하나라 인증 헤더가 없다(SPEC 미결정 1). 로그인은 R-02 에서 더한다.
+- 로그인은 세션 쿠키다(인증 헤더 없음) — FE 는 모든 요청에 쿠키를 싣는다(`credentials: 'include'`). 가입 · 로그인 · 로그아웃을 뺀 모든 `/api/…` 는 로그인하지 않으면 401 `UNAUTHENTICATED`, 분석을 시작하는 곳은 하루 한도를 넘으면 429 `DAILY_LIMIT_EXCEEDED` — [`auth-api.md`](auth-api.md).
 
 ### 값 목록 — 코드에선 이 영문 값만 쓴다
 

@@ -104,6 +104,7 @@ FE ─GET /api/questions──────────────▶ BE  넣었
 | 400 | `EMPTY_TEXT` | `text` 가 비었거나 공백뿐 |
 | 400 | `INVALID_REQUEST` | `text` 가 없음 · `organization` 이 100자를 넘음 |
 | 413 | `TEXT_TOO_LONG` | `text` 가 5000자를 넘음 |
+| 429 | `DAILY_LIMIT_EXCEEDED` | 오늘 분석 횟수를 다 씀 — 추천도 LLM 을 불러 자료 넣기와 같이 센다. 문항을 저장하지 않는다([`auth-api.md`](auth-api.md)) |
 
 ## GET /api/questions — 넣었던 문항 목록
 
@@ -242,7 +243,7 @@ FE ─GET /api/questions──────────────▶ BE  넣었
 
 응답 202 — `GET /api/questions/{questionId}` 와 같은 모양, `status: "ANALYZING"` · `error: null` · 결과 배열은 `[]`.
 
-오류: 404 `QUESTION_NOT_FOUND` · 409 `QUESTION_NOT_FAILED` 실패 상태가 아닌 문항
+오류: 404 `QUESTION_NOT_FOUND` · 409 `QUESTION_NOT_FAILED` 실패 상태가 아닌 문항 · 429 `DAILY_LIMIT_EXCEEDED` 오늘 분석 횟수를 다 씀
 
 ## POST /api/clarifications/{clarificationId}/answer — 되묻기에 답하기
 
@@ -288,4 +289,3 @@ FE ─GET /api/questions──────────────▶ BE  넣었
 
 - 문항 지우기 · 고치기 — 스프린트 2 엔 없다. 잘못 넣었으면 새로 넣는다
 - 답변 초안 · 문장 생성(ETC#26) · 공고 링크에서 본문 가져오기
-- 로그인 · 사용 한도(R-02) — 추천도 LLM 을 부르므로 한도를 붙일 땐 분석 횟수와 같이 센다

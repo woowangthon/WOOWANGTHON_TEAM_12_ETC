@@ -19,7 +19,9 @@
 | 직접 구현 | 원본 · 활동 · 경험 · 근거 저장 · 조회 · 수정 API (BE) | 저장 구조 · 계약대로 응답 · 사용자가 고치면 출처 상태를 「내가 입력」으로 바꾸고 근거는 남기는 규칙을 코드가 정함 |
 | 직접 구현 | 자료 넣기 → 분석 작업 → 추출 결과 저장 (BE) | 작업 상태(분석 중 · 완료 · 실패) · 다시 시도 · AI 서버 오류 · 제한 시간을 실패 이유로 남김(정해진 결과로 대신 채우지 않음) · AI 응답이 계약을 어기면(대조하지 않은 근거로 「원문에서 확인」 등) 아무것도 저장하지 않고 실패로 둠 |
 | 직접 구현 | 지원 문항 저장 → 추천 작업 → 매칭 결과 저장 (BE) | 사용자의 경험 전부(근거 · 보완 포함)를 AI 후보로 싣기 · 문항 상태(분석 중 · 완료 · 실패) · 다시 시도 · AI 오류 · 제한 시간을 실패 이유로 남김(정해진 결과로 대신 채우지 않음) · AI 가 단 경험 · 근거 · 보완 ID 가 보낸 후보에 있는지 · 같은 경험의 것인지 · 되묻기가 추천한 경험에만 붙었는지 다시 확인해 어기면 아무것도 저장하지 않고 실패로 둠 · 조회 땐 경험을 지금 상태로 싣고 그새 지워진 경험은 뺌 |
+| 직접 구현 | 가입 · 로그인 · 사용자별 하루 분석 한도 (BE) | 아이디 · 비밀번호 + 서버 세션 쿠키 · 로그인 안 한 요청을 401 로 막음 · 데이터를 사용자별로 나눔 · AI 를 부르는 네 곳에서 하루 횟수를 DB 카운터로 세고 넘으면 시작하지 않음(동시에 눌러도 한도를 넘지 않게 한 문장으로 세기) |
 | 외부 기술 | Spring Boot 4 · Spring Data JPA(Hibernate) · Flyway (BE) | 연동만 |
+| 외부 기술 | Spring Security Crypto — BCrypt (BE) | 비밀번호 해시만. 로그인 흐름 · 필터는 직접 구현 |
 | 외부 기술 | PostgreSQL 18 (`pgvector/pgvector` 이미지 — 확장은 켜지 않음) (BE · DB) | 설정만 |
 | 외부 기술 | Testcontainers (BE 테스트) | 연동만 |
 | 외부 기술 | Next.js 16 · React 19 · TypeScript 5 (FE) | `create-next-app` 기본 설정 · 연동만 |
@@ -116,8 +118,9 @@
 | `extract-samples` | SAMPLE | `AI samples/` | 추출을 손으로 보고 채점할 지어낸 자료 10건(README · 회고 · 노트 · 회의록 · 커밋 메모 · 자소서 · 옵시디언 MOC 등)과 손으로 적은 정답 `samples/answers/`(제품 동작엔 안 쓰인다) | 아니오 |
 | `match-samples` | SAMPLE | `AI samples/match/` | 매칭을 채점할 지어낸 사용자 한 명의 경험 20개 · 근거 · 보완과 문항 10개, 손으로 적은 정답(제품 동작엔 안 쓰인다) | 아니오 |
 | `timeline-activities` | MOCK | `FE src/lib/mock/activities.ts` · `src/lib/api/experience.ts` | API 주소(`NEXT_PUBLIC_API_BASE_URL`)가 비어 있는 목 모드에서만 가상 대학생 활동 · 경험 · 근거를 돌려준다. 화면에 「목 모드」 표시, 저장은 실패로 보여 준다. 실제 API 실패 때 대신 쓰지 않는다(FE#7) | 아니오 |
-| `fixed-user` | SAMPLE | `BE src/main/resources/db/migration/V1__experience_schema.sql` · `src/main/java/.../common/CurrentUser.java` | 로그인(BE#10) 전까지 모든 원본 · 활동 · 경험을 사용자 1 하나의 것으로 본다 | 아니오 |
-| `dev-seed-activities` | SAMPLE | `BE src/main/java/.../seed/SampleSeeder.java` | `SEED_SAMPLE=true` 일 때 계약 예시(「바꿔요」 회고 · 알고리즘 스터디) 원본 · 활동 2 · 경험 5 · 근거를 손으로 넣는다 — AI 추출 결과가 아니다. 로컬 · 개발 서버(Access 뒤)에서만, 공개 전에 끄고 지운다 | 아니오 |
+| `fixed-user` | SAMPLE | `BE src/main/resources/db/migration/V1__experience_schema.sql` | 로그인(BE#10) 전 모든 데이터의 주인이던 사용자 1. 이제 코드는 쓰지 않고, 아이디 · 비밀번호가 없어 아무도 로그인할 수 없다. 이미 돈 마이그레이션이라 마커를 지울 수 없어(Flyway 체크섬) 줄을 남긴다 | 아니오 |
+| `test-account` | SAMPLE · 테스트 계정 | `BE src/main/java/.../seed/TestAccountSeeder.java` · `application.properties` | `TEST_ACCOUNT_PASSWORD` 가 있으면 심사용 계정 `test` 를 만들고 하루 분석 한도를 넉넉히(기본 200) 준다. 데이터는 미리 넣지 않는다 — 진짜 로그인 · 분석 흐름을 그대로 탄다 | 예 — 심사위원이 이 계정으로 들어온다 |
+| `dev-seed-activities` | SAMPLE | `BE src/main/java/.../seed/SampleSeeder.java` | `SEED_SAMPLE=true` 일 때 계약 예시(「바꿔요」 회고 · 알고리즘 스터디) 원본 · 활동 2 · 경험 5 · 근거를 테스트 계정에 손으로 넣는다 — AI 추출 결과가 아니다. 로컬 · 개발 서버(Access 뒤)에서만, 공개 전에 끄고 지운다 | 아니오 |
 | `source-analysis` | MOCK | `FE src/lib/mock/analysis.ts` · `src/lib/api/experience.ts` | API 주소가 비어 있는 목 모드에서만 탭 저장소에 작업을 두고 몇 초 뒤 정해진 결과(「— 목 결과」 활동 하나)로 끝낸다. 실제 API 모드에서는 BE `POST /api/sources` · `GET /api/jobs/{id}` · 재시도를 쓴다(FE#7) | 아니오 |
 
 - `<id>` 는 kebab-case, 네 레포 통틀어 하나. 마커를 빼면 이 줄도 뺀다.
@@ -141,6 +144,7 @@
 | PostgreSQL | https://www.postgresql.org/about/licence/ | PostgreSQL License | DB |
 | pgvector | https://github.com/pgvector/pgvector | PostgreSQL License | DB 이미지(확장은 아직 안 켬) |
 | Testcontainers | https://github.com/testcontainers/testcontainers-java | MIT | BE 통합 테스트 |
+| Spring Security (spring-security-crypto) | https://github.com/spring-projects/spring-security | Apache 2.0 | BE 비밀번호 BCrypt 해시 |
 | Docker Engine · Docker Compose | https://github.com/moby/moby · https://github.com/docker/compose | Apache 2.0 | 서버 배포(BE `docker-compose.yml`) |
 | Eclipse Temurin (JDK · JRE 이미지) | https://adoptium.net | GPLv2 + Classpath Exception | BE 이미지 빌드 · 실행 |
 | cloudflared | https://github.com/cloudflare/cloudflared | Apache 2.0 | 서버 → Cloudflare Tunnel 연결 컨테이너 |

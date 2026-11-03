@@ -621,3 +621,16 @@
 .vt button svg { width: 17px; height: 17px; }
 .ask-note { display: inline-flex; align-items: center; gap: 5px; }
 .ask-note[hidden] { display: none; }
+/* 내 경험 머리 — 제목 왼쪽, 블록은 오른쪽 작은 통계 카드 */
+.ex__head { align-items: center; }
+.ex__head > div:first-child { flex: 1; }
+.ex__pile--side .pile { padding: 8px 12px; gap: 6px; border-radius: 14px; }
+.ex__pile--side .pile__stack { min-height: 30px; }
+.ex__pile--side .pile__stack i { width: 18px; height: 4px; }
+.ex__pile--side .pile__cap { display: block; font-size: 11px; line-height: 1.4; }
+.ex__pile--side .pile__cap b { font-size: 16px; }
+.pile__cap--side { display: none; }
+.ex__pile--side .pile__cap { display: none; }
+.ex__pile--side .pile__cap--side { display: block; margin-left: 4px; text-align: left; }
+.ex__head > .ex__pile--side { flex: 0 0 auto; }
+.ex__head > div.ex__pile--side { flex: 0 0 auto; }

@@ -1,11 +1,11 @@
 # ai-api — BE → AI
 
-> 스프린트 1 「경험 관리」(SPEC F-02). 이름 규칙 · 값 목록 · 기간 · 오류 모양은 [README 「공통」](README.md#공통--모든-계약이-같이-쓰는-것).
+> 스프린트 1 「경험 관리」(SPEC F-02 — `POST /extract`) · 스프린트 2 「문항 매칭」(SPEC R-03 — `POST /match`). 이름 규칙 · 값 목록 · 기간 · 오류 모양은 [README 「공통」](README.md#공통--모든-계약이-같이-쓰는-것).
 > AI 서버는 DB 를 만지지 않고 상태가 없다 — 받은 텍스트로 JSON 만 돌려준다([ADR-003](../decisions/ADR-003-stack-and-ai-boundary.md)). 저장 · ID · 사용자 구분은 BE.
 
 - 부르는 곳: BE 만, 내부망으로([ADR-004](../decisions/ADR-004-deploy.md)). 인증 없음.
 - 주소: `http://<AI 서버>:<포트>` — 값은 BE 설정(compose 서비스 이름).
-- 시간: 한 번 부르는 데 수십 초 걸릴 수 있다. BE 는 제한 시간(BE `AI_TIMEOUT_SECONDS`, 기본 120초)을 넘으면 끊고 작업을 `FAILED`(`AI_TIMEOUT`)로 둔다. AI 서버는 BE 의 작업 상태를 모른다. AI 서버는 LLM 폴백 · 다시 시도까지 합쳐 100초 안에 답하거나 `LLM_TIMEOUT` 으로 돌려준다(`LLM_TIMEOUT_SECONDS`).
+- 시간: 한 번 부르는 데 수십 초 걸릴 수 있다. BE 는 제한 시간(BE `AI_TIMEOUT_SECONDS`, 기본 120초)을 넘으면 끊고 작업을 `FAILED`(`AI_TIMEOUT`)로 둔다. AI 서버는 BE 의 작업 상태를 모른다. AI 서버는 LLM 폴백 · 다시 시도까지 합쳐 100초 안에 답하거나 `LLM_TIMEOUT` 으로 돌려준다(`LLM_TIMEOUT_SECONDS`). `/extract` · `/match` 둘 다 같다.
 
 ## POST /extract — 활동 · 경험 · 근거 추출
 
@@ -136,6 +136,162 @@
 | 500 | `INTERNAL_ERROR` | 그 밖 |
 
 BE 는 어떤 오류든 작업을 `FAILED`(`AI_FAILED`, `message` 에 위 `code`)로 둔다. 정해진 결과로 대신 채우지 않는다(대회 규칙 2).
+
+## POST /match — 지원 문항에 맞는 경험 추천 · 되묻기
+
+- 부르는 곳: BE 추천 작업(question-api `POST /api/questions` · `retry` 뒤)
+- SPEC: `F-06` · `F-07` · `F-08` / `S-19` · `S-20` · `S-22` · `S-25`
+
+BE 가 문항과 **그 사용자의 경험 전부**를 후보로 보낸다([ADR-003](../decisions/ADR-003-stack-and-ai-boundary.md) — 임베딩 · 후보 줄이기는 넘칠 때). AI 서버는 문항을 요구사항으로 쪼개고, 요구사항마다 근거를 판정하고, 경험을 0 ~ 3개 추천하고, 부족한 사실을 0 ~ 3개 묻는다. LLM 을 안에서 몇 번 부를지는 AI 서버가 정한다 — 응답은 하나다.
+
+요청 — 문항 B(question-api 예시). 경험 101 엔 문항 A 에서 답한 보완 301 이 실려 있다.
+
+```json
+{
+  "question": {
+    "organization": "OO 연합 동아리",
+    "text": "팀 프로젝트에서 맡은 역할과, 팀과 함께 일한 방식을 적어 주세요."
+  },
+  "experiences": [
+    {
+      "id": 101,
+      "activityName": "바꿔요 — 캠퍼스 중고거래 앱",
+      "period": { "start": "2025-03", "end": "2025-06", "ongoing": false },
+      "content": "채팅 메시지가 늦게 도착하는 문제를 폴링에서 WebSocket 으로 바꿔 해결했다",
+      "competencies": ["PROBLEM_SOLVING", "IMPLEMENTATION"],
+      "actor": "ME",
+      "sourceStatus": "SOURCE_CONFIRMED",
+      "citations": [
+        { "id": 201, "quote": "채팅 메시지가 늦게 도착하는 문제가 있었다. 내가 폴링을 WebSocket 으로 바꿔 해결했다." }
+      ],
+      "supplements": [
+        { "id": 301, "question": "폴링을 WebSocket 으로 바꿀 때 직접 고친 부분은 어디였나요?", "answer": "서버에 STOMP 엔드포인트를 만들고, 앱의 3초 폴링 코드를 구독 방식으로 바꿨다" }
+      ]
+    },
+    {
+      "id": 102,
+      "activityName": "바꿔요 — 캠퍼스 중고거래 앱",
+      "period": { "start": "2025-03", "end": "2025-06", "ongoing": false },
+      "content": "매주 금요일 스프린트 회고를 했다",
+      "competencies": ["COLLABORATION"],
+      "actor": "TEAM",
+      "sourceStatus": "SOURCE_CONFIRMED",
+      "citations": [{ "id": 202, "quote": "팀은 매주 금요일 스프린트 회고를 했다." }],
+      "supplements": []
+    },
+    {
+      "id": 103,
+      "activityName": "바꿔요 — 캠퍼스 중고거래 앱",
+      "period": { "start": "2025-03", "end": "2025-06", "ongoing": false },
+      "content": "서비스를 AWS 에 배포했다",
+      "competencies": ["IMPLEMENTATION"],
+      "actor": "TEAM",
+      "sourceStatus": "SOURCE_CONFIRMED",
+      "citations": [{ "id": 203, "quote": "배포는 팀원이 맡아 AWS 에 올렸다." }],
+      "supplements": []
+    },
+    {
+      "id": 104,
+      "activityName": "바꿔요 — 캠퍼스 중고거래 앱",
+      "period": { "start": "2025-03", "end": "2025-06", "ongoing": false },
+      "content": "백엔드 API 설계를 맡았다",
+      "competencies": ["IMPLEMENTATION"],
+      "actor": "ME",
+      "sourceStatus": "NEEDS_REVIEW",
+      "citations": [{ "id": 204, "quote": "나는 백엔드 API 설계를 전부 맡았다." }],
+      "supplements": []
+    },
+    {
+      "id": 105,
+      "activityName": "알고리즘 스터디",
+      "period": { "start": "2024-09", "end": null, "ongoing": true },
+      "content": "매주 풀 문제를 고른다",
+      "competencies": ["OPERATION"],
+      "actor": "ME",
+      "sourceStatus": "SOURCE_CONFIRMED",
+      "citations": [{ "id": 205, "quote": "내가 문제 선정을 맡는다." }],
+      "supplements": []
+    }
+  ]
+}
+```
+
+| 필드 | 값 |
+| --- | --- |
+| `question.organization` | 지원처 이름. `null` 가능 — 문항 의도를 읽는 단서로만 쓴다 |
+| `question.text` | 문항 텍스트(BE 한도 5000자). 비지 않은 문자열 |
+| `experiences` | 사용자의 경험 전부. **0개면 `[]`** — 오류가 아니다. `id` 는 BE 의 경험 ID, 중복 없음 |
+| `experiences[].activityName` · `period` | 그 경험이 속한 활동 — 문맥 단서 |
+| `experiences[].content` · `competencies` · `actor` · `sourceStatus` | `experience-api.md` 「Experience」 그대로 |
+| `experiences[].citations` | `{ id, quote }` 만. 원본에서 확인 못 한 근거(`matched: false`)도 싣는다 — 경험의 `sourceStatus` 가 그걸 말해 준다 |
+| `experiences[].supplements` | 보완 `{ id, question, answer }`. 사용자가 직접 말한 사실이다(「내가 입력」). 없으면 `[]` |
+
+응답 200
+
+```json
+{
+  "requirements": [
+    { "text": "팀에서 내가 맡은 역할", "status": "SUPPORTED", "experienceIds": [101] },
+    { "text": "팀과 함께 일한 방식", "status": "PARTIAL", "experienceIds": [102] }
+  ],
+  "recommendations": [
+    {
+      "experienceId": 102,
+      "reason": "팀이 매주 회고로 일하는 방식을 맞춘 사례다",
+      "emphasis": "정기 회고로 진행을 함께 점검한 방식",
+      "evidence": [{ "type": "CITATION", "id": 202 }],
+      "gaps": ["회고에서 내가 맡은 몫이 자료에 없다"]
+    },
+    {
+      "experienceId": 101,
+      "reason": "팀에서 실시간 채팅 기능을 직접 맡아 고친 역할이 드러난다",
+      "emphasis": "서버 엔드포인트와 앱 코드를 모두 맡은 범위",
+      "evidence": [{ "type": "CITATION", "id": 201 }, { "type": "SUPPLEMENT", "id": 301 }],
+      "gaps": []
+    }
+  ],
+  "clarifications": [
+    { "experienceId": 102, "question": "매주 회고에서 직접 맡은 일이 있었다면 무엇이었나요?" }
+  ],
+  "model": "<LLM 모델 이름>"
+}
+```
+
+- 예시 읽는 법: 102 는 `TEAM` 이라 이유에 「내가 했다」가 없고 내 몫은 되묻기로 묻는다(S-20). 101 의 「직접 고친 부분」은 보완 301 에 있으니 다시 묻지 않고 근거로 쓴다(S-25). 배포 103 은 팀원이 한 일이라 「내가 맡은 역할」의 근거가 아니다. 104 는 근거가 원본에서 확인되지 않아(`NEEDS_REVIEW`) 역할의 근거로 고르지 않았다 — 고를 수는 있지만 그러면 `gaps` 에 그 점을 적는다. 문항 A(기술 문제 해결)였다면 101 이 먼저 오고, 보완이 없을 때 「직접 고친 부분은?」을 물었을 것이다.
+
+### 응답 규칙 — 어기면 AI 서버가 다시 시도한 뒤 `LLM_INVALID_OUTPUT` 으로 돌려준다
+
+| 필드 | 규칙 |
+| --- | --- |
+| `requirements` | 배열 **1 ~ 6개** |
+| `requirements[].text` | 비지 않은 문자열 — 문항이 보려는 것 하나(도구 「Python · SQL」 또는 능력 서술 「데이터 정합성 검증」) |
+| `requirements[].status` | `requirementStatus` 값(README) — `SUPPORTED` 근거가 받친다 · `PARTIAL` 일부만 받친다 · `NOT_FOUND` 자료에서 확인 안 됨 |
+| `requirements[].experienceIds` | `NOT_FOUND` 면 `[]`, 아니면 1개 이상. 전부 **요청에 있는** 경험 ID |
+| `recommendations` | 배열 **0 ~ 3개**, 더 잘 맞는 것부터. 맞는 게 없으면 `[]` — 억지로 채우지 않는다 |
+| `recommendations[].experienceId` | 요청에 있는 경험 ID · 추천끼리 중복 없음 |
+| `recommendations[].reason` · `emphasis` | 비지 않은 문자열. AI 해석이다. 경험 · 근거 · 보완에 없는 수치 · 역할 · 결과를 넣지 않는다(S-05). `actor` 가 `TEAM` · `UNKNOWN` 이면 「내가 한 일」로 바꿔 말하지 않는다(S-20) |
+| `recommendations[].evidence` | 배열(0개 가능 — 근거 · 보완이 없는 경험). `{ "type": "CITATION" \| "SUPPLEMENT", "id" }` — `id` 는 **같은 경험의** `citations[].id` · `supplements[].id` 중 하나. 중복 없음 |
+| `recommendations[].gaps` | 문자열 배열(0개 가능) — 문항에 필요한데 그 경험의 근거 · 보완에 없는 것 |
+| `clarifications` | 배열 **0 ~ 3개**(SPEC S-22) |
+| `clarifications[].experienceId` | `recommendations` 에 있는 경험 ID — 답이 그 경험의 보완이 되므로 추천하지 않은 경험엔 묻지 않는다 |
+| `clarifications[].question` | 비지 않은 문자열. 그 경험 · 문항에 맞게 구체적으로. 근거 · 보완에 이미 있는 사실은 묻지 않는다(S-25). 답을 유도하는 수치 · 역할을 넣지 않는다(S-22) |
+| `model` | 실제로 답한 LLM 이름. 선택 |
+
+- 코드가 확인하는 것: 개수 · 값 목록 · **ID 가 요청에 있는지**(경험 · 근거 · 보완 — 지어낸 ID 면 위반). 이유 · 질문의 내용(수치 유도 · 같은 사실 다시 묻기)은 코드로 다 막을 수 없어 채점으로 잰다(AI#21 · `ai-scope.md`).
+- 경험이 `[]` 면 `requirements` 는 전부 `NOT_FOUND`, `recommendations` · `clarifications` 는 `[]`.
+
+### 오류
+
+| HTTP | `code` | 언제 |
+| --- | --- | --- |
+| 400 | `INVALID_REQUEST` | `question.text` 가 없거나 비었음 · `experiences` 가 없음(`null`) · 경험 `id` 중복 |
+| 413 | `TEXT_TOO_LONG` | 문항 텍스트와 경험의 `content` · `quote` · 보완 `question` · `answer` 를 합친 글자 수(코드 포인트)가 **100000** 을 넘음(AI 서버 `MAX_MATCH_CHARS`) — 경험 수백 개 분량. 넘치면 그때 후보 줄이기(ADR-003) |
+| 502 | `LLM_ERROR` | LLM API 호출이 실패함 |
+| 502 | `LLM_INVALID_OUTPUT` | LLM 출력이 위 규칙을 벗어남(다시 시도한 뒤에도). 규칙에 맞게 잘라 내거나 고쳐서 돌려주지 않는다 |
+| 504 | `LLM_TIMEOUT` | 제한 시간 안에 답하지 않음 |
+| 500 | `INTERNAL_ERROR` | 그 밖 |
+
+BE 는 어떤 오류든 문항을 `FAILED`(`AI_FAILED`, `message` 에 위 `code`)로 둔다 — `/extract` 와 같다.
 
 ## GET /health — 살아 있나
 

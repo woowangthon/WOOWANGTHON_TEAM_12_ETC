@@ -13,8 +13,9 @@
 | 파일 | 누가 → 누구 | 내용 |
 | --- | --- | --- |
 | `<영역>-api.md` | FE → BE | 엔드포인트 · 요청 · 응답 · 오류 — 영역마다 한 파일 |
-| [`experience-api.md`](experience-api.md) | FE → BE | 자료 넣기 · 분석 작업 · 활동 · 경험 · 근거 (스프린트 1) |
-| [`ai-api.md`](ai-api.md) | BE → AI | 추출 요청 · 응답 (스프린트 1) |
+| [`experience-api.md`](experience-api.md) | FE → BE | 자료 넣기 · 분석 작업 · 활동 · 경험 · 근거 (스프린트 1) · 보완 (스프린트 2) |
+| [`question-api.md`](question-api.md) | FE → BE | 지원 문항 · 추천 · 되묻기에 답하기 (스프린트 2) |
+| [`ai-api.md`](ai-api.md) | BE → AI | 추출 `/extract` (스프린트 1) · 매칭 `/match` (스프린트 2) |
 
 ## 공통 — 모든 계약이 같이 쓰는 것
 
@@ -53,6 +54,11 @@
 | | `PERSEVERANCE` | 끈기 |
 | | `LEARNING` | 학습 |
 | | `PRESENTATION` | 발표 |
+| `requirementStatus` 요구사항 판정 (스프린트 2) | `SUPPORTED` | 근거 있음 — 경험의 근거 · 보완이 받친다 |
+| | `PARTIAL` | 일부 — 일부만 받친다 |
+| | `NOT_FOUND` | 자료에서 확인 안 됨 — 「경험 없음」이 아니다(SPEC §0) |
+| `evidenceType` 추천 근거 종류 (스프린트 2) | `CITATION` | 원본 발췌문(근거) |
+| | `SUPPLEMENT` | 보완 — 되묻기에 사용자가 한 답(「내가 입력」) |
 
 `competencies` 는 **배열**이다 — 경험 하나에 0 ~ 3개, 중복 없음, 앞에 둔 것이 더 잘 맞는다. 없으면 `[]`(`null` 이 아니다). 목록은 닫혀 있다 — 새 값은 SPEC 미결정 2 의 결정을 고치고 이 표에 먼저 더한 뒤 쓴다(동의어가 생기면 검색 · 매칭이 쪼개진다).
 

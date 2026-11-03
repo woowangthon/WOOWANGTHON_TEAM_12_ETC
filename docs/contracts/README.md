@@ -54,6 +54,8 @@
 | | `PERSEVERANCE` | 끈기 |
 | | `LEARNING` | 학습 |
 | | `PRESENTATION` | 발표 |
+| `competenciesBy` 역량 출처 | `AI` | AI 가 붙인 해석 — 분석이 만든 그대로 |
+| | `USER` | 사용자가 골랐다 — 역량을 고쳤거나 경험을 직접 넣었다. **BE 만** 붙인다 |
 | `requirementStatus` 요구사항 판정 (스프린트 2) | `SUPPORTED` | 근거 있음 — 경험의 근거 · 보완이 받친다 |
 | | `PARTIAL` | 일부 — 일부만 받친다 |
 | | `NOT_FOUND` | 자료에서 확인 안 됨 — 「경험 없음」이 아니다(SPEC §0) |

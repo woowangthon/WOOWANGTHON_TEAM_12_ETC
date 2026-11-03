@@ -116,14 +116,13 @@ function shell(crumb, body, { split = false } = {}) {
   return `
   <div class="bg-blur" aria-hidden="true"><img src="assets/home/bg-blur.svg" width="1500" height="1629.5" alt="" /></div>
   <aside class="drawer">
-    <div class="brand"${note("사이드바 폭 286 → 248. 접으면 둥근 아이콘만 남는 레일이 되고, 접힌 상태에선 로고에 마우스를 올리면 「사이드바 열기」로 바뀐다(Gemini 방식). 검색은 위 돋보기로")}>
+    <div class="brand"${note("사이드바 폭 286 → 248. 접으면 둥근 아이콘만 남는 레일이 되고, 접힌 상태에선 로고에 마우스를 올리면 「사이드바 열기」로 바뀐다(Gemini 방식). 로고 칸 높이를 고정해 로고 ↔ 열기 버튼이 바뀌어도 아래가 흔들리지 않는다")}>
       <a href="index.html" aria-label="차곡 홈"><img class="brand__wordmark" src="assets/home/logo.svg" width="93.1919" height="26.364" alt="차곡" /><img class="brand__symbol" src="assets/home/logo-symbol.svg" width="23.7059" height="26" alt="차곡" /></a>
-      <span class="brand__tools"><button type="button" class="circle tool-search" aria-label="내 경험에서 검색">${ICON.search}</button><button type="button" class="circle drawer-toggle" data-tip="사이드바 열기" aria-label="사이드바 접기" aria-expanded="true">${ICON.panel}</button></span>
+      <span class="brand__tools"><button type="button" class="circle drawer-toggle" data-tip="사이드바 열기" aria-label="사이드바 접기" aria-expanded="true">${ICON.panel}</button></span>
     </div>
-    <button type="button" class="btn-add" data-menu="plus" data-tip="추가"${note("「자료 넣기」 · 「생각난 김에 한 줄」 두 버튼을 「+ 추가」 하나로. 누르면 자료 가져오기 · 직접 기록하기 · 새 지원서 중에서 고른다. 접은 레일에선 다른 아이콘과 같은 동그라미")}>
+    <button type="button" class="btn-add" data-menu="plus" data-tip="추가"${note("「자료 넣기」 · 「생각난 김에 한 줄」 두 버튼을 「+ 추가」 하나로. 누르면 자료 가져오기 · 직접 기록하기 · 새 지원서 중에서 고른다. 검은 알약 대신 홈 · 내 경험과 같은 메뉴 줄 모양(Gemini 의 「새 채팅」처럼), 접은 레일에선 같은 동그라미")}>
       <img src="assets/home/plus.svg" width="18" height="18" alt="" /><span class="btn-add__label">추가</span></button>
     <nav class="nav" aria-label="주요 메뉴">
-      <a class="nav__item rail-only" href="#" data-tip="검색">${ICON.search}<span class="nav__label">검색</span></a>
       ${nav("home", "index.html", ICON.home, "홈")}
       ${nav("exp", "experience.html", ICON.stack, "내 경험", ALL_X.length, note("「타임라인 · 저장한 경험 · 넣은 자료」를 「내 경험」 하나로 — 셋 다 같은 경험을 보는 방법(타임라인 · 목록 · 자료별)과 거르기(저장한 것)라서. 이름이 「타임라인」이면 보기 하나만 떠올라 바꿨다", true))}
       <a class="nav__item rail-only" href="apply.html" data-tip="지원서">${ICON.doc}<span class="nav__label">지원서</span></a>
@@ -140,7 +139,7 @@ function shell(crumb, body, { split = false } = {}) {
     <header class="toolbar">
       <div class="crumbs"><img src="assets/home/archive.svg" width="17" height="17" alt="" /><span>내 서랍</span><span class="crumbs__sep">/</span><strong>${crumb}</strong></div>
       <div class="toolbar__right">
-        <span class="quick-search" hidden><input /></span>
+        <label class="tsearch"${note("검색은 알림 옆으로 — 찾는 건 경험이라 화면 위쪽이 자연스럽다. 누르면 넓어진다(Ctrl K). 뜻으로 찾기는 홈의 「물어보기」가 맡는다")}><span class="circle">${ICON.search}</span><span class="quick-search"><input placeholder="내 경험에서 검색" /></span></label>
         <button type="button" class="circle bell" data-menu="bell" aria-label="알림 — 확인할 것 ${reviews.length}"${note("「확인해 주세요」 큰 칸을 홈에서 빼고 알림함으로 — 빨간 점 하나. 누르면 AI 가 원문에서 못 찾은 경험 · 끝난 분석 · 추천 완료가 뜬다. 재촉하는 알림(「오늘 기록하세요」)은 없다")}><img src="assets/home/bell.svg" width="19" height="19" alt="" /><i></i></button>
         <span class="divider"></span>
         <span class="save-state"><img src="assets/home/cloud-check.svg" width="15" height="15" alt="" />모두 저장됨</span>
@@ -150,36 +149,49 @@ function shell(crumb, body, { split = false } = {}) {
   </main>`;
 }
 
-/* ---------- 홈 — 입력 하나: 꺼내기 / 쌓기 ---------- */
+/* ---------- 홈 — 입력 하나, 안에서 모드 고르기 ---------- */
+// 모드 색은 로고의 세 색에서: 물어보기 = 파랑, 지원서 = 분홍, 쌓기 = 초록
 const MODES = {
-  out: { ph: "지원 문항이나 공고를 붙여 넣어 보세요 — 쌓인 경험에서 맞는 걸 근거와 함께 찾아 드려요", chips: ["지원 동기", "협업 · 갈등을 풀어 본 경험", "기술적인 문제를 해결한 경험", "실패에서 배운 점"], hint: "자주 나오는 문항을 눌러 바로 넣을 수 있어요" },
-  in: { ph: "README · 회고 · 노트를 붙여 넣거나, 한 줄만 적어도 돼요 — AI 가 활동과 경험으로 정리해요", chips: [".md · .txt 파일 올리기", "노션에서 복사한 활동 정리", "한 줄: 스터디에서 처음 발표했다"], hint: "넣은 자료는 분석을 위해 외부 AI 제공사(OpenAI)로 보내져요. 학습에는 쓰이지 않아요." },
+  ask: { name: "물어보기", color: "var(--blue)", desc: "내 경험에 대해 한 줄로 물어봐요", ph: "예: 동아리에서 사람들 의견을 모아 본 적 있었나?", chips: [["리더십을 보여 준 경험 있어?", "var(--blue)"], ["작년에 뭐 했더라", "var(--green)"], ["실패했다가 다시 해 본 일", "var(--pink)"]], hint: "쌓인 경험에서 찾아 근거와 함께 보여 줘요" },
+  app: { name: "지원서 만들기", color: "var(--pink)", desc: "문항 · 공고를 넣으면 맞는 경험을 찾아요", ph: "지원 문항이나 공고를 붙여 넣어 보세요 — 문항이 여러 개여도 돼요", chips: [["지원 동기", "var(--pink)"], ["협업 · 갈등", "var(--pink)"], ["기술 문제 해결", "var(--pink)"], ["실패와 배움", "var(--pink)"]], hint: "자주 나오는 문항을 눌러 바로 넣을 수 있어요" },
+  in: { name: "쌓기", color: "var(--green)", desc: "자료 · 한 줄을 넣으면 AI 가 정리해요", ph: "README · 회고 · 노트를 붙여 넣거나, 한 줄만 적어도 돼요", chips: [[".md · .txt 파일 올리기", "var(--green)"], ["노션에서 복사한 활동 정리", "var(--green)"], ["한 줄: 스터디에서 처음 발표했다", "var(--green)"]], hint: "넣은 자료는 분석을 위해 외부 AI 제공사(OpenAI)로 보내져요 · 학습엔 안 쓰여요" },
 };
+const chipsHtml = (m) => m.chips.map(([c, col]) => `<button type="button" class="sg sg--dot" style="--dot:${col}">${c}</button>`).join("");
 function home() {
-  const m = MODES.out;
+  const m = MODES.ask;
   return shell("홈", `
   <div class="home">
-    <section class="hero"${note("홈은 입력 하나를 크게 — 처음 온 사람도 무엇을 하면 되는지 바로 보이게. 오래 쓴 사람은 사이드바의 내 경험 · 지원서로 바로 간다(필요할 때 펼쳐 보이는 「점진적 공개」). 쌓인 수와 확인할 것은 한 줄로만")}>
+    <section class="hero"${note("배경을 로고의 세 색(파랑 · 초록 · 분홍)으로 은은하게 — 파랑 하나라 차갑던 걸 시안 원래 분위기로. 작은 글은 회색 단계로 낮추고, 칩 앞에 색 점")}>
       <h1>어떤 경험을 꺼내볼까요?</h1>
-      <p class="hero__sub">경험 ${ALL_X.length}개가 차곡차곡 쌓여 있어요 · <a href="experience.html?view=list&f=review" style="text-decoration:underline">확인할 것 ${reviews.length}</a></p>
-      <form class="ask-box" data-ask>
+      <p class="hero__sub"><span class="dot3"><i style="background:var(--blue)"></i><i style="background:var(--green)"></i><i style="background:var(--pink)"></i></span>경험 ${ALL_X.length}개가 차곡차곡 쌓여 있어요 · <a href="experience.html?view=list&f=review">확인할 것 ${reviews.length}</a></p>
+      <form class="ask-box" data-ask data-mode="ask">
         <textarea rows="2" placeholder="${m.ph}"></textarea>
-        <div class="ask-box__bar"><button type="button" class="circle" data-menu="plus" aria-label="추가">${ICON.plus}</button><span class="ask-box__hint">${m.hint}</span><button type="submit" class="ask-box__send" aria-label="보내기">${ICON.up}</button></div>
+        <div class="ask-box__bar">
+          <button type="button" class="circle" data-menu="plus" aria-label="자료 · 파일 추가">${ICON.plus}</button>
+          <span class="ask-box__hint">${m.hint}</span>
+          <button type="button" class="mode-pick" data-menu="model"${note("보내기 옆은 모델 고르는 자리로 비워 둔다 — 나중에 내 API 키 · 모델을 고르게 하면 여기(BYOK, ETC#28 · P1). 지금은 팀 기본 모델 하나", true)}><span>기본 모델</span>${ICON.down}</button>
+          <button type="submit" class="ask-box__send" aria-label="보내기">${ICON.up}</button>
+        </div>
       </form>
-      <div class="modes" role="tablist"${note("꺼내기 / 쌓기 — 이 서비스의 두 입구를 같은 입력칸에서 고른다(Gemini 의 채팅 / 작업처럼). 꺼내기 = 문항 · 공고를 넣으면 새 지원서가 되고 맞는 경험을 찾는다, 쌓기 = 자료 · 한 줄을 넣으면 AI 가 정리한다. 「생각난 김에 한 줄」 칸은 쌓기로 들어왔다", true)}>
-        <button type="button" class="is-active" data-mode="out">꺼내기</button><button type="button" data-mode="in">쌓기</button>
-      </div>
-      <div class="suggest">${m.chips.map((c) => `<button type="button" class="sg">${c}</button>`).join("")}</div>
+      <div class="modes" role="tablist"${note("물어보기 · 지원서 만들기 · 쌓기는 입력칸 아래에서 바꾼다(Gemini 의 채팅 / 작업처럼). 보내기 옆 자리를 나중의 모델 고르기에 남기려고", true)}>${Object.entries(MODES).map(([k, v]) => `<button type="button" class="${k === "ask" ? "is-active" : ""}" data-pick-mode="${k}"><i style="background:${v.color}"></i>${v.name}</button>`).join("")}</div>
+      <div class="suggest">${chipsHtml(m)}</div>
+      <div class="answer" hidden${note("「물어보기」 — 지원서를 만들지 않고 한 줄로 물으면, 쌓인 경험에서 찾아 근거와 함께 답한다. 맞으면 「지원서로 만들기」로 이어진다. 지금 SPEC 에 없는 동작이라(문항 매칭 S-18 ~ S-20 을 저장 없이 쓰는 것) 넣을지 정해야 한다", true)}></div>
     </section>
-    <section class="later"${note("그 아래는 「이어서」 세 칸만. 최근 경험 카드 목록 · 누적 막대 · 「확인해 주세요」 · 「다시 꺼내 보는 경험」 큰 카드는 홈에서 뺐다 — 목록은 내 경험(목록 보기)으로, 확인할 것은 알림함으로", true)}>
+    <section class="later"${note("「이어서」 세 칸 — 색 아이콘으로 무슨 칸인지 먼저 보이게")}>
       <h2>이어서</h2>
       <div class="later__row">
-        <a class="mini" href="apply.html?app=1"><span class="mini__k">${ICON.doc.replace("<svg", '<svg width="13" height="13"')} 작성 중인 지원서</span><b>OO 부트캠프 · 백엔드 과정</b><small>문항 3개 중 1개 남음</small></a>
-        <a class="mini" href="experience.html?a=1"><span class="mini__k"><img src="assets/home/folder.svg" alt="" /> 어제 쌓임</span><b>모아봄-README.md 에서 경험 3개</b><small>졸업 프로젝트 「모아봄」</small></a>
-        <a class="mini" href="experience.html?a=4"><span class="mini__k"><img src="assets/home/history.svg" alt="" /> 1년 전 이맘때</span><b>사용자 인터뷰 다섯 번으로 문제를 다시 정의</b><small>UX 리서치 수업 팀 프로젝트</small></a>
+        <a class="mini" href="apply.html?app=1" style="--c:var(--pink);--cb:var(--pink-bg)"><span class="mini__ic">${ICON.doc}</span><span class="mini__k">작성 중인 지원서</span><b>OO 부트캠프 · 백엔드 과정</b><small>문항 3개 중 1개 남음</small></a>
+        <a class="mini" href="experience.html?a=1" style="--c:var(--green);--cb:var(--green-bg)"><span class="mini__ic">${ICON.stack}</span><span class="mini__k">어제 쌓임</span><b>모아봄-README.md 에서 경험 3개</b><small>졸업 프로젝트 「모아봄」</small></a>
+        <a class="mini" href="experience.html?a=4" style="--c:var(--blue);--cb:var(--blue-bg)"><span class="mini__ic"><img src="assets/home/history.svg" alt="" /></span><span class="mini__k">1년 전 이맘때</span><b>사용자 인터뷰 다섯 번으로 문제를 다시 정의</b><small>UX 리서치 수업 팀 프로젝트</small></a>
       </div>
     </section>
   </div>`);
+}
+function askAnswer(text) {
+  const hits = [pick(3, 0), pick(5, 2), pick(9, 0)];
+  return `<div class="answer__head"><span class="ai-chip">AI</span> 「${text || "동아리에서 사람들 의견을 모아 본 적 있었나?"}」 — 관련 경험 ${hits.length}개를 찾았어요</div>
+    ${hits.map((x) => `<a class="hit" href="experience.html?a=${x.act.id}" style="${style(x.act.cat)}"><span class="act-chip">${x.act.name.split(" — ")[0]}</span><b>${x.t}</b><span class="hit__q"><span class="ok">${ICON.check}</span>「${x.q}」 <span class="muted">${x.src}</span></span></a>`).join("")}
+    <div class="answer__foot"><span class="muted">자료에 없는 건 지어내지 않았어요.</span><button type="button" class="btn btn--line" data-open="app">이 경험으로 지원서 만들기</button></div>`;
 }
 
 /* ---------- 내 경험 — 하나의 공간, 여러 보기 ---------- */
@@ -287,89 +299,89 @@ function switchView(v) {
 
 /* ---------- 지원서 — 지원처 하나, 문항 여러 개 ---------- */
 const pick = (actId, i) => ALL_X.find((x) => x.act.id === actId && x.t === ACTS.find((a) => a.id === actId).xs[i].t);
+// 초안 문장 — src: 원문(근거) · me(내가 입력한 보완) · none(받치는 근거 없음 — 근거 점검에서 걸린다)
 const QS = [
-  { short: "기술 문제 해결", t: "기술적인 문제를 해결한 경험을 구체적으로 적어 주세요.", lim: 700,
+  { t: "기술적인 문제를 해결한 경험을 구체적으로 적어 주세요.", lim: 700,
     reqs: [["기술 문제를 스스로 알아챔", "yes"], ["해결 방법과 고른 이유", "yes"], ["고친 뒤 어떻게 확인했나", "part"], ["결과를 수치로", "none"]],
     recs: [
-      { x: pick(5, 0), why: "문항이 묻는 「기술 문제를 알아채고 → 고친」 흐름이 원문에 그대로 있어요.", stress: "폴링의 한계를 어떻게 알아챘는지, 왜 WebSocket 을 골랐는지", gap: null, fill: true, on: true },
-      { x: pick(1, 1), why: "피드백을 받아 성능 문제를 고친 사례예요.", stress: "지적을 받은 상황 → 원인 → 압축을 고른 이유", gap: "자료에는 「팀」이 한 일로 적혀 있어요. 직접 넣었는지는 오른쪽 질문으로 확인할게요." },
-      { x: pick(2, 0), why: "느린 화면을 기술로 고친 경험이에요.", stress: "몇 건부터 느려졌는지, 가상 스크롤을 고른 이유", gap: "고친 뒤 얼마나 빨라졌는지 수치가 자료에 없어요 — 지어내지 않았어요." },
+      { x: pick(5, 0), why: "「기술 문제를 알아채고 → 고친」 흐름이 원문에 그대로 있어요", stress: "폴링의 한계를 어떻게 알아챘는지, 왜 WebSocket 을 골랐는지", gap: null, fill: true, on: true },
+      { x: pick(1, 1), why: "피드백을 받아 성능 문제를 고친 사례예요", stress: "지적을 받은 상황 → 원인 → 압축을 고른 이유", gap: "자료에는 「팀」이 한 일로 적혀 있어요. 직접 넣었는지 오른쪽에서 물어볼게요.", on: true },
+      { x: pick(2, 0), why: "느린 화면을 기술로 고친 경험이에요", stress: "몇 건부터 느려졌는지, 가상 스크롤을 고른 이유", gap: "얼마나 빨라졌는지 수치가 자료에 없어요 — 지어내지 않았어요." },
     ],
-    draft: `캠퍼스 중고거래 앱 「바꿔요」에서 채팅 메시지가 몇 초씩 늦게 보이는 문제가 있었습니다.<sup>원문 1</sup> 저는 주기적으로 서버에 묻던 폴링 방식을 WebSocket 으로 바꿔 이 문제를 해결했습니다.<sup>원문 1</sup> 바꾼 뒤에는 두 기기로 동시에 메시지를 보내 지연이 1초 안인 것을 확인했습니다.<sup class="me">내가 입력</sup>` },
-  { short: "지원 동기", t: "지원 동기와 수료 후 목표를 적어 주세요.", lim: 500,
+    draft: [
+      ["캠퍼스 중고거래 앱 「바꿔요」에서 채팅 메시지가 몇 초씩 늦게 보이는 문제가 있었습니다.", "src", "바꿔요-회고.md 18번째 줄"],
+      ["저는 폴링 방식을 WebSocket 으로 바꿔 이 문제를 해결했습니다.", "src", "바꿔요-회고.md 18번째 줄"],
+      ["바꾼 뒤에는 두 기기로 동시에 메시지를 보내 지연이 1초 안인 것을 확인했습니다.", "me", "내가 입력 · 이 지원서에서 답함"],
+      ["덕분에 사용자 만족도가 크게 올랐습니다.", "none", "자료 · 보완 어디에도 없는 결과예요. 지우거나, 사실이면 근거를 더해 주세요."],
+      ["이후 졸업 프로젝트에서도 업로드가 느리다는 지적을 받고 이미지를 압축해 올리도록 바꿨습니다.", "src", "모아봄-README.md 31번째 줄"],
+    ] },
+  { t: "지원 동기와 수료 후 목표를 적어 주세요.", lim: 500,
     reqs: [["백엔드에 관심을 갖게 된 계기", "none"], ["관련해 해 본 것", "yes"], ["수료 후 목표", "none"]],
     recs: [
-      { x: pick(5, 3), why: "직접 배포까지 해 본 경험이 백엔드 관심의 근거가 돼요.", stress: "배포하며 처음 마주친 서버 쪽 문제", gap: "왜 백엔드인지는 자료에 없어요 — 동기는 내 생각이라 질문으로 받을게요." },
-      { x: pick(8, 0), why: "꾸준히 해 온 학습이에요.", stress: "몇 달째, 매주 얼마나", gap: null },
+      { x: pick(5, 3), why: "직접 배포까지 해 본 경험이 관심의 근거가 돼요", stress: "배포하며 처음 마주친 서버 쪽 문제", gap: "왜 백엔드인지는 자료에 없어요 — 동기는 내 생각이라 물어볼게요.", on: true },
+      { x: pick(8, 0), why: "꾸준히 해 온 학습이에요", stress: "몇 달째, 매주 얼마나", gap: null },
     ] },
-  { short: "협업 · 갈등", t: "팀 프로젝트에서 갈등을 해결한 경험을 적어 주세요.", lim: 600,
+  { t: "팀 프로젝트에서 갈등을 해결한 경험을 적어 주세요.", lim: 600,
     reqs: [["갈등 상황", "yes"], ["내가 한 행동", "yes"], ["결과 · 배운 점", "part"]],
     recs: [
-      { x: pick(5, 2), why: "의견이 갈린 상황과 내가 제안한 해결이 원문에 있어요.", stress: "양쪽 의견 → 사용자에게 먼저 묻자고 한 이유", gap: "제안 뒤 어떻게 정해졌는지는 자료에 없어요." },
-      { x: pick(9, 0), why: "회비를 둘러싼 불만을 투명하게 풀어 본 경험이에요.", stress: "공개 전후로 달라진 점", gap: null },
+      { x: pick(5, 2), why: "의견이 갈린 상황과 내가 제안한 해결이 원문에 있어요", stress: "양쪽 의견 → 사용자에게 먼저 묻자고 한 이유", gap: "제안 뒤 어떻게 정해졌는지는 자료에 없어요.", on: true },
+      { x: pick(9, 0), why: "회비를 둘러싼 불만을 투명하게 풀어 본 경험이에요", stress: "공개 전후로 달라진 점", gap: null },
     ] },
 ];
-function recToggle(r, i, first) {
+const actChip = (x) => `<span class="act-chip" style="${style(x.act.cat)}">${x.act.name.split(" — ")[0]}</span>`;
+function recToggle(r, first) {
   const x = r.x;
-  return `<details class="tg" style="${style(x.act.cat)}" ${r.on ? "open" : ""}${first ? note("꺼내 쓸 경험은 접었다 펴기(노션 토글처럼) — 접힌 한 줄로 제목 · 활동 · 왜 맞나를 훑고, 펼치면 강조점 · 근거 · 부족한 점. 체크한 경험으로 초안을 만든다. 추천이 P0 라 가운데에 둔다") : ""}>
-    <summary><span class="tg__arrow">${ICON.right}</span><input type="checkbox" class="tg__pick" ${r.on || i === 1 ? "checked" : ""} aria-label="이 경험으로 쓰기" onclick="event.stopPropagation()" />
-      <span class="tg__title"><b>${x.t}</b><small>${x.act.name} · ${r.why}</small></span>${r.gap ? `<span class="review">${ICON.warn}부족한 점</span>` : status(x)}</summary>
+  return `<details class="tg" style="${style(x.act.cat)}"${first ? note("참고용 경험은 아래로, 접어서 — 펼치기 전엔 활동 칩(색) · 경험 제목(굵게) · 이유(회색 한 줄)만. 활동 이름과 설명을 글자 굵기 · 색으로 나눴다") : ""}>
+    <summary><span class="tg__arrow">${ICON.right}</span><input type="checkbox" class="tg__pick" ${r.on ? "checked" : ""} aria-label="이 경험으로 쓰기" onclick="event.stopPropagation()" />
+      <span class="tg__title">${actChip(x)}<b>${x.t}</b><small>${r.why}</small></span>${r.gap ? `<span class="review">${ICON.warn}빠진 것</span>` : ""}</summary>
     <div class="tg__body">
-      <div class="box"><b><span class="ai-chip">AI</span>왜 맞나요</b>${r.why}</div>
-      <div class="box"><b><span class="ai-chip">AI</span>강조하면 좋은 점</b>${r.stress}</div>
-      <div class="box box--wide"><b><span class="ok">${ICON.check}</span>근거 — 원문</b><span class="file">${ICON.file}${x.src} · ${x.line}번째 줄</span><span>「${x.q}」</span>${r.fill ? `<span class="mine" style="margin-top:6px">${ICON.pen}내가 입력 · 보완</span><span>「${x.fill.a}」</span>` : ""}</div>
-      ${r.gap ? `<div class="box box--wide box--gap"><b><span class="review">${ICON.warn}부족한 점</span></b>${r.gap}</div>` : ""}
+      <div class="box"><b>강조하면 좋은 점</b>${r.stress}</div>
+      <div class="box"><b><span class="ok">${ICON.check}</span>근거</b><span>「${x.q}」</span><span class="file">${ICON.file}${x.src} · ${x.line}번째 줄</span>${r.fill ? `<span class="mine">${ICON.pen}보완 — ${x.fill.a}</span>` : ""}</div>
+      ${r.gap ? `<div class="box box--wide box--gap"><b>빠진 것</b>${r.gap}</div>` : ""}
     </div></details>`;
 }
 function qBody(q, qi) {
+  const text = q.draft ? q.draft.map(([s, k, why]) => `<span class="sent sent--${k}" title="${why}">${s}</span>`).join(" ") : "";
   return `
-  <div class="q-text"><small>문항 ${qi + 1} · ${q.lim}자</small><h2>${q.t}</h2></div>
-  <section class="sec"${qi === 0 ? note("AI 가 문항을 「보려는 것」으로 쪼개고 각각 근거 있음 / 일부 / 자료에서 확인 안 됨(S-19). 「확인 안 됨」은 「부족한 사람」이 아니라 「자료에 없다」로") : ""}>
-    <h3>이 문항이 보려는 것 <small><span class="ai-chip">AI</span> 문항을 읽고 나눴어요</small></h3>
-    <div class="reqs">${q.reqs.map(([t, s]) => `<span class="req req--${s}">${t} <em>${{ yes: "근거 있음", part: "일부", none: "자료에서 확인 안 됨" }[s]}</em></span>`).join("")}</div>
-    <p class="req-note">자료에서 확인이 안 된 건 경험이 없다는 뜻이 아니에요. 오른쪽 질문에 답하면 채워져요.</p>
+  <div class="q-text"><h2>${q.t}</h2><span class="muted">${q.lim}자</span></div>
+  <section class="editor"${qi === 0 ? note("답변을 맨 위에 — 지원서 화면의 주인공은 내가 쓰는 답. 초안(S-27, P1)이 여기 채워지고, 「근거 점검」을 누르면 문장마다 원문 · 보완 · 근거 없음이 칠해진다. 근거 없는 문장(4번째)은 노랗게 걸린다 — 과장을 막는 이 서비스만의 점검") : ""}>
+    <div class="editor__text" contenteditable="true">${text || `<span class="muted">여기에 답을 쓰거나, 오른쪽 AI 동료에게 「초안 만들기」를 부탁해 보세요.</span>`}</div>
+    <div class="editor__bar"><span class="muted">${q.draft ? q.draft.map((d) => d[0]).join(" ").length : 0}자 / ${q.lim}자</span><span class="legend"><i class="l-src"></i>원문 <i class="l-me"></i>내가 입력 <i class="l-none"></i>근거 없음</span><button type="button" class="btn btn--line" data-check>근거 점검</button><button type="button" class="btn btn--line">복사</button></div>
   </section>
-  <section class="sec"><h3>꺼내 쓸 경험 <small>${q.recs.length}개 · 체크한 경험으로 초안을 만들어요</small></h3>${q.recs.map((r, i) => recToggle(r, i, qi === 0 && i === 0)).join("")}</section>
-  <section class="sec"${qi === 0 ? note("답변 초안(S-27, P1) — 체크한 경험으로 쓰고, 문장마다 어느 근거(원문) · 보완(내가 입력)에서 왔는지 꼬리표. 받치는 근거가 없는 문장은 쓰지 않는다. P0(추천 · 되묻기 · 재사용)가 다 돈 뒤에 만든다") : ""}>
-    <h3>답변 초안 <span class="p1">P1</span> <small>문장마다 어디서 왔는지 표시해요</small></h3>
-    <div class="draft">${q.draft ? `<p class="draft__text">${q.draft}</p><div class="draft__bar"><span>${q.draft.replace(/<[^>]+>/g, "").length}자 / ${q.lim}자</span><button type="button" class="btn btn--line">복사</button><button type="button" class="btn btn--dark">다시 만들기</button></div>` : `<p class="muted" style="font-size:13px">체크한 경험으로 초안을 만들 수 있어요.</p><div class="draft__bar"><button type="button" class="btn btn--dark">초안 만들기</button></div>`}</div>
-  </section>`;
+  <section class="refs"><h3>참고 — 꺼내 쓸 경험 <span class="muted">체크한 경험으로 초안을 만들어요</span></h3>${q.recs.map((r, i) => recToggle(r, qi === 0 && i === 0)).join("")}</section>`;
+}
+function mateFeed(q, qi) {
+  const lab = { yes: "근거 있음", part: "일부", none: "자료에 없음" };
+  const intro = `<div class="msg"><p>문항을 읽어 봤어요. 이 문항이 보려는 건 ${q.reqs.length}가지예요.</p><ul class="reqlist">${q.reqs.map(([t, s]) => `<li class="r-${s}"><i></i>${t}<em>${lab[s]}</em></li>`).join("")}</ul><p class="muted">자료에 없다고 경험이 없는 건 아니에요. 몇 가지만 물어볼게요.</p></div>`;
+  if (qi !== 0) return intro + `<div class="msg"><p>${q.recs[0].x.act.name.split(" — ")[0]} 경험이 가장 잘 맞아요. 아래 「참고」에 골라 뒀어요.</p></div><div class="msg msg--ask"><p class="ask__q">${q.recs[0].gap || "더 묻고 싶은 건 없어요."}</p><form><input placeholder="짧게 답해 주세요" /><button type="submit" class="btn btn--dark">답하기</button><button type="button" class="btn btn--ghost">건너뛰기</button></form></div>`;
+  return intro + `
+    <div class="msg"><p>「바꿔요」 채팅 경험이 가장 잘 맞아요. 근데 <b>고친 뒤 어떻게 확인했는지</b>가 자료에 없어요.</p></div>
+    <div class="msg msg--ask"><span class="ask__for">${actChip(pick(5, 0))} 채팅 WebSocket</span><p class="ask__q">고친 뒤 메시지가 제때 오는지 어떻게 확인했나요?</p></div>
+    <div class="msg msg--me">${pick(5, 0).fill.a}</div>
+    <div class="msg"><p>「바꿔요」 경험에 보완으로 쌓았어요. 다른 지원서에서도 이 답을 근거로 같이 써요.</p></div>
+    <div class="msg msg--ask"><span class="ask__for">${actChip(pick(1, 1))} 이미지 압축</span><p class="ask__q">이미지 압축은 직접 넣었나요, 팀원이 넣었나요?</p><form><input placeholder="짧게 답해 주세요" /><button type="submit" class="btn btn--dark">답하기</button><button type="button" class="btn btn--ghost">건너뛰기</button></form></div>
+    <div class="msg"><p>체크한 경험 2개로 초안을 만들어 왼쪽에 넣었어요. 4번째 문장은 자료에 없는 결과라 근거 점검에서 걸려요.</p></div>`;
 }
 function apply() {
   const app = APPS.find((a) => a.id === Number(params.get("app") || 1));
   const qi = Number(params.get("q") || 0);
-  const asks = [
-    { for: "바꿔요 — 채팅 WebSocket", q: "고친 뒤 메시지가 제때 오는지 어떻게 확인했나요?", done: pick(5, 0).fill.a },
-    { for: "모아봄 — 이미지 압축", q: "이미지 압축은 직접 넣었나요, 팀원이 넣었나요?" },
-    { for: "문항 2 · 지원 동기", q: "백엔드에 관심을 갖게 된 계기가 있나요? 한 줄이면 돼요." },
-  ];
   return shell(`지원서 / ${app.name}`, `
   <div class="split">
     <div class="workspace__scroll">
-      <header class="ap-head"${note("지원서 = 지원처 하나 + 문항 여러 개(SPEC S-18). 종류 · 직무는 선택 칸(미결정 17), 공고 링크 읽기는 P1(미결정 12)")}>
-        <div class="ap-head__top"><h1>${app.name}${app.role ? ` — ${app.role}` : ""}</h1><button type="button" class="circle" data-mate aria-label="AI 동료 패널 열고 닫기">${ICON.panel}</button></div>
-        <div class="ap-head__meta"><span class="pill">${app.kind}</span>${app.role ? `<span class="pill">백엔드</span>` : ""}<span>11월 3일에 만듦</span><span>·</span><span class="muted">공고 링크 <span class="p1">P1</span></span></div>
-        <nav class="qtabs"${note("문항은 탭으로 — 한 지원서의 문항 3 ~ 5개를 오가며 쓴다. + 로 문항 더하기 · 자주 나오는 문항에서 고르기(S-26, P1)")}>
-          ${QS.map((q, i) => `<button type="button" class="${i === qi ? "is-active" : ""}" data-q="${i}">문항 ${i + 1}<small>${q.short} · 추천 ${q.recs.length}</small></button>`).join("")}
-          <button type="button" class="qtabs__add">${ICON.plus.replace("<svg", '<svg width="14" height="14"')}문항 더하기</button>
-        </nav>
+      <header class="ap-head"${note("지원서 = 지원처 하나 + 문항 여러 개(SPEC S-18). 문항 탭은 번호만 — 문항 글은 아래에 크게 한 번만. 「문항 이 보려는 것」은 위에서 빼고 오른쪽 AI 동료의 첫 말로 옮겼다")}>
+        <div class="ap-head__top"><h1>${app.name}${app.role ? ` <span class="muted">· ${app.role}</span>` : ""}</h1><span class="pill">${app.kind}</span><button type="button" class="circle" data-mate aria-label="AI 동료 패널 열고 닫기">${ICON.panel}</button></div>
+        <nav class="qtabs">${QS.map((q, i) => `<button type="button" class="${i === qi ? "is-active" : ""}" data-q="${i}">문항 ${i + 1}</button>`).join("")}<button type="button" class="qtabs__add" aria-label="문항 더하기">${ICON.plus.replace("<svg", '<svg width="15" height="15"')}</button></nav>
       </header>
       <div class="ap-main" id="qbody">${qBody(QS[qi], qi)}</div>
     </div>
-    <aside class="panel is-open" aria-label="AI 동료"${note("오른쪽 「AI 동료」 패널(접을 수 있음) — 확인할 것(되묻기, 최대 3 · 답은 선택)과 이 지원서의 다른 문항. 아래 버튼은 정해진 일만 한다. 자유 채팅창은 두지 않았다(SPEC 범위 제외: 채팅창이 메인인 AI)", true)}>
+    <aside class="panel is-open" aria-label="AI 동료"${note("오른쪽 「AI 동료」 — 대화처럼 흐른다: 문항을 읽고 → 맞는 경험을 고르고 → 빠진 것만 묻고 → 답을 경험에 쌓고 → 초안을 넣는다. 아래 입력칸으로 부탁도 할 수 있다. 버튼은 이 서비스만의 일(근거 점검 · 빠진 것 묻기 · 다른 경험으로)부터. 옆 채팅을 둘지는 SPEC 범위 제외(「채팅창이 메인인 AI」)와 겹쳐 정해야 한다", true)}>
       <div class="panel__inner mate">
-        <div class="mate__head"><div class="seg"><button type="button" class="is-active" data-tab="asks">확인할 것 ${asks.length - 1}</button><button type="button" data-tab="other">다른 문항</button></div></div>
-        <div class="mate__body" data-tabpane="asks">
-          <p class="muted" style="font-size:12px;line-height:1.6">문항에 필요한데 자료에 없는 것만 짧게 물어요. 답은 그 경험에 「내가 입력」으로 쌓여서 다음 지원서에도 쓰여요.</p>
-          ${asks.map((a) => a.done
-            ? `<div class="ask is-done"><span class="ask__for">${a.for}</span><p class="ask__q">${a.q}</p><p class="ask__a"><span class="mine">${ICON.pen}내가 입력</span> ${a.done}</p><span class="ask__for">이 경험에 쌓였어요</span></div>`
-            : `<div class="ask"><span class="ask__for">${a.for}</span><p class="ask__q">${a.q}</p><form><input placeholder="짧게 답해 주세요" /><button type="submit" class="btn btn--dark">답하기</button><button type="button" class="btn btn--ghost">건너뛰기</button></form></div>`).join("")}
+        <div class="mate__head"><b>AI 동료</b><span class="muted">문항 ${qi + 1}</span></div>
+        <div class="mate__body" id="feed">${mateFeed(QS[qi], qi)}</div>
+        <div class="mate__foot">
+          <div class="mate__acts"><button type="button" class="sg" data-check>근거 점검</button><button type="button" class="sg">초안 만들기 <span class="p1">P1</span></button><button type="button" class="sg">다른 경험으로</button><button type="button" class="sg">더 짧게</button></div>
+          <form class="mate__input"><input placeholder="동료에게 부탁하기 — 예: 협업 얘기는 빼 줘" /><button type="submit" class="ask-box__send" style="width:34px;height:34px" aria-label="보내기">${ICON.up}</button></form>
         </div>
-        <div class="mate__body" data-tabpane="other" hidden>
-          <p class="muted" style="font-size:12px;line-height:1.6">같은 경험 · 같은 활동이 문항마다 어떤 강조점으로 쓰였는지(S-21).</p>
-          ${QS.map((q, i) => `<div class="oq"><b>문항 ${i + 1} · ${q.short}</b>${q.recs.slice(0, 2).map((r) => `<div class="oq__pick ${r.fill ? "is-reused" : ""}">${r.x.act.name.split(" — ")[0]} — ${r.stress}${r.fill ? `<br><span class="mine">${ICON.pen}보완을 근거로 같이 씀</span>` : ""}</div>`).join("")}</div>`).join("")}
-        </div>
-        <div class="mate__foot"><button type="button" class="sg">경험 다시 찾기</button><button type="button" class="sg">부족한 점 다시 보기</button><button type="button" class="sg">초안 만들기 <span class="p1">P1</span></button></div>
       </div>
     </aside>
   </div>`, { split: true });
@@ -385,6 +397,11 @@ function overlays() {
     <hr />
     <span class="menu__label">꺼내기</span>
     <button type="button" class="menu__item" data-open="app">${ICON.doc}<span><b>새 지원서</b><small>지원처와 문항을 넣으면 맞는 경험을 근거와 함께 찾아요</small></span></button>
+  </div>
+  <div class="menu" id="menu-model" role="menu">
+    <span class="menu__label">분석 · 추천에 쓰는 AI</span>
+    <button type="button" class="menu__item"><i class="mdot" style="background:var(--black)"></i><span><b>기본 모델</b><small>팀이 제공하는 모델 — 따로 설정할 것 없어요</small></span></button>
+    <button type="button" class="menu__item" disabled style="opacity:.55"><i class="mdot" style="background:var(--line)"></i><span><b>내 API 키로 <span class="p1">P1</span></b><small>Gemini · OpenAI 키를 넣어 내 모델로 분석해요</small></span></button>
   </div>
   <div class="pop" id="menu-bell" role="dialog" aria-label="알림">
     <h3>알림</h3>
@@ -423,7 +440,7 @@ function overlays() {
   <div class="toast" role="status"></div>
   <div class="tip" aria-hidden="true"></div>
   <button type="button" class="notes-btn" data-notes>이번 피드백 보기</button>
-  <div class="notes" aria-label="이번 피드백"><h3>시안 2 → 시안 3 피드백</h3><p class="lead">주황 = 바꾼 자리와 이유, 보라 = PM 이 정할 것. 누르면 그 자리로 가요. 지금 화면에 보이는 것만 번호가 붙어요.</p><ol id="notes-list"></ol></div>`;
+  <div class="notes" aria-label="이번 피드백"><h3>시안 3 → 시안 4 피드백</h3><p class="lead">주황 = 바꾼 자리와 이유, 보라 = PM 이 정할 것. 누르면 그 자리로 가요. 지금 화면에 보이는 것만 번호가 붙어요.</p><ol id="notes-list"></ol></div>`;
 }
 
 function renumber() {
@@ -454,8 +471,16 @@ document.querySelector(".app").innerHTML = (page === "home" ? home() : page === 
 
 document.addEventListener("click", (e) => {
   if (!e.target.closest(".menu,.pop,[data-menu]")) document.querySelectorAll(".menu,.pop").forEach((x) => x.classList.remove("is-open"));
-  const t = e.target.closest("[data-menu],[data-open],[data-close-dlg],[data-run],[data-notes],[data-go-note],[data-a],[data-close],[data-cite],[data-stab],[data-mode],[data-view],[data-f],[data-q],[data-tab],[data-mate],.sg");
+  const t = e.target.closest("[data-pick-mode],[data-check],[data-menu],[data-open],[data-close-dlg],[data-run],[data-notes],[data-go-note],[data-a],[data-close],[data-cite],[data-stab],[data-view],[data-f],[data-q],[data-tab],[data-mate],.sg");
   if (!t) return;
+  if (t.dataset.pickMode) {
+    const k = t.dataset.pickMode, m = MODES[k], box = $(".ask-box");
+    box.dataset.mode = k; box.querySelector("textarea").placeholder = m.ph; $(".ask-box__hint").textContent = m.hint;
+    document.querySelectorAll(".modes [data-pick-mode]").forEach((b) => b.classList.toggle("is-active", b === t));
+    $(".hero .suggest").innerHTML = chipsHtml(m); $(".answer").hidden = true;
+    document.querySelectorAll(".menu").forEach((x) => x.classList.remove("is-open")); return;
+  }
+  if (t.hasAttribute("data-check")) { const ed = $(".editor"); if (ed) { ed.classList.toggle("is-checking"); renumber(); } return; }
   if (t.dataset.menu) { e.preventDefault(); openMenu(t.dataset.menu, t); return; }
   if (t.dataset.open) {
     e.preventDefault(); document.querySelectorAll(".menu,.pop").forEach((x) => x.classList.remove("is-open"));
@@ -482,21 +507,13 @@ document.addEventListener("click", (e) => {
   if (t.hasAttribute("data-cite")) { const q = t.closest(".x").querySelector(".quote"); if (q) { q.hidden = !q.hidden; t.setAttribute("aria-expanded", String(!q.hidden)); } return; }
   if (t.hasAttribute("data-close")) { $(".panel").classList.remove("is-open"); document.querySelectorAll(".row").forEach((r) => r.classList.remove("is-selected")); params.delete("a"); history.replaceState(null, "", `?${params}`); return; }
   if (t.dataset.a) { openDetail(t.dataset.a); return; }
-  if (t.dataset.mode) {
-    const m = MODES[t.dataset.mode];
-    t.parentElement.querySelectorAll("button").forEach((b) => b.classList.toggle("is-active", b === t));
-    $(".ask-box textarea").placeholder = m.ph; $(".ask-box__hint").textContent = m.hint;
-    $(".hero .suggest").innerHTML = m.chips.map((c) => `<button type="button" class="sg">${c}</button>`).join("");
-    $(".ask-box").dataset.mode = t.dataset.mode;
-    return;
-  }
   if (t.classList.contains("sg") && t.closest(".hero")) { $(".ask-box textarea").value = t.textContent.trim(); $(".ask-box textarea").focus(); return; }
   if (t.dataset.view) { switchView(t.dataset.view); return; }
   if (t.dataset.f) { applyFilter(t.dataset.f); return; }
   if (t.dataset.q) {
     const qi = Number(t.dataset.q);
     document.querySelectorAll(".qtabs [data-q]").forEach((b) => b.classList.toggle("is-active", b === t));
-    $("#qbody").innerHTML = qBody(QS[qi], qi); params.set("q", qi); history.replaceState(null, "", `?${params}`); renumber(); return;
+    $("#qbody").innerHTML = qBody(QS[qi], qi); $("#feed").innerHTML = mateFeed(QS[qi], qi); $(".mate__head .muted").textContent = `문항 ${qi + 1}`; params.set("q", qi); history.replaceState(null, "", `?${params}`); renumber(); return;
   }
   if (t.dataset.tab) { t.parentElement.querySelectorAll("button").forEach((b) => b.classList.toggle("is-active", b === t)); document.querySelectorAll("[data-tabpane]").forEach((p) => (p.hidden = p.dataset.tabpane !== t.dataset.tab)); return; }
   if (t.hasAttribute("data-mate")) { $(".panel").classList.toggle("is-open"); return; }
@@ -506,6 +523,7 @@ document.addEventListener("click", (e) => {
 document.querySelector("[data-ask]")?.addEventListener("submit", (e) => {
   e.preventDefault();
   const text = $(".ask-box textarea").value.trim();
+  if ($(".ask-box").dataset.mode === "ask") { const a = $(".answer"); a.innerHTML = askAnswer(text); a.hidden = false; renumber(); return; }
   if ($(".ask-box").dataset.mode === "in") { $("#dlg-source").classList.add("is-open"); setSourceTab("paste"); $('[data-spane="paste"]').value = text; return; }
   $("#dlg-app").classList.add("is-open"); $("[data-q1]").value = text;
 });

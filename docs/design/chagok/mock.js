@@ -170,7 +170,7 @@ function pile() {
   const col = (y) => ALL_X.filter((x) => x.act.start && Number(x.act.start.slice(0, 4)) === y);
   return `<a class="pile" href="experience.html" title="내 경험 보기">
     ${years.map((y) => `<span class="pile__col"><span class="pile__stack">${col(y).map((x) => `<i style="background:${CATS[x.act.cat].accent}" class="${x.st === "review" ? "rv" : ""}" title="${x.t}"></i>`).join("")}</span><small>${y}</small></span>`).join("")}
-    <span class="pile__cap"><b>${ALL_X.length}</b>개의 경험이<br>차곡차곡</span></a>`;
+    <span class="pile__cap"><b>${ALL_X.length}</b>개의 경험이<br>차곡차곡</span><span class="pile__cap pile__cap--side"><b>${ALL_X.length}</b> 경험<br>${years[0]}–${years[years.length - 1]}</span></a>`;
 }
 function home() {
   const m = MODES.out;
@@ -274,7 +274,8 @@ function experience() {
   return shell("내 경험", `
   <div class="split">
     <div class="workspace__scroll"><div class="ex">
-      <div class="ex__head"><div class="ex__pile"${note("「쌓인 블록」 — 경험 하나가 블록 하나, 해마다 쌓인다(색 = 분류, 노란 테 = 확인 필요). 로고의 쌓인 모양과 같은 말이라 이 서비스만의 그림이 된다", true)}>${pile()}</div><div><h1>내 경험</h1><p>활동 ${ACTS.length} · 경험 ${ALL_X.length} · 자료 ${SOURCES.length} — 누르면 그 안에서 한 일과 근거가 옆에 열려요.</p></div>
+      <div class="ex__head"><div><h1>내 경험</h1><p>활동 ${ACTS.length} · 경험 ${ALL_X.length} · 자료 ${SOURCES.length} — 누르면 그 안에서 한 일과 근거가 옆에 열려요.</p></div>
+        <div class="ex__pile ex__pile--side"${note("제목은 왼쪽(아래 거르기 · 타임라인과 같은 시작선), 「쌓인 블록」은 오른쪽 작은 통계 카드로 — 장식이 아니라 연도별 분포라 제목과 떼어 둔다. 경험 하나가 블록 하나, 해마다 쌓인다(색 = 분류, 노란 테 = 확인 필요). 로고의 쌓인 모양과 같은 말이라 이 서비스만의 그림이 된다", true)}>${pile()}</div>
         <div class="vt" role="tablist"${note("보기 전환을 아이콘으로 — 올리면 이름이 말풍선으로(접힌 사이드바와 같은 방식). 타임라인 · 목록 · 자료별. 같은 경험 데이터를 보는 방법만 바꾼다(노션 데이터베이스의 보기처럼)")}>
           ${[["timeline", "타임라인", ICON.tl], ["list", "목록", ICON.grid], ["source", "자료별", ICON.file]].map(([v, l, ic]) => `<button type="button" data-view="${v}" data-tip="${l}" aria-label="${l}" class="${view === v ? "is-active" : ""}">${ic}</button>`).join("")}
         </div></div>

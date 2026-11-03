@@ -122,6 +122,7 @@
 | `test-account` | SAMPLE · 테스트 계정 | `BE src/main/java/.../seed/TestAccountSeeder.java` · `application.properties` | `TEST_ACCOUNT_PASSWORD` 가 있으면 심사용 계정 `test` 를 만들고 하루 분석 한도를 넉넉히(기본 200) 준다. 데이터는 미리 넣지 않는다 — 진짜 로그인 · 분석 흐름을 그대로 탄다 | 예 — 심사위원이 이 계정으로 들어온다 |
 | `dev-seed-activities` | SAMPLE | `BE src/main/java/.../seed/SampleSeeder.java` | `SEED_SAMPLE=true` 일 때 계약 예시(「바꿔요」 회고 · 알고리즘 스터디) 원본 · 활동 2 · 경험 5 · 근거를 테스트 계정에 손으로 넣는다 — AI 추출 결과가 아니다. 로컬 · 개발 서버(Access 뒤)에서만, 공개 전에 끄고 지운다 | 아니오 |
 | `source-analysis` | MOCK | `FE src/lib/mock/analysis.ts` · `src/lib/api/experience.ts` | API 주소가 비어 있는 목 모드에서만 탭 저장소에 작업을 두고 몇 초 뒤 정해진 결과(「— 목 결과」 활동 하나)로 끝낸다. 실제 API 모드에서는 BE `POST /api/sources` · `GET /api/jobs/{id}` · 재시도를 쓴다(FE#7) | 아니오 |
+| `question-matching` | MOCK | `FE src/lib/mock/question-examples.ts` · `src/lib/mock/questions.ts` · `src/lib/api/questions.ts` | `question-api.md` 문항 41·42의 고정 예시로 문항 입력·분석 상태·실패 재시도·요구사항 판정·추천을 재현한다. localStorage에 기록을 보관하며 실제 BE·AI·인증 API는 호출하지 않는다. 화면에 목 모드를 표시하고 추천 활동은 목 읽기 전용 타임라인으로 연다(FE#30) | 예 → 영상에 「모킹」 표시 |
 
 - `<id>` 는 kebab-case, 네 레포 통틀어 하나. 마커를 빼면 이 줄도 뺀다.
 - 테스트 계정 비밀번호는 여기 적지 않는다 — README 와 제출 폼에만.

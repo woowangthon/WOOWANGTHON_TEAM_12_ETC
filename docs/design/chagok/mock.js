@@ -139,7 +139,7 @@ function shell(crumb, body, { split = false } = {}) {
     <header class="toolbar">
       <div class="crumbs"><img src="assets/home/archive.svg" width="17" height="17" alt="" /><span>내 서랍</span><span class="crumbs__sep">/</span><strong>${crumb}</strong></div>
       <div class="toolbar__right">
-        <label class="tsearch"${note("검색은 알림 옆으로 — 찾는 건 경험이라 화면 위쪽이 자연스럽다. 누르면 넓어진다(Ctrl K). 뜻으로 찾기는 홈의 「물어보기」가 맡는다")}><span class="circle">${ICON.search}</span><span class="quick-search"><input placeholder="내 경험에서 검색" /></span></label>
+        <button type="button" class="circle" data-palette aria-label="찾기 (Ctrl K)"${note("검색 아이콘이나 Ctrl K 로 「빠른 찾기 창」 — 경험 찾기와 차곡이에게 묻기를 한 창에서 탭으로 바꾼다. ? 로 시작하면 차곡이에게, > 로 시작하면 자료 넣기 · 새 지원서 같은 일(ETC#77)", true)}>${ICON.search}</button>
         <button type="button" class="circle bell" data-menu="bell" aria-label="알림 — 확인할 것 ${reviews.length}"${note("「확인해 주세요」 큰 칸을 홈에서 빼고 알림함으로 — 빨간 점 하나. 누르면 AI 가 원문에서 못 찾은 경험 · 끝난 분석 · 추천 완료가 뜬다. 재촉하는 알림(「오늘 기록하세요」)은 없다")}><img src="assets/home/bell.svg" width="19" height="19" alt="" /><i></i></button>
         <span class="divider"></span>
         <span class="save-state"><img src="assets/home/cloud-check.svg" width="15" height="15" alt="" />모두 저장됨</span>
@@ -149,49 +149,75 @@ function shell(crumb, body, { split = false } = {}) {
   </main>`;
 }
 
-/* ---------- 홈 — 입력 하나, 안에서 모드 고르기 ---------- */
-// 모드 색은 로고의 세 색에서: 물어보기 = 파랑, 지원서 = 분홍, 쌓기 = 초록
+/* ---------- 홈 — 입력 하나: 꺼내기 / 쌓기 ---------- */
+// 꺼내기 = 한 줄 질문이든 지원 문항이든 넣으면 AI 가 알아서 가른다. 쌓기 = 자료 · 한 줄
+const SAMPLE_Q = "[OO 부트캠프 백엔드 과정 지원서] 1. 기술적인 문제를 해결한 경험을 구체적으로 적어 주세요. (700자) 2. 지원 동기와 수료 후 목표를 적어 주세요. (500자)";
 const MODES = {
-  ask: { name: "물어보기", color: "var(--blue)", desc: "내 경험에 대해 한 줄로 물어봐요", ph: "예: 동아리에서 사람들 의견을 모아 본 적 있었나?", chips: [["리더십을 보여 준 경험 있어?", "var(--blue)"], ["작년에 뭐 했더라", "var(--green)"], ["실패했다가 다시 해 본 일", "var(--pink)"]], hint: "쌓인 경험에서 찾아 근거와 함께 보여 줘요" },
-  app: { name: "지원서 만들기", color: "var(--pink)", desc: "문항 · 공고를 넣으면 맞는 경험을 찾아요", ph: "지원 문항이나 공고를 붙여 넣어 보세요 — 문항이 여러 개여도 돼요", chips: [["지원 동기", "var(--pink)"], ["협업 · 갈등", "var(--pink)"], ["기술 문제 해결", "var(--pink)"], ["실패와 배움", "var(--pink)"]], hint: "자주 나오는 문항을 눌러 바로 넣을 수 있어요" },
-  in: { name: "쌓기", color: "var(--green)", desc: "자료 · 한 줄을 넣으면 AI 가 정리해요", ph: "README · 회고 · 노트를 붙여 넣거나, 한 줄만 적어도 돼요", chips: [[".md · .txt 파일 올리기", "var(--green)"], ["노션에서 복사한 활동 정리", "var(--green)"], ["한 줄: 스터디에서 처음 발표했다", "var(--green)"]], hint: "넣은 자료는 분석을 위해 외부 AI 제공사(OpenAI)로 보내져요 · 학습엔 안 쓰여요" },
+  out: { name: "꺼내기", color: "var(--blue)", ph: "한 줄로 물어보거나, 지원 문항 · 공고를 그대로 붙여 넣어 보세요", chips: [["리더십을 보여 준 경험 있어?", "var(--blue)"], ["작년에 뭐 했더라", "var(--green)"], ["지원 문항 붙여 넣어 보기", "var(--pink)", SAMPLE_Q]], hint: "" },
+  in: { name: "쌓기", color: "var(--green)", ph: "README · 회고 · 노트를 붙여 넣거나, 한 줄만 적어도 돼요", chips: [[".md · .txt 파일 올리기", "var(--green)"], ["노션에서 복사한 활동 정리", "var(--green)"], ["한 줄: 스터디에서 처음 발표했다", "var(--green)"]], hint: "넣은 자료는 분석을 위해 외부 AI 제공사(OpenAI)로 보내져요 · 학습엔 안 쓰여요" },
 };
-const chipsHtml = (m) => m.chips.map(([c, col]) => `<button type="button" class="sg sg--dot" style="--dot:${col}">${c}</button>`).join("");
+const chipsHtml = (m) => m.chips.map(([c, col, fill]) => `<button type="button" class="sg sg--dot" style="--dot:${col}"${fill ? ` data-fill="${fill}"` : ""}>${c}</button>`).join("");
+/** 차곡이 — 로고의 세 블록이 쌓인 캐릭터(이름 · 모양은 후보, 디자인 담당이 다듬는다 — ETC#78) */
+const MASCOT = (n = 40) => `<svg class="mascot" width="${n}" height="${n}" viewBox="0 0 40 40" aria-hidden="true"><rect x="7" y="27" width="26" height="10" rx="4" fill="#E666A6"/><rect x="10" y="17" width="22" height="10" rx="4" fill="#51C291"/><rect x="8" y="4" width="24" height="13" rx="5" fill="#41A1F5"/><circle cx="16" cy="10.5" r="1.7" fill="#111"/><circle cx="24" cy="10.5" r="1.7" fill="#111"/><path d="M18 13.4q2 1.4 4 0" stroke="#111" stroke-width="1.2" fill="none" stroke-linecap="round"/></svg>`;
+function pile() {
+  const years = [2024, 2025, 2026];
+  const col = (y) => ALL_X.filter((x) => x.act.start && Number(x.act.start.slice(0, 4)) === y);
+  return `<a class="pile" href="experience.html"${note("홈의 얼굴을 「쌓인 블록」으로 — 경험 하나가 블록 하나, 해마다 차곡차곡 쌓인다(색 = 분류, 노란 테 = 확인 필요). 로고의 쌓인 모양과 같은 말이라 다른 AI 서비스의 빛 번짐 배경과 갈린다. 「성장형」을 숫자 대신 모양으로", true)}>
+    ${years.map((y) => `<span class="pile__col"><span class="pile__stack">${col(y).map((x) => `<i style="background:${CATS[x.act.cat].accent}" class="${x.st === "review" ? "rv" : ""}" title="${x.t}"></i>`).join("")}</span><small>${y}</small></span>`).join("")}
+    <span class="pile__cap"><b>${ALL_X.length}</b>개의 경험이<br>차곡차곡</span></a>`;
+}
 function home() {
-  const m = MODES.ask;
+  const m = MODES.out;
   return shell("홈", `
   <div class="home">
-    <section class="hero"${note("배경을 로고의 세 색(파랑 · 초록 · 분홍)으로 은은하게 — 파랑 하나라 차갑던 걸 시안 원래 분위기로. 작은 글은 회색 단계로 낮추고, 칩 앞에 색 점")}>
+    <section class="hero"${note("배경의 빛 번짐을 빼고 종이 점 무늬 — 기록장 느낌. 맨 위에 차곡이가 인사한다(친근함), 답은 근거와 함께(유능함)")}>
+      <div class="hello">${MASCOT(46)}<span class="hello__b">안녕하세요! 오늘은 무엇을 꺼내 볼까요?</span></div>
       <h1>어떤 경험을 꺼내볼까요?</h1>
-      <p class="hero__sub"><span class="dot3"><i style="background:var(--blue)"></i><i style="background:var(--green)"></i><i style="background:var(--pink)"></i></span>경험 ${ALL_X.length}개가 차곡차곡 쌓여 있어요 · <a href="experience.html?view=list&f=review">확인할 것 ${reviews.length}</a></p>
-      <form class="ask-box" data-ask data-mode="ask">
+      <p class="hero__sub">경험 ${ALL_X.length}개가 쌓여 있어요 · <a href="experience.html?view=list&f=review">확인할 것 ${reviews.length}</a></p>
+      <form class="ask-box" data-ask data-mode="out">
         <textarea rows="2" placeholder="${m.ph}"></textarea>
         <div class="ask-box__bar">
           <button type="button" class="circle" data-menu="plus" aria-label="자료 · 파일 추가">${ICON.plus}</button>
           <span class="ask-box__hint">${m.hint}</span>
-          <button type="button" class="mode-pick" data-menu="model"${note("보내기 옆은 모델 고르는 자리로 비워 둔다 — 나중에 내 API 키 · 모델을 고르게 하면 여기(BYOK, ETC#28 · P1). 지금은 팀 기본 모델 하나", true)}><span>기본 모델</span>${ICON.down}</button>
+          <button type="button" class="mode-pick" data-menu="model"${note("보내기 옆은 모델 고르는 자리 — 나중에 내 API 키 · 모델(BYOK, ETC#28 · P1). 지금은 팀 기본 모델 하나", true)}><span>기본 모델</span>${ICON.down}</button>
           <button type="submit" class="ask-box__send" aria-label="보내기">${ICON.up}</button>
         </div>
       </form>
-      <div class="modes" role="tablist"${note("물어보기 · 지원서 만들기 · 쌓기는 입력칸 아래에서 바꾼다(Gemini 의 채팅 / 작업처럼). 보내기 옆 자리를 나중의 모델 고르기에 남기려고", true)}>${Object.entries(MODES).map(([k, v]) => `<button type="button" class="${k === "ask" ? "is-active" : ""}" data-pick-mode="${k}"><i style="background:${v.color}"></i>${v.name}</button>`).join("")}</div>
+      <div class="modes" role="tablist"${note("물어보기 + 지원서 만들기를 「꺼내기」 하나로 — 한 줄 질문이면 근거 달린 경험을, 지원 문항 · 공고면 「지원서로 만들까요?」를 묻는다(ETC#75). 모드는 꺼내기 / 쌓기 둘만", true)}>${Object.entries(MODES).map(([k, v]) => `<button type="button" class="${k === "out" ? "is-active" : ""}" data-pick-mode="${k}"><i style="background:${v.color}"></i>${v.name}</button>`).join("")}</div>
       <div class="suggest">${chipsHtml(m)}</div>
-      <div class="answer" hidden${note("「물어보기」 — 지원서를 만들지 않고 한 줄로 물으면, 쌓인 경험에서 찾아 근거와 함께 답한다. 맞으면 「지원서로 만들기」로 이어진다. 지금 SPEC 에 없는 동작이라(문항 매칭 S-18 ~ S-20 을 저장 없이 쓰는 것) 넣을지 정해야 한다", true)}></div>
+      <div class="answer" hidden></div>
     </section>
-    <section class="later"${note("「이어서」 세 칸 — 색 아이콘으로 무슨 칸인지 먼저 보이게")}>
-      <h2>이어서</h2>
-      <div class="later__row">
-        <a class="mini" href="apply.html?app=1" style="--c:var(--pink);--cb:var(--pink-bg)"><span class="mini__ic">${ICON.doc}</span><span class="mini__k">작성 중인 지원서</span><b>OO 부트캠프 · 백엔드 과정</b><small>문항 3개 중 1개 남음</small></a>
-        <a class="mini" href="experience.html?a=1" style="--c:var(--green);--cb:var(--green-bg)"><span class="mini__ic">${ICON.stack}</span><span class="mini__k">어제 쌓임</span><b>모아봄-README.md 에서 경험 3개</b><small>졸업 프로젝트 「모아봄」</small></a>
-        <a class="mini" href="experience.html?a=4" style="--c:var(--blue);--cb:var(--blue-bg)"><span class="mini__ic"><img src="assets/home/history.svg" alt="" /></span><span class="mini__k">1년 전 이맘때</span><b>사용자 인터뷰 다섯 번으로 문제를 다시 정의</b><small>UX 리서치 수업 팀 프로젝트</small></a>
+    <section class="later">
+      <div class="later__row later__row--pile">
+        ${pile()}
+        <div class="later__cards">
+          <a class="mini" href="apply.html?app=1" style="--c:var(--pink);--cb:var(--pink-bg)"><span class="mini__ic">${ICON.doc}</span><span class="mini__k">작성 중인 지원서</span><b>OO 부트캠프 · 백엔드 과정</b><small>문항 3개 중 1개 남음</small></a>
+          <a class="mini" href="experience.html?a=1" style="--c:var(--green);--cb:var(--green-bg)"><span class="mini__ic">${ICON.stack}</span><span class="mini__k">어제 쌓임</span><b>모아봄-README.md 에서 경험 3개</b><small>졸업 프로젝트 「모아봄」</small></a>
+          <a class="mini" href="experience.html?a=4" style="--c:var(--blue);--cb:var(--blue-bg)"><span class="mini__ic"><img src="assets/home/history.svg" alt="" /></span><span class="mini__k">1년 전 이맘때</span><b>사용자 인터뷰 다섯 번으로 문제를 다시 정의</b><small>UX 리서치 수업 팀 프로젝트</small></a>
+        </div>
       </div>
     </section>
   </div>`);
 }
+const looksLikeQuestion = (t) => /적어 주세요|서술|기술하|\d+\s*자|지원\s*동기|지원서|공고|문항/.test(t) && t.length > 25;
+function splitFields(prefix = "") {
+  return `<div class="split-fields">
+    <span class="split-fields__k">${MASCOT(18)} AI 가 나눠 채웠어요 · 고쳐도 돼요</span>
+    <div class="row3"><label>지원처<input type="text" value="OO 부트캠프" /></label><label>종류<input type="text" value="부트캠프" /></label><label>직무<input type="text" value="백엔드" /></label></div>
+    <label>문항 1<input type="text" value="기술적인 문제를 해결한 경험을 구체적으로 적어 주세요. (700자)" /></label>
+    <label>문항 2<input type="text" value="지원 동기와 수료 후 목표를 적어 주세요. (500자)" /></label>
+  </div>`;
+}
 function askAnswer(text) {
+  if (looksLikeQuestion(text)) {
+    return `<div class="answer__head">${MASCOT(22)} 지원 문항 2개가 보여요. 지원서로 만들어 둘까요?</div>
+      ${splitFields()}
+      <div class="answer__foot"><span class="muted">문항마다 쌓인 경험에서 맞는 걸 찾아 둘게요.</span><span style="display:flex;gap:6px"><button type="button" class="btn btn--line" data-just-hits>관련 경험만 보기</button><a class="btn btn--dark" href="apply.html?app=1">지원서로 만들기</a></span></div>`;
+  }
   const hits = [pick(3, 0), pick(5, 2), pick(9, 0)];
-  return `<div class="answer__head"><span class="ai-chip">AI</span> 「${text || "동아리에서 사람들 의견을 모아 본 적 있었나?"}」 — 관련 경험 ${hits.length}개를 찾았어요</div>
+  return `<div class="answer__head">${MASCOT(22)} 「${text || "동아리에서 사람들 의견을 모아 본 적 있었나?"}」 — 관련 경험 ${hits.length}개를 찾았어요</div>
     ${hits.map((x) => `<a class="hit" href="experience.html?a=${x.act.id}" style="${style(x.act.cat)}"><span class="act-chip">${x.act.name.split(" — ")[0]}</span><b>${x.t}</b><span class="hit__q"><span class="ok">${ICON.check}</span>「${x.q}」 <span class="muted">${x.src}</span></span></a>`).join("")}
-    <div class="answer__foot"><span class="muted">자료에 없는 건 지어내지 않았어요.</span><button type="button" class="btn btn--line" data-open="app">이 경험으로 지원서 만들기</button></div>`;
+    <div class="answer__foot"><span class="muted">자료에 없는 건 지어내지 않았어요.</span><button type="button" class="btn btn--line" data-open="app">이걸로 지원서 쓰기</button></div>`;
 }
 
 /* ---------- 내 경험 — 하나의 공간, 여러 보기 ---------- */
@@ -251,12 +277,17 @@ function experience() {
     <aside class="panel" aria-label="활동 세부"><div class="panel__inner" id="detail"></div></aside>
   </div>`, { split: true });
 }
+/** 이 경험이 쓰인 지원서 — 같은 경험을 여러 지원서에 다시 쓴다(S-21 · S-25). 지원 이력을 내 경험 쪽에서도 보이게 */
+function usedIn(x) {
+  const n = QS.filter((q) => q.recs.some((r) => r.x.t === x.t)).length + (x.fill ? 1 : 0);
+  return n ? `<a class="used" href="apply.html?app=1"${x.fill ? note("경험마다 「지원서 N곳에 쓰임」 — 지원서에서 쓴 기록을 내 경험 쪽에서도 본다. 같은 경험을 여러 지원서에 다시 쓴다는 게(S-25) 눈에 보이는 자리", true) : ""}>${ICON.doc.replace("<svg", '<svg width="12" height="12"')}지원서 ${n}곳에 쓰임</a>` : "";
+}
 function xItem(x, i) {
   const first = i === 0;
   const cite = x.st === "mine" ? "" : `<div class="quote" hidden><span class="file">${ICON.file}${x.src}${x.line ? `<small class="muted">· ${x.line}번째 줄</small>` : ""}</span><blockquote>${x.q}</blockquote>${x.miss ? `<span class="warn">원본에서 이 문장을 그대로 찾지 못했어요. 맞는지 확인해 주세요.</span>` : ""}</div>`;
   return `<div class="x">
     <div class="x__top"><p class="x__text">${x.t}</p><button type="button" class="icon-btn" aria-label="경험 메뉴 — 고치기 · 옮기기 · 지우기"><img src="assets/home/ellipsis.svg" width="16" height="16" alt="" /></button></div>
-    <div class="x__meta"${first ? note("경험 메타는 조용하게: 원문 확인은 작은 체크, 「나」는 숨기고 팀 · 모름만, 역량은 해시태그(점선 = AI 가 붙임, 실선 = 내가 고름), 색 있는 건 「확인 필요」 하나. 지우지 않고 낮췄다") : ""}>${status(x)}${WHO[x.who] ? `<span>${WHO[x.who]}</span>` : ""}${tags(x)}${x.st === "mine" ? `<span class="x__cite muted" style="font-weight:400">근거 없음</span>` : `<button type="button" class="x__cite" aria-expanded="false" data-cite>❝ 근거 1 ${ICON.down}</button>`}</div>
+    <div class="x__meta"${first ? note("경험 메타는 조용하게: 원문 확인은 작은 체크, 「나」는 숨기고 팀 · 모름만, 역량은 해시태그(점선 = AI 가 붙임, 실선 = 내가 고름), 색 있는 건 「확인 필요」 하나. 지우지 않고 낮췄다") : ""}>${status(x)}${WHO[x.who] ? `<span>${WHO[x.who]}</span>` : ""}${tags(x)}${usedIn(x)}${x.st === "mine" ? `<span class="x__cite muted" style="font-weight:400">근거 없음</span>` : `<button type="button" class="x__cite" aria-expanded="false" data-cite>❝ 근거 1 ${ICON.down}</button>`}</div>
     ${cite}
     ${x.fill ? `<div class="fill-in"${note("지원서에서 AI 가 물은 것에 답하면, 그 답이 이 경험에 「내가 입력」 보완으로 쌓인다(S-23) — 다음 지원서에서 다시 쓰인다(S-25)")}><span class="mine">${ICON.pen}내가 입력 · ${x.fill.from}</span><b>${x.fill.q}</b>${x.fill.a}</div>` : ""}
   </div>`;
@@ -271,10 +302,10 @@ function openDetail(id) {
       <div class="dt__top"><h2>${a.name}</h2><button type="button" class="circle" aria-label="활동 메뉴 — 고치기 · 합치기"><img src="assets/home/ellipsis-dark.svg" width="17" height="17" alt="" /></button><button type="button" class="circle" data-close aria-label="닫기">${ICON.x}</button></div>
       <span class="dt__cat"><img src="${c.icon}" width="12" height="12" alt="" />${c.name}</span>
       <span class="dt__period">${period(a)}</span>
-      <div class="dt__sources">이 활동을 만든 자료 ${a.sources.map((s) => `<span class="file">${ICON.file}${s}</span>`).join("")}</div>
+      <div class="dt__sources"${note("자료는 지금 보기만 된다(근거의 원본 이름을 모아 보여 줌, SPEC S-01 · S-09). 「+ 자료 더하기」 · 여러 파일 한 번에는 백로그(ETC#76 · #49)", true)}>이 활동을 만든 자료 ${a.sources.map((s) => `<span class="file">${ICON.file}${s}</span>`).join("")}<button type="button" class="link-add">+ 자료 더하기</button></div>
     </div>
     <div class="dt__body" style="${style(a.cat)}">
-      <p class="dt__count">이 활동에서 한 일 ${a.xs.length}</p>
+      <p class="dt__count"${note("목록 위에도 「+ 경험 추가」 — 경험이 많아지면 맨 아래까지 내려가야 했던 것")}>이 활동에서 한 일 ${a.xs.length}<button type="button" class="link-add">+ 경험 추가</button></p>
       ${a.xs.length ? a.xs.map((x, i) => xItem(x, i)).join("") : `<p class="dt__hint" style="font-size:13px">아직 이 활동에 적힌 경험이 없어요. 자료에 활동 이름 · 기간만 있었을 수 있어요 — 기억나는 일을 한 줄씩 적어 두면 여기에 쌓여요.</p>`}
       <button type="button" class="add-x"><img src="assets/home/plus-small.svg" width="14" height="14" alt="" />경험 직접 추가</button>
       <p class="dt__hint">AI 가 자료에서 찾아 채운 기록이에요. 「확인 필요」는 원문과 맞는지 한번 봐 주세요. 자료에서 찾지 못했다고 경험이 없는 건 아니에요.</p>
@@ -376,11 +407,11 @@ function apply() {
     </div>
     <aside class="panel is-open" aria-label="AI 동료"${note("오른쪽 「AI 동료」 — 대화처럼 흐른다: 문항을 읽고 → 맞는 경험을 고르고 → 빠진 것만 묻고 → 답을 경험에 쌓고 → 초안을 넣는다. 아래 입력칸으로 부탁도 할 수 있다. 버튼은 이 서비스만의 일(근거 점검 · 빠진 것 묻기 · 다른 경험으로)부터. 옆 채팅을 둘지는 SPEC 범위 제외(「채팅창이 메인인 AI」)와 겹쳐 정해야 한다", true)}>
       <div class="panel__inner mate">
-        <div class="mate__head"><b>AI 동료</b><span class="muted">문항 ${qi + 1}</span></div>
+        <div class="mate__head"${note("「AI 동료」 대신 이름 있는 캐릭터 「차곡이」(후보) — 로고의 세 블록을 쌓은 모양. 이름 · 모양은 디자인 담당과 정한다(ETC#78)", true)}><span class="mate__who">${MASCOT(28)}<b>차곡이</b><small>경험 동료</small></span><span class="muted">문항 ${qi + 1}</span></div>
         <div class="mate__body" id="feed">${mateFeed(QS[qi], qi)}</div>
         <div class="mate__foot">
-          <div class="mate__acts"><button type="button" class="sg" data-check>근거 점검</button><button type="button" class="sg">초안 만들기 <span class="p1">P1</span></button><button type="button" class="sg">다른 경험으로</button><button type="button" class="sg">더 짧게</button></div>
-          <form class="mate__input"><input placeholder="동료에게 부탁하기 — 예: 협업 얘기는 빼 줘" /><button type="submit" class="ask-box__send" style="width:34px;height:34px" aria-label="보내기">${ICON.up}</button></form>
+          <div class="mate__acts"${note("차곡이가 하는 일은 이 서비스의 기능만 — 근거 찾기 · 근거 점검(ETC#74) · 빠진 것 묻기(되묻기) · 다른 경험으로 · 초안 만들기(P1)")}><button type="button" class="sg">근거 찾기</button><button type="button" class="sg" data-check>근거 점검</button><button type="button" class="sg">빠진 것 묻기</button><button type="button" class="sg">다른 경험으로</button><button type="button" class="sg">초안 만들기 <span class="p1">P1</span></button></div>
+          <form class="mate__input"><input placeholder="차곡이에게 부탁하기 — 예: 협업 얘기는 빼 줘" /><button type="submit" class="ask-box__send" style="width:34px;height:34px" aria-label="보내기">${ICON.up}</button></form>
         </div>
       </div>
     </aside>
@@ -405,9 +436,11 @@ function overlays() {
   </div>
   <div class="pop" id="menu-bell" role="dialog" aria-label="알림">
     <h3>알림</h3>
-    ${reviews.map((x) => `<a href="experience.html?a=${x.act.id}">확인해 주세요 — ${x.t}<small>${x.act.name} · AI 가 원문에서 그대로 찾지 못했어요</small></a>`).join("")}
-    <a href="apply.html?app=2">추천이 끝났어요 — IT 연합 동아리 운영진<small>문항 2개 · 오늘</small></a>
-    <a href="experience.html?a=1">분석이 끝났어요 — 모아봄-README.md<small>활동 1 · 경험 3 · 어제</small></a>
+    <span class="pop__group">할 일 ${reviews.length}</span>
+    ${reviews.map((x) => `<a href="experience.html?a=${x.act.id}"><span class="ntag ntag--rv">확인 필요</span>${x.t}<small>${x.act.name} · AI 가 원문에서 그대로 찾지 못했어요</small></a>`).join("")}
+    <span class="pop__group">소식</span>
+    <a href="apply.html?app=2"><span class="ntag ntag--blue">추천 끝</span>IT 연합 동아리 운영진<small>문항 2개 · 오늘</small></a>
+    <a href="experience.html?a=1"><span class="ntag ntag--green">분석 끝</span>모아봄-README.md<small>활동 1 · 경험 3 · 어제</small></a>
   </div>
   <div class="dlg" id="dlg-source" role="dialog" aria-modal="true" aria-label="쌓기">
     <div class="dlg__box">
@@ -429,18 +462,25 @@ function overlays() {
   <div class="dlg" id="dlg-app" role="dialog" aria-modal="true" aria-label="새 지원서">
     <div class="dlg__box">
       <div class="dlg__top"><h2>새 지원서</h2><button type="button" class="circle" data-close-dlg aria-label="닫기">${ICON.x}</button></div>
-      <p class="dlg__desc">지원처와 문항을 넣으면, 문항마다 쌓인 경험에서 맞는 걸 근거와 함께 찾아요.</p>
-      <label>지원처 이름 (선택)<input type="text" placeholder="예: OO 부트캠프" /></label>
-      <div class="row2"><label>종류 (선택)<input type="text" placeholder="부트캠프 · 동아리 · 인턴 …" /></label><label>직무 (선택)<input type="text" placeholder="백엔드 · 기획 …" /></label></div>
-      <div class="qs"><span style="font-size:12px;color:var(--gray-text)">문항 — 한 번에 여러 개 넣을 수 있어요</span><textarea data-q1 placeholder="문항 1 — 예: 기술적인 문제를 해결한 경험을 적어 주세요 (700자)"></textarea><textarea placeholder="문항 2"></textarea></div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn btn--line">+ 문항 더하기</button><button type="button" class="btn btn--line" disabled>자주 나오는 문항에서 고르기 · P1</button><button type="button" class="btn btn--line" disabled>공고 링크로 가져오기 · P1</button></div>
-      <div class="dlg__foot"><button type="button" class="btn btn--line" data-close-dlg>취소</button><a class="btn btn--dark" href="apply.html?app=1">맞는 경험 찾기</a></div>
+      <p class="dlg__desc">공고나 지원서 문항을 그대로 붙여 넣어 주세요. 지원처 · 종류 · 직무 · 문항은 AI 가 나눠 채우고, 고칠 수 있어요.</p>
+      <textarea data-q1 placeholder="예: [OO 부트캠프 백엔드 과정] 1. 기술적인 문제를 해결한 경험을 적어 주세요 (700자) 2. 지원 동기 …"></textarea>
+      <div data-split hidden>${splitFields()}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn btn--line" disabled>자주 나오는 문항에서 고르기 · P1</button><button type="button" class="btn btn--line" disabled>공고 링크로 가져오기 · P1</button></div>
+      <div class="dlg__foot"><button type="button" class="btn btn--line" data-close-dlg>취소</button><button type="button" class="btn btn--line" data-do-split>AI 로 나누기</button><a class="btn btn--dark" href="apply.html?app=1">맞는 경험 찾기</a></div>
+    </div>
+  </div>
+  <div class="dlg" id="dlg-palette" role="dialog" aria-modal="true" aria-label="빠른 찾기">
+    <div class="pal">
+      <div class="pal__in">${ICON.search}<input data-pal-input placeholder="경험 찾기 — ? 로 시작하면 차곡이에게, > 로 시작하면 할 일" /></div>
+      <div class="pal__tabs"><button type="button" class="is-active" data-pal-tab="find">찾기</button><button type="button" data-pal-tab="ask">${MASCOT(16)} 차곡이에게</button></div>
+      <div class="pal__body"><div class="pal__list" id="pal-list"></div><div class="pal__prev" id="pal-prev"></div></div>
+      <div class="pal__foot"><span><kbd>Enter</kbd> 열기</span><span><kbd>?</kbd> 차곡이에게 묻기</span><span><kbd>&gt;</kbd> 자료 넣기 · 새 지원서</span><span><kbd>Esc</kbd> 닫기</span></div>
     </div>
   </div>
   <div class="toast" role="status"></div>
   <div class="tip" aria-hidden="true"></div>
   <button type="button" class="notes-btn" data-notes>이번 피드백 보기</button>
-  <div class="notes" aria-label="이번 피드백"><h3>시안 3 → 시안 4 피드백</h3><p class="lead">주황 = 바꾼 자리와 이유, 보라 = PM 이 정할 것. 누르면 그 자리로 가요. 지금 화면에 보이는 것만 번호가 붙어요.</p><ol id="notes-list"></ol></div>`;
+  <div class="notes" aria-label="이번 피드백"><h3>시안 4 → 시안 5 피드백</h3><p class="lead">주황 = 바꾼 자리와 이유, 보라 = PM 이 정할 것. 누르면 그 자리로 가요. 지금 화면에 보이는 것만 번호가 붙어요.</p><ol id="notes-list"></ol></div>`;
 }
 
 function renumber() {
@@ -471,8 +511,14 @@ document.querySelector(".app").innerHTML = (page === "home" ? home() : page === 
 
 document.addEventListener("click", (e) => {
   if (!e.target.closest(".menu,.pop,[data-menu]")) document.querySelectorAll(".menu,.pop").forEach((x) => x.classList.remove("is-open"));
-  const t = e.target.closest("[data-pick-mode],[data-check],[data-menu],[data-open],[data-close-dlg],[data-run],[data-notes],[data-go-note],[data-a],[data-close],[data-cite],[data-stab],[data-view],[data-f],[data-q],[data-tab],[data-mate],.sg");
+  const t = e.target.closest("[data-palette],[data-pal-tab],[data-pal-item],[data-do-split],[data-just-hits],[data-fill],[data-pick-mode],[data-check],[data-menu],[data-open],[data-close-dlg],[data-run],[data-notes],[data-go-note],[data-a],[data-close],[data-cite],[data-stab],[data-view],[data-f],[data-q],[data-tab],[data-mate],.sg");
   if (!t) return;
+  if (t.hasAttribute("data-palette")) { openPalette(); return; }
+  if (t.dataset.palTab) { $("[data-pal-input]").value = t.dataset.palTab === "ask" ? "? " : ""; renderPalette(); $("[data-pal-input]").focus(); return; }
+  if (t.dataset.palItem) { const [k, v] = t.dataset.palItem.split(":"); if (k === "a") location.href = `experience.html?a=${v}`; else if (k === "go") { $("#dlg-palette").classList.remove("is-open"); document.querySelector(`[data-open="${v}"]`)?.click(); } return; }
+  if (t.hasAttribute("data-do-split")) { $("[data-split]").hidden = false; return; }
+  if (t.hasAttribute("data-just-hits")) { const a = $(".answer"); a.innerHTML = askAnswer("관련 경험"); return; }
+  if (t.dataset.fill) { $(".ask-box textarea").value = t.dataset.fill; $(".ask-box textarea").focus(); return; }
   if (t.dataset.pickMode) {
     const k = t.dataset.pickMode, m = MODES[k], box = $(".ask-box");
     box.dataset.mode = k; box.querySelector("textarea").placeholder = m.ph; $(".ask-box__hint").textContent = m.hint;
@@ -523,10 +569,36 @@ document.addEventListener("click", (e) => {
 document.querySelector("[data-ask]")?.addEventListener("submit", (e) => {
   e.preventDefault();
   const text = $(".ask-box textarea").value.trim();
-  if ($(".ask-box").dataset.mode === "ask") { const a = $(".answer"); a.innerHTML = askAnswer(text); a.hidden = false; renumber(); return; }
+  if ($(".ask-box").dataset.mode === "out") { const a = $(".answer"); a.innerHTML = askAnswer(text); a.hidden = false; renumber(); return; }
   if ($(".ask-box").dataset.mode === "in") { $("#dlg-source").classList.add("is-open"); setSourceTab("paste"); $('[data-spane="paste"]').value = text; return; }
   $("#dlg-app").classList.add("is-open"); $("[data-q1]").value = text;
 });
+
+// 빠른 찾기 창 — 찾기 / 차곡이에게 / 할 일(>)
+const CMDS = [["source", "자료 가져오기"], ["source", "직접 기록하기"], ["app", "새 지원서"]];
+function renderPalette() {
+  const q = $("[data-pal-input]").value, ask = q.startsWith("?"), cmd = q.startsWith(">");
+  document.querySelectorAll("[data-pal-tab]").forEach((b) => b.classList.toggle("is-active", b.dataset.palTab === (ask ? "ask" : "find")));
+  const word = q.replace(/^[?>]\s*/, "").trim();
+  let html;
+  if (cmd) html = `<span class="pal__g">할 일</span>` + CMDS.map(([k, l]) => `<button type="button" class="pal__it" data-pal-item="go:${k}">${ICON.plus}<span>${l}</span></button>`).join("");
+  else if (ask) html = `<div class="pal__ask">${MASCOT(30)}<p>${word ? `「${word}」 — 쌓인 경험에서 찾아 근거와 함께 답할게요. Enter 를 눌러 보세요.` : "무엇이든 물어보세요. 예: 리더십을 보여 준 경험 있어?"}</p></div>`;
+  else {
+    const list = ALL_X.filter((x) => !word || (x.t + x.act.name).includes(word)).slice(0, 8);
+    html = `<span class="pal__g">${word ? "찾은 경험" : "최근 쌓인 경험"}</span>` + list.map((x) => `<button type="button" class="pal__it" data-pal-item="a:${x.act.id}" data-prev="${x.t}" style="${style(x.act.cat)}"><i class="pal__dot"></i><span>${x.t}<small>${x.act.name}</small></span></button>`).join("") || `<p class="muted" style="padding:12px">없어요 — ? 로 시작해 차곡이에게 물어보세요</p>`;
+  }
+  $("#pal-list").innerHTML = html;
+  const first = ALL_X.find((x) => x.t === document.querySelector("[data-prev]")?.dataset.prev);
+  $("#pal-prev").innerHTML = first && !ask && !cmd ? `<span class="act-chip" style="${style(first.act.cat)}">${first.act.name}</span><h4>${first.t}</h4>${tags(first)}<div class="quote" style="margin-top:10px"><span class="file">${ICON.file}${first.src || "직접 입력"}</span>${first.q ? `<blockquote>${first.q}</blockquote>` : ""}</div>` : "";
+}
+function openPalette() { $("#dlg-palette").classList.add("is-open"); $("[data-pal-input]").value = ""; renderPalette(); setTimeout(() => $("[data-pal-input]").focus(), 30); }
+document.addEventListener("input", (e) => { if (e.target.matches("[data-pal-input]")) renderPalette(); });
+document.addEventListener("mouseover", (e) => { const it = e.target.closest("[data-prev]"); if (!it) return; const x = ALL_X.find((v) => v.t === it.dataset.prev); $("#pal-prev").innerHTML = `<span class="act-chip" style="${style(x.act.cat)}">${x.act.name}</span><h4>${x.t}</h4>${tags(x)}<div class="quote" style="margin-top:10px"><span class="file">${ICON.file}${x.src || "직접 입력"}</span>${x.q ? `<blockquote>${x.q}</blockquote>` : ""}</div>`; });
+document.addEventListener("keydown", (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { e.preventDefault(); e.stopImmediatePropagation(); openPalette(); }
+  if (e.key === "Escape") document.querySelectorAll(".dlg").forEach((d) => d.classList.remove("is-open"));
+}, true);
+$("#dlg-palette").addEventListener("click", (e) => { if (e.target.id === "dlg-palette") e.target.classList.remove("is-open"); });
 
 // 접힌 레일: 아이콘에 마우스를 올리면 이름이 말풍선으로
 document.addEventListener("mouseover", (e) => {

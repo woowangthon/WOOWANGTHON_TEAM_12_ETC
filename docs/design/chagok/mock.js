@@ -63,9 +63,10 @@ ALL_X.forEach((x) => (x.saved = x.act.xs.find((y) => y.t === x.t).saved));
 
 // 지원서 = 지원처 하나 + 문항 여러 개(SPEC S-18)
 const APPS = [
-  { id: 1, name: "OO 부트캠프", role: "백엔드 과정", kind: "부트캠프", state: "작성 중 · 문항 3" },
-  { id: 2, name: "IT 연합 동아리 운영진", role: "", kind: "동아리", state: "추천 완료 · 문항 2" },
-  { id: 3, name: "OO 공모전", role: "", kind: "공모전", state: "경험 찾는 중…", wait: true },
+  { id: 1, name: "OO 부트캠프", role: "백엔드 과정", kind: "부트캠프", state: "작성 중 · 문항 3", at: "2026-11" },
+  { id: 2, name: "IT 연합 동아리 운영진", role: "", kind: "동아리", state: "추천 완료 · 문항 2", at: "2026-10" },
+  { id: 4, name: "UX 리서치 학회 신입 모집", role: "", kind: "학회", state: "냈음 · 합격", at: "2025-08", done: true },
+  { id: 3, name: "OO 공모전", role: "", kind: "공모전", state: "경험 찾는 중…", wait: true, at: "2026-11" },
 ];
 
 /* ---------- 작은 도구 ---------- */
@@ -86,6 +87,7 @@ const ICON = {
   clip: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m20 11-8 8a5 5 0 0 1-7-7l8-8a3.5 3.5 0 0 1 5 5l-8 8a2 2 0 0 1-3-3l7-7"/></svg>',
   bookmark: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M6 3h12v18l-6-4-6 4z"/></svg>',
   panel: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M15 4v16"/></svg>',
+  link: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>',
   up: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>',
 };
 const WHO = { TEAM: "팀", UNKNOWN: "누가 했는지 모름" };
@@ -133,6 +135,7 @@ function shell(crumb, body, { split = false } = {}) {
       <a class="app-more" href="apply.html">모든 지원서</a>
     </section>
     <div class="drawer__spacer"></div>
+    <button type="button" class="nav__item" data-open="connect" data-tip="연결 · 내보내기"${note("「연결 · 내보내기」 — 다른 AI(Claude · ChatGPT)에서 내 경험 쓰기(MCP)와 포트폴리오 · 문서로 꺼내기. TIO 와 갈리는 지점이라 완성 목표로 올릴지 정해야 한다(ETC#24 · #31 · #35)", true)}>${ICON.link}<span class="nav__label">연결 · 내보내기</span></button>
     <div class="profile" title="예시 계정"><div class="profile__avatar">차</div><div class="profile__info"><span class="profile__name">예시 사용자</span><span class="profile__desc">시안 · SAMPLE 데이터</span></div><button type="button" class="icon-btn" aria-label="설정"><img src="assets/home/settings-2.svg" width="17" height="17" alt="" /></button></div>
   </aside>
   <main class="workspace">
@@ -153,8 +156,8 @@ function shell(crumb, body, { split = false } = {}) {
 // 꺼내기 = 한 줄 질문이든 지원 문항이든 넣으면 AI 가 알아서 가른다. 쌓기 = 자료 · 한 줄
 const SAMPLE_Q = "[OO 부트캠프 백엔드 과정 지원서] 1. 기술적인 문제를 해결한 경험을 구체적으로 적어 주세요. (700자) 2. 지원 동기와 수료 후 목표를 적어 주세요. (500자)";
 const MODES = {
-  out: { name: "꺼내기", color: "var(--blue)", ph: "한 줄로 물어보거나, 지원 문항 · 공고를 그대로 붙여 넣어 보세요", chips: [["리더십을 보여 준 경험 있어?", "var(--blue)"], ["작년에 뭐 했더라", "var(--green)"], ["지원 문항 붙여 넣어 보기", "var(--pink)", SAMPLE_Q]], hint: "" },
-  in: { name: "쌓기", color: "var(--green)", ph: "README · 회고 · 노트를 붙여 넣거나, 한 줄만 적어도 돼요", chips: [[".md · .txt 파일 올리기", "var(--green)"], ["노션에서 복사한 활동 정리", "var(--green)"], ["한 줄: 스터디에서 처음 발표했다", "var(--green)"]], hint: "넣은 자료는 분석을 위해 외부 AI 제공사(OpenAI)로 보내져요 · 학습엔 안 쓰여요" },
+  out: { name: "꺼내기", color: "var(--blue)", ph: "한 줄로 물어보거나, 지원 문항 · 공고를 그대로 붙여 넣어 보세요", chips: [["리더십을 보여 준 경험 있어?", "var(--blue)"], ["작년 이맘때 뭐 했더라", "var(--green)"], ["지원 문항 붙여 넣어 보기", "var(--pink)", SAMPLE_Q]], hint: "" },
+  in: { name: "쌓기", color: "var(--green)", ph: "오늘 한 일 · 요즘 든 생각을 한 줄로 적거나, README · 회고를 붙여 넣어 보세요", chips: [["오늘: 스터디에서 처음 발표했다", "var(--green)"], ["요즘 든 생각: 협업이 생각보다 재밌다", "var(--pink)"], ["회고 · README 붙여 넣기", "var(--blue)"]], hint: "" },
 };
 const chipsHtml = (m) => m.chips.map(([c, col, fill]) => `<button type="button" class="sg sg--dot" style="--dot:${col}"${fill ? ` data-fill="${fill}"` : ""}>${c}</button>`).join("");
 /** 차곡이 — 로고의 세 블록이 쌓인 캐릭터(이름 · 모양은 후보, 디자인 담당이 다듬는다 — ETC#78) */
@@ -162,7 +165,7 @@ const MASCOT = (n = 40) => `<svg class="mascot" width="${n}" height="${n}" viewB
 function pile() {
   const years = [2024, 2025, 2026];
   const col = (y) => ALL_X.filter((x) => x.act.start && Number(x.act.start.slice(0, 4)) === y);
-  return `<a class="pile" href="experience.html"${note("홈의 얼굴을 「쌓인 블록」으로 — 경험 하나가 블록 하나, 해마다 차곡차곡 쌓인다(색 = 분류, 노란 테 = 확인 필요). 로고의 쌓인 모양과 같은 말이라 다른 AI 서비스의 빛 번짐 배경과 갈린다. 「성장형」을 숫자 대신 모양으로", true)}>
+  return `<a class="pile" href="experience.html" title="내 경험 보기">
     ${years.map((y) => `<span class="pile__col"><span class="pile__stack">${col(y).map((x) => `<i style="background:${CATS[x.act.cat].accent}" class="${x.st === "review" ? "rv" : ""}" title="${x.t}"></i>`).join("")}</span><small>${y}</small></span>`).join("")}
     <span class="pile__cap"><b>${ALL_X.length}</b>개의 경험이<br>차곡차곡</span></a>`;
 }
@@ -170,31 +173,32 @@ function home() {
   const m = MODES.out;
   return shell("홈", `
   <div class="home">
-    <section class="hero"${note("배경의 빛 번짐을 빼고 종이 점 무늬 — 기록장 느낌. 맨 위에 차곡이가 인사한다(친근함), 답은 근거와 함께(유능함)")}>
-      <div class="hello">${MASCOT(46)}<span class="hello__b">안녕하세요! 오늘은 무엇을 꺼내 볼까요?</span></div>
+    <section class="hero"${note("인사 말풍선과 큰 제목이 같은 말이라 하나로 — 차곡이를 키우고 말풍선은 뺐다. 차곡이를 누르면 「쌓인 블록」이 뜬다", true)}>
+      <button type="button" class="mascot-btn" data-pile aria-label="차곡이 — 쌓인 경험 보기" aria-expanded="false">${MASCOT(68)}</button>
+      <div class="pile-pop" hidden>${pile()}</div>
       <h1>어떤 경험을 꺼내볼까요?</h1>
       <p class="hero__sub">경험 ${ALL_X.length}개가 쌓여 있어요 · <a href="experience.html?view=list&f=review">확인할 것 ${reviews.length}</a></p>
       <form class="ask-box" data-ask data-mode="out">
+        <span class="attach" hidden></span>
         <textarea rows="2" placeholder="${m.ph}"></textarea>
         <div class="ask-box__bar">
-          <button type="button" class="circle" data-menu="plus" aria-label="자료 · 파일 추가">${ICON.plus}</button>
-          <span class="ask-box__hint">${m.hint}</span>
+          <button type="button" class="circle" data-menu="attach" aria-label="파일 올리기"${note("입력칸의 + 는 「파일 올리기」만 — 올리면 파일 꼬리표가 붙고 쌓기로 바뀐다. 쌓기에서 보내면 대화창 없이 이 자리에서 바로 분석한다(넣기 대화창은 다른 화면에서 「+ 추가」로 열 때만)")}>${ICON.plus}</button>
+          <span class="ask-box__hint"></span>
           <button type="button" class="mode-pick" data-menu="model"${note("보내기 옆은 모델 고르는 자리 — 나중에 내 API 키 · 모델(BYOK, ETC#28 · P1). 지금은 팀 기본 모델 하나", true)}><span>기본 모델</span>${ICON.down}</button>
           <button type="submit" class="ask-box__send" aria-label="보내기">${ICON.up}</button>
         </div>
       </form>
-      <div class="modes" role="tablist"${note("물어보기 + 지원서 만들기를 「꺼내기」 하나로 — 한 줄 질문이면 근거 달린 경험을, 지원 문항 · 공고면 「지원서로 만들까요?」를 묻는다(ETC#75). 모드는 꺼내기 / 쌓기 둘만", true)}>${Object.entries(MODES).map(([k, v]) => `<button type="button" class="${k === "out" ? "is-active" : ""}" data-pick-mode="${k}"><i style="background:${v.color}"></i>${v.name}</button>`).join("")}</div>
+      <div class="modes" role="tablist"${note("모드는 꺼내기 / 쌓기 둘. 꺼내기는 한 줄 질문이면 근거 달린 경험, 지원 문항 · 공고면 「지원서로 만들까요?」(ETC#75). 쌓기의 칩은 「오늘 한 일 · 요즘 든 생각」처럼 일상 쪽 말로")}>${Object.entries(MODES).map(([k, v]) => `<button type="button" class="${k === "out" ? "is-active" : ""}" data-pick-mode="${k}"><i style="background:${v.color}"></i>${v.name}</button>`).join("")}</div>
+      <p class="ask-note" hidden>🔒 넣은 자료는 분석을 위해 외부 AI 제공사(OpenAI)로 보내져요 · 학습엔 안 쓰여요</p>
       <div class="suggest">${chipsHtml(m)}</div>
       <div class="answer" hidden></div>
     </section>
-    <section class="later">
-      <div class="later__row later__row--pile">
-        ${pile()}
-        <div class="later__cards">
-          <a class="mini" href="apply.html?app=1" style="--c:var(--pink);--cb:var(--pink-bg)"><span class="mini__ic">${ICON.doc}</span><span class="mini__k">작성 중인 지원서</span><b>OO 부트캠프 · 백엔드 과정</b><small>문항 3개 중 1개 남음</small></a>
-          <a class="mini" href="experience.html?a=1" style="--c:var(--green);--cb:var(--green-bg)"><span class="mini__ic">${ICON.stack}</span><span class="mini__k">어제 쌓임</span><b>모아봄-README.md 에서 경험 3개</b><small>졸업 프로젝트 「모아봄」</small></a>
-          <a class="mini" href="experience.html?a=4" style="--c:var(--blue);--cb:var(--blue-bg)"><span class="mini__ic"><img src="assets/home/history.svg" alt="" /></span><span class="mini__k">1년 전 이맘때</span><b>사용자 인터뷰 다섯 번으로 문제를 다시 정의</b><small>UX 리서치 수업 팀 프로젝트</small></a>
-        </div>
+    <section class="later"${note("「쌓인 블록」과 「이어서」를 한 줄에 두지 않는다 — 블록은 차곡이를 눌렀을 때(홈)와 내 경험 머리에, 이어서는 세 칸만")}>
+      <h2>이어서</h2>
+      <div class="later__row">
+        <a class="mini" href="apply.html?app=1" style="--c:var(--pink);--cb:var(--pink-bg)"><span class="mini__ic">${ICON.doc}</span><span class="mini__k">작성 중인 지원서</span><b>OO 부트캠프 · 백엔드 과정</b><small>문항 3개 중 1개 남음</small></a>
+        <a class="mini" href="experience.html?a=1" style="--c:var(--green);--cb:var(--green-bg)"><span class="mini__ic">${ICON.stack}</span><span class="mini__k">어제 쌓임</span><b>모아봄-README.md 에서 경험 3개</b><small>졸업 프로젝트 「모아봄」</small></a>
+        <a class="mini" href="experience.html?a=4" style="--c:var(--blue);--cb:var(--blue-bg)"><span class="mini__ic"><img src="assets/home/history.svg" alt="" /></span><span class="mini__k">1년 전 이맘때</span><b>사용자 인터뷰 다섯 번으로 문제를 다시 정의</b><small>UX 리서치 수업 팀 프로젝트</small></a>
       </div>
     </section>
   </div>`);
@@ -225,9 +229,17 @@ function row(a, year, faint) {
   const sp = span(a), first = year * 12;
   const cells = Array.from({ length: 12 }, (_, i) => { const m = first + i; const on = sp && m >= sp.s && m <= sp.e; return `<i class="${on ? (a.ongoing && m === sp.e ? "fade" : "on") : ""}"></i>`; }).join("");
   const rev = a.xs.filter((x) => x.st === "review").length;
-  const sub = faint ? `${Math.floor(sp.s / 12)}년부터 이어짐` : `${period(a)} · ${a.xs.length ? `경험 ${a.xs.length}` : "경험 아직 없음"}${rev ? `<span class="review">${ICON.warn}확인 필요 ${rev}</span>` : ""}`;
-  return `<button type="button" class="row ${faint ? "row--faint" : ""}" data-a="${a.id}" data-cat="${a.cat}" style="${style(a.cat)}">
-    <span><span class="row__name"><img src="${CATS[a.cat].icon}" width="13" height="13" alt="" />${a.name}</span><span class="row__sub">${sub}</span></span>${year ? `<span class="band">${cells}</span>` : ""}</button>`;
+  const flow = a.id === 5 && !faint ? `<span class="flow" title="AI 가 제안한 이어짐 — 맞는지 확인해 주세요">↗ IT 연합 동아리로 이어졌나요?</span>` : "";
+  const sub = faint ? `${Math.floor(sp.s / 12)}년부터 이어짐` : `${period(a)} · ${a.xs.length ? `경험 ${a.xs.length}` : "경험 아직 없음"}${rev ? `<span class="review">${ICON.warn}확인 필요 ${rev}</span>` : ""}${flow}`;
+  const s0 = sp ? sp.s - first : 0, e0 = sp ? sp.e - first : 0;
+  const handles = year && !faint ? `<b class="hd hd--s" data-edge="s" style="left:${(Math.max(0, s0) / 12) * 100}%"></b>${a.ongoing ? "" : `<b class="hd hd--e" data-edge="e" style="left:${(Math.min(12, e0 + 1) / 12) * 100}%"></b>`}` : "";
+  return `<div role="button" tabindex="0" class="row ${faint ? "row--faint" : ""}" data-a="${a.id}" data-cat="${a.cat}" style="${style(a.cat)}">
+    <span><span class="row__name"><img src="${CATS[a.cat].icon}" width="13" height="13" alt="" /><span class="row__title" data-edit-name title="눌러서 이름 고치기">${a.name}</span></span><span class="row__sub">${sub}</span></span>${year ? `<span class="band" data-band data-y="${year}" data-s="${s0}" data-e="${e0}" title="끝을 끌어 기간 고치기">${cells}${handles}</span>` : ""}</div>`;
+}
+/** 지원서 한 줄 — 활동과 구분: 점선 테두리 · 문서 아이콘 · 띠 대신 낸 달에 점 하나 */
+function appRow(a, year) {
+  const m = month(a.at) - year * 12;
+  return `<a class="row row--app" href="apply.html?app=${a.id}" hidden><span><span class="row__name">${ICON.doc.replace("<svg", '<svg width="13" height="13"')}${a.name}${a.role ? ` · ${a.role}` : ""}</span><span class="row__sub">${fmt(a.at)} · 지원서 · ${a.state}</span></span><span class="band band--dot">${Array.from({ length: 12 }, (_, k) => `<i class="${k === m ? "dot" : ""}"></i>`).join("")}</span></a>`;
 }
 function timelineView() {
   const dated = ACTS.filter((a) => span(a));
@@ -235,7 +247,8 @@ function timelineView() {
   const html = years.map((y, i) => {
     const starts = dated.filter((a) => Math.floor(span(a).s / 12) === y);
     const cont = dated.filter((a) => { const s = span(a); return Math.floor(s.s / 12) < y && Math.floor(s.e / 12) >= y; });
-    return `<section class="yr"${i === 0 ? note("타임라인 보기: 연도별 목록 + 12칸 띠(분류 색). 여러 해를 위아래로 한눈에, 같은 해 띠끼리 겹침을 읽는다(S-07). 누르면 오른쪽에 세부") : ""}><div class="yr__head"><b>${y}<small>활동 ${starts.length + cont.length}</small></b><span class="yr__months">${Array.from({ length: 12 }, (_, k) => `<span>${k + 1}</span>`).join("")}</span></div>${starts.map((a) => row(a, y)).join("")}${cont.map((a) => row(a, y, true)).join("")}</section>`;
+    const apps = APPS.filter((a) => a.at && Number(a.at.slice(0, 4)) === y).map((a) => appRow(a, y)).join("");
+    return `<section class="yr"${i === 0 ? note("타임라인 보기: 연도별 목록 + 12칸 띠(분류 색). 여러 해를 위아래로 한눈에, 같은 해 띠끼리 겹침을 읽는다(S-07). 활동 이름을 누르면 그 자리에서 고치고, 띠에 올리면 나오는 양 끝을 끌어 기간을 고친다(실제 앱에 있는 S-17). 그 밖을 누르면 오른쪽에 세부") : ""}><div class="yr__head"><b>${y}<small>활동 ${starts.length + cont.length}</small></b><span class="yr__months">${Array.from({ length: 12 }, (_, k) => `<span>${k + 1}</span>`).join("")}</span></div>${starts.map((a) => row(a, y)).join("")}${apps}${cont.map((a) => row(a, y, true)).join("")}</section>`;
   }).join("");
   const undated = ACTS.filter((a) => !span(a));
   return `<div class="tl-wrap">${html}${undated.length ? `<section class="yr"><div class="yr__head"><b>기간 모름<small>활동 ${undated.length}</small></b></div>${undated.map((a) => row(a, 0)).join("")}</section>` : ""}</div>`;
@@ -258,7 +271,7 @@ function experience() {
   return shell("내 경험", `
   <div class="split">
     <div class="workspace__scroll"><div class="ex">
-      <div class="ex__head"><div><h1>내 경험</h1><p>활동 ${ACTS.length} · 경험 ${ALL_X.length} · 자료 ${SOURCES.length} — 누르면 그 안에서 한 일과 근거가 옆에 열려요.</p></div>
+      <div class="ex__head"><div class="ex__pile"${note("「쌓인 블록」 — 경험 하나가 블록 하나, 해마다 쌓인다(색 = 분류, 노란 테 = 확인 필요). 로고의 쌓인 모양과 같은 말이라 이 서비스만의 그림이 된다", true)}>${pile()}</div><div><h1>내 경험</h1><p>활동 ${ACTS.length} · 경험 ${ALL_X.length} · 자료 ${SOURCES.length} — 누르면 그 안에서 한 일과 근거가 옆에 열려요.</p></div>
         <div class="vt" role="tablist"${note("보기 전환 — 타임라인 · 목록 · 자료별. 같은 경험 데이터를 보는 방법만 바꾼다(노션 데이터베이스의 보기처럼)")}>
           ${[["timeline", "타임라인"], ["list", "목록"], ["source", "자료별"]].map(([v, l]) => `<button type="button" data-view="${v}" class="${view === v ? "is-active" : ""}">${l}</button>`).join("")}
         </div></div>
@@ -268,6 +281,8 @@ function experience() {
         <span class="filters__sep"></span>
         <button type="button" class="chip" data-f="saved">${ICON.bookmark}저장한 것</button>
         <button type="button" class="chip" data-f="review">확인 필요 ${reviews.length}</button>
+        <span class="filters__sep"></span>
+        <label class="tgl"${note("「지원서도 같이 보기」 — 낸 지원서 · 대외활동 지원도 그 달에 한 줄로 타임라인에 끼운다. 활동과 구분되게 점선 · 문서 아이콘 · 띠 대신 점 하나(ETC#79)", true)}><input type="checkbox" data-apps-toggle /> 지원서도 같이 보기</label>
         <button type="button" class="filters__more" style="flex:1"><img src="assets/home/sliders-horizontal.svg" width="14" height="14" alt="" />필터</button>
       </div>
       <div data-panel="timeline" ${view === "timeline" ? "" : "hidden"}>${timelineView()}</div>
@@ -302,7 +317,13 @@ function openDetail(id) {
       <div class="dt__top"><h2>${a.name}</h2><button type="button" class="circle" aria-label="활동 메뉴 — 고치기 · 합치기"><img src="assets/home/ellipsis-dark.svg" width="17" height="17" alt="" /></button><button type="button" class="circle" data-close aria-label="닫기">${ICON.x}</button></div>
       <span class="dt__cat"><img src="${c.icon}" width="12" height="12" alt="" />${c.name}</span>
       <span class="dt__period">${period(a)}</span>
-      <div class="dt__sources"${note("자료는 지금 보기만 된다(근거의 원본 이름을 모아 보여 줌, SPEC S-01 · S-09). 「+ 자료 더하기」 · 여러 파일 한 번에는 백로그(ETC#76 · #49)", true)}>이 활동을 만든 자료 ${a.sources.map((s) => `<span class="file">${ICON.file}${s}</span>`).join("")}<button type="button" class="link-add">+ 자료 더하기</button></div>
+      <div class="dt__sources"${note("자료는 지금 보기만 된다(근거의 원본 이름을 모아 보여 줌, SPEC S-01 · S-09). 「+ 자료 더하기」 · 여러 파일 한 번에는 백로그(ETC#76 · #49)", true)}>이 활동을 만든 자료 ${a.sources.map((s) => `<span class="file">${ICON.file}${s}</span>`).join("")}<button type="button" class="link-add" data-add-src="${a.id}">+ 자료 더하기</button></div>
+    </div>
+    <div class="refl" style="${style(a.cat)}"${note("「그때의 나」 — 계기 · 생각 · 감정을 한 줄로(선택). 기획 1.1 · 5-D 「무엇을 느꼈고 → 무엇을 시도했고 → 어떻게 달라졌나」. 차곡이가 다음 활동과의 이어짐을 제안하고 사람이 「맞아요」를 누른다. 취업 쪽으로만 기울지 않게 하는 자리(ETC#33)", true)}>
+      <span class="refl__k">그때의 나 <small>계기 · 생각 — 남기고 싶을 때만</small></span>
+      ${a.id === 5 ? `<p class="refl__q">「협업이 생각보다 어려웠다. 사람들이랑 일하는 법을 더 배우고 싶어졌다.」 <span class="mine">${ICON.pen}내가 입력 · 2025.06</span></p>
+      <div class="link-sug">${MASCOT(20)}<span>이 마음이 <b>IT 연합 동아리 웹 파트</b>(2025.08~)로 이어졌나요?</span><button type="button" class="btn btn--line">맞아요</button><button type="button" class="btn btn--ghost">아니에요</button></div>`
+      : `<button type="button" class="link-add">+ 계기나 그때 든 생각 남기기</button>`}
     </div>
     <div class="dt__body" style="${style(a.cat)}">
       <p class="dt__count"${note("목록 위에도 「+ 경험 추가」 — 경험이 많아지면 맨 아래까지 내려가야 했던 것")}>이 활동에서 한 일 ${a.xs.length}<button type="button" class="link-add">+ 경험 추가</button></p>
@@ -318,7 +339,7 @@ function openDetail(id) {
 function applyFilter(f) {
   document.querySelectorAll(".fbar .chip").forEach((c) => c.classList.toggle("is-active", c.dataset.f === f));
   if ((f === "saved" || f === "review") && !$('[data-panel="list"]').offsetParent) switchView("list");
-  document.querySelectorAll(".row").forEach((r) => (r.hidden = !(f === "all" || f === "saved" || f === "review" || r.dataset.cat === f)));
+  document.querySelectorAll(".row:not(.row--app)").forEach((r) => (r.hidden = !(f === "all" || f === "saved" || f === "review" || r.dataset.cat === f)));
   document.querySelectorAll(".card").forEach((c) => (c.hidden = !(f === "all" || c.dataset.cat === f || (f === "saved" && c.dataset.saved === "true") || (f === "review" && c.dataset.review === "true"))));
 }
 function switchView(v) {
@@ -424,10 +445,14 @@ function overlays() {
   <div class="menu" id="menu-plus" role="menu">
     <span class="menu__label">쌓기</span>
     <button type="button" class="menu__item" data-open="source">${ICON.clip}<span><b>자료 가져오기</b><small>README · 회고 · 노트 · .md 파일 — AI 가 활동과 경험을 찾아요</small></span></button>
-    <button type="button" class="menu__item" data-open="source" data-tab-open="line">${ICON.pen}<span><b>직접 기록하기</b><small>한 줄이면 돼요 — 맞는 활동에 붙여 둘게요</small></span></button>
+    <button type="button" class="menu__item" data-open="source" data-src-mode="line">${ICON.pen}<span><b>직접 기록하기</b><small>오늘 한 일 · 든 생각 한 줄 — 맞는 활동에 붙여 둘게요</small></span></button>
     <hr />
     <span class="menu__label">꺼내기</span>
     <button type="button" class="menu__item" data-open="app">${ICON.doc}<span><b>새 지원서</b><small>지원처와 문항을 넣으면 맞는 경험을 근거와 함께 찾아요</small></span></button>
+  </div>
+  <div class="menu" id="menu-attach" role="menu">
+    <button type="button" class="menu__item" data-attach>${ICON.clip}<span><b>파일 올리기</b><small>.md · .txt — 올리면 쌓기로 바뀌어요</small></span></button>
+    <button type="button" class="menu__item" disabled style="opacity:.55">${ICON.link}<span><b>노션 · GitHub 에서 가져오기 <span class="p1">P2</span></b><small>ETC#29</small></span></button>
   </div>
   <div class="menu" id="menu-model" role="menu">
     <span class="menu__label">분석 · 추천에 쓰는 AI</span>
@@ -444,12 +469,11 @@ function overlays() {
   </div>
   <div class="dlg" id="dlg-source" role="dialog" aria-modal="true" aria-label="쌓기">
     <div class="dlg__box">
-      <div class="dlg__top"><h2>쌓기</h2><button type="button" class="circle" data-close-dlg aria-label="닫기">${ICON.x}</button></div>
+      <div class="dlg__top"><h2 data-src-title>쌓기</h2><button type="button" class="circle" data-close-dlg aria-label="닫기">${ICON.x}</button></div>
       <div data-step="form" style="display:flex;flex-direction:column;gap:14px">
-        <div class="seg"><button type="button" class="is-active" data-stab="paste">붙여넣기</button><button type="button" data-stab="file">파일 올리기</button><button type="button" data-stab="line">한 줄 쓰기</button></div>
-        <textarea data-spane="paste" placeholder="노션 · 회고 · README 내용을 붙여 넣어 주세요"></textarea>
-        <div class="drop" data-spane="file" hidden><img src="assets/timeline/paperclip.svg" width="22" height="22" alt="" /><b style="color:#000">파일을 끌어다 놓거나 눌러서 고르세요</b>.md · .txt 하나 · 50,000자까지</div>
-        <div data-spane="line" hidden style="display:flex;flex-direction:column;gap:10px"><textarea style="min-height:84px" placeholder="예: 스터디에서 처음으로 세그먼트 트리 풀이를 발표했다"></textarea><label>어느 활동에 붙일까요?<select style="height:40px;padding:0 12px;border:1px solid var(--line);border-radius:12px;font:inherit"><option>AI 가 맞는 활동을 골라 줘요</option>${ACTS.map((a) => `<option>${a.name}</option>`).join("")}</select></label></div>
+        <p class="dlg__desc" data-src-desc>README · 회고 · 노트를 붙여 넣거나, 오늘 한 일 한 줄만 적어도 돼요. AI 가 활동과 경험으로 나눠 둘게요.</p>
+        <textarea data-src-text placeholder="붙여 넣거나 적어 주세요"></textarea>
+        <div style="display:flex;align-items:center;gap:8px"><button type="button" class="btn btn--line" data-attach>${ICON.clip.replace("<svg", '<svg width="15" height="15"')} 파일 올리기</button><span class="attach" hidden></span></div>
         <p class="notice">🔒<span>넣은 자료는 분석을 위해 외부 AI 제공사(OpenAI)로 보내져요. OpenAI API 는 보낸 내용을 학습에 쓰지 않아요. 회사 · 고객의 비공개 자료는 빼고 넣어 주세요.</span></p>
         <div class="dlg__foot"><button type="button" class="btn btn--line" data-close-dlg>취소</button><button type="button" class="btn btn--dark" data-run>넣기</button></div>
       </div>
@@ -457,6 +481,26 @@ function overlays() {
         <p class="dlg__desc" style="margin-bottom:14px">자료에서 활동과 경험을 찾고 있어요. 창을 닫아도 이어져요.</p>
         <ol class="steps"><li class="is-done"><i></i>자료 저장</li><li class="is-now"><i></i>활동 · 경험 찾기</li><li><i></i>근거를 원문과 대조</li></ol>
       </div>
+    </div>
+  </div>
+  <div class="dlg" id="dlg-connect" role="dialog" aria-modal="true" aria-label="연결 · 내보내기">
+    <div class="dlg__box" style="width:min(640px,calc(100% - 32px))">
+      <div class="dlg__top"><h2>연결 · 내보내기</h2><button type="button" class="circle" data-close-dlg aria-label="닫기">${ICON.x}</button></div>
+      <section class="cx">
+        <h3>다른 AI 에서 내 경험 쓰기 <span class="p1">P1 · ETC#24</span></h3>
+        <p class="dlg__desc">Claude · ChatGPT 에 차곡을 연결하면, 거기서 「차곡에서 리더십 경험 찾아 줘」라고 해도 근거와 함께 꺼내 와요. 내 경험은 내 것이라, 어느 AI 에서든 쓸 수 있게요.</p>
+        <div class="cx__row"><code>https://mcp.chagok.app/u/예시</code><button type="button" class="btn btn--line">주소 복사</button></div>
+        <div class="cx__chat"><span class="cx__me">Claude 에게: 차곡에서 협업 경험 3개만 찾아 줘</span><span class="cx__ai">${MASCOT(18)} 「바꿔요」 설계 방향이 갈렸을 때 … — 바꿔요-회고.md 41번째 줄</span></div>
+        <p class="muted" style="font-size:12px">처음엔 읽기만. 다른 AI 가 경험을 더하거나 고치는 건 내가 확인한 뒤에(ETC#27)</p>
+      </section>
+      <section class="cx">
+        <h3>꺼내서 보여 주기</h3>
+        <div class="cx__grid">
+          <button type="button" class="cx__opt">Markdown · 텍스트로 <span class="p1">P1</span></button>
+          <button type="button" class="cx__opt">PDF · DOCX 문서 <span class="p1">P2 · #31</span></button>
+          <button type="button" class="cx__opt">포트폴리오 공개 링크 <span class="p1">P2 · #35</span></button>
+        </div>
+      </section>
     </div>
   </div>
   <div class="dlg" id="dlg-app" role="dialog" aria-modal="true" aria-label="새 지원서">
@@ -473,6 +517,7 @@ function overlays() {
     <div class="pal">
       <div class="pal__in">${ICON.search}<input data-pal-input placeholder="경험 찾기 — ? 로 시작하면 차곡이에게, > 로 시작하면 할 일" /></div>
       <div class="pal__tabs"><button type="button" class="is-active" data-pal-tab="find">찾기</button><button type="button" data-pal-tab="ask">${MASCOT(16)} 차곡이에게</button></div>
+      <div class="pal__filters"><button type="button" class="chip">분류 ▾</button><button type="button" class="chip">역량 ▾</button><button type="button" class="chip">기간 ▾</button><button type="button" class="chip">확인 필요만</button><button type="button" class="chip">저장한 것</button></div>
       <div class="pal__body"><div class="pal__list" id="pal-list"></div><div class="pal__prev" id="pal-prev"></div></div>
       <div class="pal__foot"><span><kbd>Enter</kbd> 열기</span><span><kbd>?</kbd> 차곡이에게 묻기</span><span><kbd>&gt;</kbd> 자료 넣기 · 새 지원서</span><span><kbd>Esc</kbd> 닫기</span></div>
     </div>
@@ -480,7 +525,7 @@ function overlays() {
   <div class="toast" role="status"></div>
   <div class="tip" aria-hidden="true"></div>
   <button type="button" class="notes-btn" data-notes>이번 피드백 보기</button>
-  <div class="notes" aria-label="이번 피드백"><h3>시안 4 → 시안 5 피드백</h3><p class="lead">주황 = 바꾼 자리와 이유, 보라 = PM 이 정할 것. 누르면 그 자리로 가요. 지금 화면에 보이는 것만 번호가 붙어요.</p><ol id="notes-list"></ol></div>`;
+  <div class="notes" aria-label="이번 피드백"><h3>시안 5 → 시안 6 피드백</h3><p class="lead">주황 = 바꾼 자리와 이유, 보라 = PM 이 정할 것. 누르면 그 자리로 가요. 지금 화면에 보이는 것만 번호가 붙어요.</p><ol id="notes-list"></ol></div>`;
 }
 
 function renumber() {
@@ -500,6 +545,12 @@ function openMenu(id, anchor) {
   m.style.left = `${Math.min(r.left, innerWidth - w - 12)}px`;
   m.style.top = `${r.bottom + 8 + h > innerHeight ? r.top - h - 8 : r.bottom + 8}px`;
 }
+function openSource(title, desc) {
+  const d = $("#dlg-source"); d.classList.add("is-open");
+  d.querySelector("[data-src-title]").textContent = title;
+  if (desc) d.querySelector("[data-src-desc]").textContent = desc;
+  d.querySelector(".attach").hidden = true;
+}
 function setSourceTab(tab) {
   document.querySelectorAll("[data-stab]").forEach((b) => b.classList.toggle("is-active", b.dataset.stab === tab));
   document.querySelectorAll("[data-spane]").forEach((p) => (p.hidden = p.dataset.spane !== tab));
@@ -511,8 +562,32 @@ document.querySelector(".app").innerHTML = (page === "home" ? home() : page === 
 
 document.addEventListener("click", (e) => {
   if (!e.target.closest(".menu,.pop,[data-menu]")) document.querySelectorAll(".menu,.pop").forEach((x) => x.classList.remove("is-open"));
-  const t = e.target.closest("[data-palette],[data-pal-tab],[data-pal-item],[data-do-split],[data-just-hits],[data-fill],[data-pick-mode],[data-check],[data-menu],[data-open],[data-close-dlg],[data-run],[data-notes],[data-go-note],[data-a],[data-close],[data-cite],[data-stab],[data-view],[data-f],[data-q],[data-tab],[data-mate],.sg");
+  const t = e.target.closest("[data-edit-name],[data-band],[data-pile],[data-attach],[data-apps-toggle],[data-add-src],[data-palette],[data-pal-tab],[data-pal-item],[data-do-split],[data-just-hits],[data-fill],[data-pick-mode],[data-check],[data-menu],[data-open],[data-close-dlg],[data-run],[data-notes],[data-go-note],[data-a],[data-close],[data-cite],[data-stab],[data-view],[data-f],[data-q],[data-tab],[data-mate],.sg");
   if (!t) return;
+  if (t.hasAttribute("data-edit-name")) {
+    if (t.isContentEditable) return;
+    t.contentEditable = "true"; t.focus();
+    const r = document.createRange(); r.selectNodeContents(t); getSelection().removeAllRanges(); getSelection().addRange(r);
+    const done = () => { t.contentEditable = "false"; toast(`활동 이름을 「${t.textContent.trim()}」(으)로 바꿨어요. <span style="opacity:.6">(시안)</span>`); t.removeEventListener("blur", done); };
+    t.addEventListener("blur", done);
+    t.onkeydown = (k) => { if (k.key === "Enter") { k.preventDefault(); t.blur(); } };
+    return;
+  }
+  if (t.hasAttribute("data-band") && e.target.closest(".hd")) return;
+  if (t.hasAttribute("data-pile")) { const pp = $(".pile-pop"); pp.hidden = !pp.hidden; t.setAttribute("aria-expanded", String(!pp.hidden)); renumber(); return; }
+  if (t.hasAttribute("data-attach")) {
+    document.querySelectorAll(".menu").forEach((x) => x.classList.remove("is-open"));
+    const box = t.closest(".dlg__box") || document, at = box.querySelector(".attach");
+    if (at) { at.hidden = false; at.innerHTML = `${ICON.file}바꿔요-회고.md <small>3.2KB</small>`; }
+    if (!t.closest(".dlg__box") && $(".ask-box")) document.querySelector('[data-pick-mode="in"]').click();
+    return;
+  }
+  if (t.hasAttribute("data-apps-toggle")) { document.querySelectorAll(".row--app").forEach((r) => (r.hidden = !t.checked)); renumber(); return; }
+  if (t.dataset.addSrc) {
+    const a = ACTS.find((v) => v.id === Number(t.dataset.addSrc));
+    openSource(`「${a.name.split(" — ")[0]}」에 자료 더하기`, `이 활동에 대한 새 자료(회고 · 발표 자료 · README)를 넣으면, 이 활동의 경험으로 붙이고 근거를 더해요. 다른 활동 얘기가 섞여 있으면 따로 알려 줄게요(ETC#76).`);
+    return;
+  }
   if (t.hasAttribute("data-palette")) { openPalette(); return; }
   if (t.dataset.palTab) { $("[data-pal-input]").value = t.dataset.palTab === "ask" ? "? " : ""; renderPalette(); $("[data-pal-input]").focus(); return; }
   if (t.dataset.palItem) { const [k, v] = t.dataset.palItem.split(":"); if (k === "a") location.href = `experience.html?a=${v}`; else if (k === "go") { $("#dlg-palette").classList.remove("is-open"); document.querySelector(`[data-open="${v}"]`)?.click(); } return; }
@@ -523,7 +598,7 @@ document.addEventListener("click", (e) => {
     const k = t.dataset.pickMode, m = MODES[k], box = $(".ask-box");
     box.dataset.mode = k; box.querySelector("textarea").placeholder = m.ph; $(".ask-box__hint").textContent = m.hint;
     document.querySelectorAll(".modes [data-pick-mode]").forEach((b) => b.classList.toggle("is-active", b === t));
-    $(".hero .suggest").innerHTML = chipsHtml(m); $(".answer").hidden = true;
+    $(".hero .suggest").innerHTML = chipsHtml(m); $(".answer").hidden = true; $(".ask-note").hidden = k !== "in";
     document.querySelectorAll(".menu").forEach((x) => x.classList.remove("is-open")); return;
   }
   if (t.hasAttribute("data-check")) { const ed = $(".editor"); if (ed) { ed.classList.toggle("is-checking"); renumber(); } return; }
@@ -531,14 +606,14 @@ document.addEventListener("click", (e) => {
   if (t.dataset.open) {
     e.preventDefault(); document.querySelectorAll(".menu,.pop").forEach((x) => x.classList.remove("is-open"));
     $(`#dlg-${t.dataset.open}`).classList.add("is-open");
-    if (t.dataset.open === "source") setSourceTab(t.dataset.tabOpen || "paste");
+    if (t.dataset.open === "source") openSource(t.dataset.srcMode === "line" ? "직접 기록하기" : "자료 가져오기", t.dataset.srcMode === "line" ? "오늘 한 일이나 그때 든 생각을 한 줄로 적어 주세요. 맞는 활동에 붙여 둘게요." : null);
     return;
   }
   if (t.hasAttribute("data-close-dlg")) { t.closest(".dlg").classList.remove("is-open"); return; }
   if (t.dataset.stab) { setSourceTab(t.dataset.stab); return; }
   if (t.hasAttribute("data-run")) {
     const box = t.closest(".dlg__box"), form = box.querySelector('[data-step="form"]'), run = box.querySelector('[data-step="run"]');
-    if (t.textContent === "남기기") { t.closest(".dlg").classList.remove("is-open"); toast(`한 줄을 남겼어요. AI 가 「알고리즘 스터디」에 붙였어요 — 아니면 옮겨 주세요. <span style="opacity:.6">(시안)</span>`); return; }
+    if (t.textContent === "남기기" && false) { t.closest(".dlg").classList.remove("is-open"); toast(`한 줄을 남겼어요. AI 가 「알고리즘 스터디」에 붙였어요 — 아니면 옮겨 주세요. <span style="opacity:.6">(시안)</span>`); return; }
     form.style.display = "none"; run.hidden = false;
     const steps = box.querySelectorAll(".steps li");
     setTimeout(() => { steps[1].className = "is-done"; steps[2].className = "is-now"; }, 1300);
@@ -570,7 +645,9 @@ document.querySelector("[data-ask]")?.addEventListener("submit", (e) => {
   e.preventDefault();
   const text = $(".ask-box textarea").value.trim();
   if ($(".ask-box").dataset.mode === "out") { const a = $(".answer"); a.innerHTML = askAnswer(text); a.hidden = false; renumber(); return; }
-  if ($(".ask-box").dataset.mode === "in") { $("#dlg-source").classList.add("is-open"); setSourceTab("paste"); $('[data-spane="paste"]').value = text; return; }
+  if ($(".ask-box").dataset.mode === "in") { const a = $(".answer"); a.hidden = false; a.innerHTML = `<div class="answer__head">${MASCOT(22)} 자료에서 활동과 경험을 찾고 있어요 — 창을 닫아도 이어져요</div><ol class="steps"><li class="is-done"><i></i>자료 저장</li><li class="is-now"><i></i>활동 · 경험 찾기</li><li><i></i>근거를 원문과 대조</li></ol>`;
+    setTimeout(() => { a.innerHTML = `<div class="answer__head">${MASCOT(22)} 활동 1개 · 경험 3개를 찾았어요. 「확인 필요」가 붙은 것부터 봐 주세요.</div><div class="answer__foot"><span class="muted">(시안 — 실제 분석 아님)</span><a class="btn btn--dark" href="experience.html?a=1">내 경험에서 보기</a></div>`; }, 2200);
+    return; }
   $("#dlg-app").classList.add("is-open"); $("[data-q1]").value = text;
 });
 
@@ -599,6 +676,42 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") document.querySelectorAll(".dlg").forEach((d) => d.classList.remove("is-open"));
 }, true);
 $("#dlg-palette").addEventListener("click", (e) => { if (e.target.id === "dlg-palette") e.target.classList.remove("is-open"); });
+
+// 기간 띠 끝을 끌어 기간 고치기 — 실제 앱(FE · S-17)에 이미 있는 동작을 시안에도
+let drag = null;
+document.addEventListener("pointerdown", (e) => {
+  const hd = e.target.closest(".hd"); if (!hd) return;
+  e.preventDefault(); e.stopPropagation();
+  drag = { hd, band: hd.closest("[data-band]"), edge: hd.dataset.edge };
+});
+document.addEventListener("pointermove", (e) => {
+  if (!drag) return;
+  const { band, edge } = drag, r = band.getBoundingClientRect();
+  const m = Math.max(0, Math.min(11, Math.floor(((e.clientX - r.left) / r.width) * 12)));
+  let s0 = Number(band.dataset.s), e0 = Number(band.dataset.e);
+  if (edge === "s") s0 = Math.min(m, e0); else e0 = Math.max(m, s0);
+  band.dataset.s = s0; band.dataset.e = e0;
+  band.querySelectorAll("i").forEach((c, k) => (c.className = k >= s0 && k <= e0 ? "on" : ""));
+  band.querySelector(".hd--s") && (band.querySelector(".hd--s").style.left = `${(Math.max(0, s0) / 12) * 100}%`);
+  band.querySelector(".hd--e") && (band.querySelector(".hd--e").style.left = `${((e0 + 1) / 12) * 100}%`);
+  const y = band.dataset.y, sub = band.closest(".row").querySelector(".row__sub");
+  sub.dataset.old ??= sub.innerHTML;
+  sub.innerHTML = `<b style="color:var(--black)">바꿀 기간 ${y}.${String(Math.max(0, s0) + 1).padStart(2, "0")} – ${y}.${String(e0 + 1).padStart(2, "0")}</b>`;
+});
+document.addEventListener("pointerup", () => {
+  if (!drag) return;
+  const sub = drag.band.closest(".row").querySelector(".row__sub");
+  const span2 = sub.textContent.replace("바꿀 기간 ", "");
+  sub.innerHTML = `${span2} · <span class="muted">방금 바꿈</span>`; delete sub.dataset.old;
+  toast(`기간을 ${span2}(으)로 바꿨어요. <span style="opacity:.6">(시안)</span>`);
+  drag = null;
+});
+document.addEventListener("click", (e) => { if (e.target.closest(".hd")) { e.stopPropagation(); e.preventDefault(); } }, true);
+
+// 도구 모음이 숨은 채 맨 위로 돌아오면 다시 보이게 — 디자인 시안 main.js 는 움직이는 동안의 스크롤을 무시해서
+// 내용이 짧아져 위치가 0 으로 튀면 숨은 채 남는다(PM 이 홈에서 겪은 것)
+document.addEventListener("scroll", (e) => { if (e.target.classList?.contains("workspace__scroll") && e.target.scrollTop <= 4) $(".workspace")?.classList.remove("is-toolbar-hidden"); }, true);
+document.addEventListener("wheel", (e) => { const sc = e.target.closest?.(".workspace__scroll"); if (e.deltaY < 0 && (!sc || sc.scrollTop <= 4)) $(".workspace")?.classList.remove("is-toolbar-hidden"); }, { passive: true });
 
 // 접힌 레일: 아이콘에 마우스를 올리면 이름이 말풍선으로
 document.addEventListener("mouseover", (e) => {

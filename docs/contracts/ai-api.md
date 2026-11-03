@@ -106,7 +106,7 @@
 | `activities` | 배열. 활동을 못 찾으면 `[]` 로 200 — 오류가 아니다(BE 는 작업을 `COMPLETED` · `activityIds: []` 로) |
 | `activities[].name` | 비지 않은 문자열 |
 | `activities[].period` | README 「기간」 규칙. 원본에 없는 날짜를 지어내지 않는다 — 모르면 `null` |
-| `activities[].experiences` | 1개 이상. 경험이 없는 활동은 돌려주지 않는다 |
+| `activities[].experiences` | 배열(0개 가능). 원본에 활동 이름 · 기간만 있고 한 일이 없으면(이력서 항목 · MOC 링크 목록) `[]` 로 활동만 돌려준다(SPEC S-03) — 경험을 지어내 채우지 않는다 |
 | `experiences[].content` | 비지 않은 문자열. 원본에 없는 수치 · 역할 · 결과를 넣지 않는다(S-05) |
 | `experiences[].competencies` | 배열 **1 ~ 3개**. README 「값 목록」의 역량 값만 · 중복 없음 · 가장 잘 맞는 것부터. 원문에서 확인한 사실이 아니라 AI 해석이다(SPEC 미결정 2) |
 | `experiences[].actor` | `ME` · `TEAM` · `UNKNOWN`. 원본이 「팀이 했다」면 `ME` 로 바꾸지 않는다 |

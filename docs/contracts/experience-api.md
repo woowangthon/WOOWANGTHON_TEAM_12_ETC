@@ -38,6 +38,7 @@ FE ─PATCH · POST · DELETE …─────▶ BE  고치기 · 더하기 �
   "activityId": 7,
   "content": "채팅 메시지가 늦게 도착하는 문제를 폴링에서 WebSocket 으로 바꿔 해결했다",
   "competencies": ["PROBLEM_SOLVING", "IMPLEMENTATION"],
+  "competenciesBy": "AI",
   "actor": "ME",
   "sourceStatus": "SOURCE_CONFIRMED",
   "citations": [],
@@ -48,6 +49,7 @@ FE ─PATCH · POST · DELETE …─────▶ BE  고치기 · 더하기 �
 - `supplements` 는 아래 `Supplement` 의 배열 — 되묻기에 답해 그 경험에 쌓인 보완(SPEC R-03 · S-23). 없으면 `[]`. 만든 순서. **스프린트 2 부터 모든 `Experience` 응답에 실린다** — 이 파일의 스프린트 1 예시엔 줄였다(전부 `[]`).
 - `citations` 는 아래 `Citation` 의 배열. AI 가 뽑은 경험은 1개 이상이지만, 근거가 없는 경험도 올 수 있다(그때 `NEEDS_REVIEW`).
 - `competencies` 는 역량 값의 배열(README 「값 목록」 — 0 ~ 3개, 중복 없음, 앞이 더 잘 맞는 것). 없으면 `[]`. AI 가 붙인 것은 **해석**이라 FE 는 원문 사실처럼 보이지 않게 한다(SPEC 미결정 2 · DESIGN). BE 는 받은 순서대로 저장하고 돌려준다.
+- `competenciesBy` — 지금 `competencies` 를 누가 붙였나(README 「값 목록」 — `AI` · `USER`). **BE 만** 붙인다: 분석이 만든 경험은 `AI`, 직접 추가(`POST …/experiences`)는 `USER`, 경험 수정(`PATCH`)에서 `competencies` 가 실제로 바뀌면(순서 · `[]` 포함) `USER`. 본문 · 수행 주체만 고치거나, 옮기거나, 합치거나, 보완이 생겨도 그대로다. FE 는 `AI` 일 때만 역량 앞에 「AI」 표시를 붙인다 — `sourceStatus` 로 짐작하지 않는다(본문만 고쳐도 `USER_ENTERED` 가 되기 때문). **모든 `Experience` 응답에 실린다** — 이 파일 · `question-api.md` 의 다른 예시엔 줄였다.
 
 근거 `Citation`
 
@@ -363,7 +365,7 @@ FE 는 `jobId` 를 들고 있다가(새로고침 대비 주소 · 브라우저 �
 - 쓰는 곳: FE 활동 세부에서 바로 고치기
 - SPEC: `F-04` / `S-10`
 
-보낸 필드만 바꾼다. 실제로 값이 바뀐 필드가 하나라도 있으면 **`sourceStatus` 는 `USER_ENTERED`** 가 된다. `citations` 는 그대로 남는다 — 이 요청으로 바꿀 수 없다.
+보낸 필드만 바꾼다. 실제로 값이 바뀐 필드가 하나라도 있으면 **`sourceStatus` 는 `USER_ENTERED`** 가 된다. `competencies` 가 실제로 바뀌었으면 **`competenciesBy` 도 `USER`** 가 된다(다른 필드만 바뀌면 그대로). `citations` 는 그대로 남는다 — 이 요청으로 바꿀 수 없다.
 
 요청
 
@@ -380,7 +382,7 @@ FE 는 `jobId` 를 들고 있다가(새로고침 대비 주소 · 브라우저 �
 | `competencies` | 역량 값 배열 — **통째로 바꾼다**(빼면 그대로). `[]` 이면 역량을 지운다. 순서가 다르면 바뀐 것으로 본다 |
 | `actor` | `ME` · `TEAM` · `UNKNOWN` |
 
-응답 200 — 바뀐 `Experience`
+응답 200 — 바뀐 `Experience`. 아래는 본문 · 수행 주체만 고친 예라 `competenciesBy` 는 `AI` 그대로다
 
 ```json
 {
@@ -388,6 +390,7 @@ FE 는 `jobId` 를 들고 있다가(새로고침 대비 주소 · 브라우저 �
   "activityId": 7,
   "content": "백엔드 API 중 채팅 · 거래 API 를 설계했다",
   "competencies": ["IMPLEMENTATION"],
+  "competenciesBy": "AI",
   "actor": "ME",
   "sourceStatus": "USER_ENTERED",
   "citations": [
@@ -410,7 +413,7 @@ FE 는 `jobId` 를 들고 있다가(새로고침 대비 주소 · 브라우저 �
 - 쓰는 곳: FE 활동 세부의 「경험 직접 추가」
 - SPEC: `F-04` / `S-11`
 
-사용자가 활동에 경험을 직접 적어 넣는다. **`sourceStatus` 는 `USER_ENTERED`, `citations` 는 `[]`** — BE 가 붙인다(근거 없는 AI 경험의 `NEEDS_REVIEW` 와 다르다). 활동의 경험 맨 뒤에 붙는다.
+사용자가 활동에 경험을 직접 적어 넣는다. **`sourceStatus` 는 `USER_ENTERED`, `competenciesBy` 는 `USER`, `citations` 는 `[]`** — BE 가 붙인다(근거 없는 AI 경험의 `NEEDS_REVIEW` 와 다르다). 활동의 경험 맨 뒤에 붙는다.
 
 요청 — `POST /api/activities/7/experiences`
 
@@ -432,6 +435,7 @@ FE 는 `jobId` 를 들고 있다가(새로고침 대비 주소 · 브라우저 �
   "activityId": 7,
   "content": "결제 실패 알림을 슬랙으로 받게 붙였다",
   "competencies": [],
+  "competenciesBy": "USER",
   "actor": "ME",
   "sourceStatus": "USER_ENTERED",
   "citations": []

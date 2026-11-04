@@ -21,7 +21,7 @@ flowchart LR
 | FE | `WOOWANGTHON_TEAM_12_FE` | Next.js(App Router) · TypeScript · Tailwind CSS, Vercel 배포 | 화면. 데이터 · 인증은 전부 BE API 로 |
 | BE | `WOOWANGTHON_TEAM_12_BE` | Spring Boot | 인증 · 저장 · 조회 · 수정 · 분석 작업 상태 · 사용 한도. AI 서버를 부르는 유일한 곳 |
 | AI | `WOOWANGTHON_TEAM_12_AI` | Python FastAPI | 받은 텍스트에서 활동 · 경험 · 근거를 뽑아 JSON 으로 돌려준다. DB 를 만지지 않는다 |
-| MCP · 차곡이 도구 | (스프린트 3 — SPEC R-04) | 미결정 18(기본값: BE) | 다른 AI(MCP)와 홈 입력 뒤의 차곡이가 같이 쓰는 도구 목록 — BE API 를 부른다([ADR-007](decisions/ADR-007-chagok-entrance-agent.md)) |
+| MCP · 차곡이 도구 | BE 안 (스프린트 3 — SPEC R-04) | Spring Boot — `POST /mcp/{token}` | 다른 AI(MCP)와 홈 입력 뒤의 차곡이가 같이 쓰는 도구 목록. 도구는 BE MCP 에만 정의하고, 차곡이(AI 서버)는 그 MCP 의 클라이언트([ADR-007](decisions/ADR-007-chagok-entrance-agent.md) · [ADR-008](decisions/ADR-008-mcp-tools-in-be.md)) |
 | DB | (BE 가 관리) | PostgreSQL (`pgvector/pgvector` 이미지, 확장은 아직 안 켬) | 원본 · 활동 · 경험 · 근거 |
 
 ## 배포

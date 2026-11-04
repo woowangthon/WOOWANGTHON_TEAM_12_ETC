@@ -167,6 +167,7 @@
 | cloudflared | https://github.com/cloudflare/cloudflared | Apache 2.0 | 서버 → Cloudflare Tunnel 연결 컨테이너 |
 | Cloudflare Zero Trust (Tunnel · Access) | https://www.cloudflare.com/terms/ | Cloudflare 서비스 약관 | BE 외부 공개 · 공개 전 팀원만 접근 |
 | Oracle Cloud Infrastructure | https://www.oracle.com/cloud/ | Oracle Cloud 서비스 약관 | 배포 서버(BE · AI · DB) |
+| 「자주 나오는 문항」 문항 문장(지원 후기 글에 옮겨 적힌 실제 지원서 문항) | https://velog.io/@greencloud/네이버-부스트캠프-웹・모바일-8기-합격-후기 · https://velog.io/@hoeun0723/SOPT-33기-WEB-서류면접-합격-후기 · https://velog.io/@thguss/합격-후기-SOPT-30기-서버-파트-서류면접-합격-후기 · https://velog.io/@kaswhy/SOPT-36기-AT-SOPT-서버-파트-합격-후기 · https://velog.io/@sylagape1231/멋쟁이-사자처럼-대학-11기-합격-후기 · https://velog.io/@jiye0710/멋쟁이사자처럼-12기-리크루팅-후기 · https://mojan3543.github.io/LikelionPassReview/ · https://community.linkareer.com/pass-review/6580282 · https://community.linkareer.com/pass-review/5961420 | 공개 글 — 문항 문장만 옮김(답변 · 후기 본문은 쓰지 않음). 단체 이름은 지원처 종류로 일반화 | FE `src/lib/common-questions.ts` — 지원 넣기의 「자주 나오는 문항에서 고르기」(S-26 · FE#39) |
 
 ## 5. 알려진 한계
 

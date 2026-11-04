@@ -163,7 +163,7 @@ const MODES = {
   in: { name: "쌓기", color: "var(--green)", ph: "오늘 한 일 · 요즘 든 생각을 한 줄로 적거나, README · 회고를 붙여 넣어 보세요", chips: [["오늘: 스터디에서 처음 발표했다", "var(--green)"], ["요즘 든 생각: 협업이 생각보다 재밌다", "var(--pink)"], ["회고 · README 붙여 넣기", "var(--blue)"]], hint: "" },
 };
 const chipsHtml = (m) => m.chips.map(([c, col, fill]) => `<button type="button" class="sg sg--dot" style="--dot:${col}"${fill ? ` data-fill="${fill}"` : ""}>${c}</button>`).join("");
-/** 차곡이 — 로고의 세 블록이 쌓인 캐릭터(이름 · 모양은 후보, 디자인 담당이 다듬는다 — ETC#78) */
+/** 차곡이 — 로고의 세 블록이 쌓인 캐릭터(이름 · 모양은 후보, 디자인 담당이 다듬는다 — ETC#19) */
 const MASCOT = (n = 40) => `<svg class="mascot" width="${n}" height="${n}" viewBox="0 0 40 40" aria-hidden="true"><rect x="7" y="27" width="26" height="10" rx="4" fill="#E666A6"/><rect x="10" y="17" width="22" height="10" rx="4" fill="#51C291"/><rect x="8" y="4" width="24" height="13" rx="5" fill="#41A1F5"/><circle cx="16" cy="10.5" r="1.7" fill="#111"/><circle cx="24" cy="10.5" r="1.7" fill="#111"/><path d="M18 13.4q2 1.4 4 0" stroke="#111" stroke-width="1.2" fill="none" stroke-linecap="round"/></svg>`;
 function pile() {
   const years = [2024, 2025, 2026];
@@ -432,7 +432,7 @@ function apply() {
     </div>
     <aside class="panel is-open" aria-label="AI 동료"${note("오른쪽 「AI 동료」 — 대화처럼 흐른다: 문항을 읽고 → 맞는 경험을 고르고 → 빠진 것만 묻고 → 답을 경험에 쌓고 → 초안을 넣는다. 아래 입력칸으로 부탁도 할 수 있다. 버튼은 이 서비스만의 일(근거 점검 · 빠진 것 묻기 · 다른 경험으로)부터. 옆 채팅을 둘지는 SPEC 범위 제외(「채팅창이 메인인 AI」)와 겹쳐 정해야 한다", true)}>
       <div class="panel__inner mate">
-        <div class="mate__head"${note("「AI 동료」 대신 이름 있는 캐릭터 「차곡이」(후보) — 로고의 세 블록을 쌓은 모양. 이름 · 모양은 디자인 담당과 정한다(ETC#78)", true)}><span class="mate__who">${MASCOT(28)}<b>차곡이</b><small>경험 동료</small></span><span class="muted">문항 ${qi + 1}</span></div>
+        <div class="mate__head"${note("「AI 동료」 대신 이름 있는 캐릭터 「차곡이」(후보) — 로고의 세 블록을 쌓은 모양. 이름 · 모양은 디자인 담당과 정한다(ETC#19)", true)}><span class="mate__who">${MASCOT(28)}<b>차곡이</b><small>경험 동료</small></span><span class="muted">문항 ${qi + 1}</span></div>
         <div class="mate__body" id="feed">${mateFeed(QS[qi], qi)}</div>
         <div class="mate__foot">
           <div class="mate__acts"${note("차곡이가 하는 일은 이 서비스의 기능만 — 근거 찾기 · 근거 점검(ETC#74) · 빠진 것 묻기(되묻기) · 다른 경험으로 · 초안 만들기(P1)")}><button type="button" class="sg">근거 찾기</button><button type="button" class="sg" data-check>근거 점검</button><button type="button" class="sg">빠진 것 묻기</button><button type="button" class="sg">다른 경험으로</button><button type="button" class="sg">초안 만들기 <span class="p1">P1</span></button></div>

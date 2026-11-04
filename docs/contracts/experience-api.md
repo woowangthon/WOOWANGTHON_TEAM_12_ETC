@@ -60,11 +60,12 @@ FE ─PATCH · POST · DELETE …─────▶ BE  고치기 · 더하기 �
   "sourceName": "바꿔요-회고.md",
   "quote": "채팅 메시지가 늦게 도착하는 문제가 있었다. 내가 폴링을 WebSocket 으로 바꿔 해결했다.",
   "matched": true,
-  "location": { "startLine": 5, "endLine": 5 }
+  "location": { "startLine": 5, "endLine": 5, "section": null }
 }
 ```
 
 - 필수는 `sourceId` · `quote`. `location` 은 선택(`null` 가능) — 원본 텍스트 기준 1부터 세는 줄 번호.
+- `location.section` — 원본이 PDF · PPTX 일 때 근거가 몇 쪽 · 몇 번째 슬라이드인지(S-39). `{ "kind": "PAGE" | "SLIDE", "from": 2, "to": 3 }` — `from` 은 `startLine` 이, `to` 는 `endLine` 이 든 구간의 번호(한 쪽이면 둘이 같다). **BE 가** 원본의 `sections`(아래 「자료 넣기」)와 줄 번호로 계산해 싣는다 — AI 는 모른다. 원본에 `sections` 가 없거나(`.md` · `.txt` · 붙여넣기) 줄이 어느 구간에도 들지 않으면 `null`. FE 는 「2쪽」 · 「2–3쪽」 · 「슬라이드 4」처럼 보인다. `Citation` 이 실리는 모든 곳(`question-api.md` · `mcp-api.md` 포함)에서 같다.
 - `matched` — 발췌문을 원본에서 찾았나(`true` / `false`), 대조하지 않았으면 `null`. AI 결과를 그대로 저장한다.
 - 근거는 **사용자가 고치거나 옮겨도 바뀌지 않는다**(S-10 · S-12).
 
@@ -93,7 +94,12 @@ FE ─PATCH · POST · DELETE …─────▶ BE  고치기 · 더하기 �
 - 쓰는 곳: FE 자료 넣기
 - SPEC: `F-01` / `S-01`
 
-파일도 같은 JSON 으로 보낸다 — `.md` · `.txt` 는 텍스트라 **FE 가 브라우저에서 읽어** `text` 에 담는다(`file.text()`). BE 는 multipart 를 받지 않는다. PDF 처럼 서버에서 풀어야 하는 형식이 생기면 그때 더한다.
+파일도 같은 JSON 으로 보낸다 — **FE 가 브라우저에서 글자를 뽑아** `text` 에 담는다. BE 는 multipart 를 받지 않고 원본 파일을 받지도 남기지도 않는다(ETC#25 — 지금 계약 · 서버를 그대로 두는 쪽. 원본 보관 · OCR · 대량 처리가 필요해지면 서버 추출로 옮긴다).
+
+- `.md` · `.txt` — `file.text()` 그대로.
+- `.pdf` · `.pptx`(S-39) — 쪽 · 슬라이드마다 글자를 뽑아 순서대로 이어 `text` 에 담고, 각 쪽 · 슬라이드가 `text` 의 몇째 줄부터 몇째 줄까지인지 `sections` 에 싣는다. `text` 에 「3쪽」 같은 표시 줄은 넣지 않는다. 글자가 없는 쪽 · 슬라이드는 `text` · `sections` 둘 다에서 뺀다(그래서 `number` 는 건너뛸 수 있다). 글자가 하나도 없으면 보내지 않는다 — S-39.
+- PPTX 슬라이드 순서는 `ppt/presentation.xml` 의 슬라이드 목록 순서다(`slideN.xml` 파일 이름 순서가 아니다). 발표자 노트는 넣지 않는다.
+- **줄 세기** — `text` 를 `\n` 으로 나눠 1부터 센다. FE 는 `\r\n` · `\r` 을 `\n` 으로 바꾼 **뒤에** `sections` 를 계산하고 그 `text` 를 그대로 보낸다. AI 서버도 `\n` 으로만 줄을 센다(`ai-api.md` `location`) — 그래서 AI 가 준 줄 번호를 BE 가 `sections` 에 그대로 대어 쪽을 찾는다.
 
 요청
 
@@ -105,11 +111,26 @@ FE ─PATCH · POST · DELETE …─────▶ BE  고치기 · 더하기 �
 }
 ```
 
+PDF 를 넣을 때(S-39) — 1쪽은 1 ~ 2줄, 2쪽은 글자가 없어 빠지고, 3쪽은 4 ~ 5줄(3줄은 쪽 사이 빈 줄이라 어느 구간에도 들지 않는다)
+
+```json
+{
+  "kind": "FILE",
+  "name": "이력서-2026.pdf",
+  "text": "김차곡 — 백엔드 개발자\n2025 캡스톤 「바꿔요」 백엔드\n\n2024-09 ~ 알고리즘 스터디\n문제 선정을 맡는다",
+  "sections": [
+    { "kind": "PAGE", "number": 1, "startLine": 1, "endLine": 2 },
+    { "kind": "PAGE", "number": 3, "startLine": 4, "endLine": 5 }
+  ]
+}
+```
+
 | 필드 | 값 |
 | --- | --- |
 | `kind` | `TEXT`(붙여넣기) · `FILE`(파일 올리기) |
-| `name` | `FILE` 이면 파일 이름(필수, `.md` · `.txt`). `TEXT` 면 `null` — BE 가 「붙여넣은 텍스트 2026-11-03 14:05」처럼 이름을 붙인다 |
+| `name` | `FILE` 이면 파일 이름(필수, `.md` · `.txt` · `.pdf` · `.pptx` — 대소문자 무시). `TEXT` 면 `null` — BE 가 「붙여넣은 텍스트 2026-11-03 14:05」처럼 이름을 붙인다 |
 | `text` | 원본 텍스트. 공백만 있으면 안 된다. 최대 길이는 아래 한도 |
+| `sections` | `.pdf` · `.pptx` 면 **필수**(1개 이상), 그 밖엔 `null`(빼도 된다). 원소 `{ kind, number, startLine, endLine }` — `kind` 는 `.pdf` 면 `PAGE`, `.pptx` 면 `SLIDE`(README 「값 목록」) · `number` 는 1부터 센 쪽 · 슬라이드 번호 · `startLine` ≤ `endLine` 은 위 「줄 세기」의 줄 번호이고 `text` 의 줄 수를 넘지 않는다. `number` · 줄 둘 다 오름차순이고 구간끼리 겹치지 않는다. BE 는 받은 그대로 원본에 남긴다 |
 
 응답 202 — 원본을 저장하고 분석 작업을 만든 뒤 바로 돌려준다. 분석은 뒤에서 돈다.
 
@@ -122,7 +143,8 @@ FE ─PATCH · POST · DELETE …─────▶ BE  고치기 · 더하기 �
 | HTTP | `code` | 언제 |
 | --- | --- | --- |
 | 400 | `EMPTY_TEXT` | `text` 가 비었거나 공백뿐 |
-| 400 | `UNSUPPORTED_FILE_TYPE` | `FILE` 인데 이름이 `.md` · `.txt` 가 아님 |
+| 400 | `UNSUPPORTED_FILE_TYPE` | `FILE` 인데 이름이 `.md` · `.txt` · `.pdf` · `.pptx` 가 아님 |
+| 400 | `INVALID_SECTIONS` | `.pdf` · `.pptx` 인데 `sections` 가 없거나 비었음 · `kind` 가 확장자와 안 맞음 · 줄 번호가 `text` 를 벗어나거나 겹치거나 순서가 틀림 · `.md` · `.txt` · `TEXT` 인데 `sections` 가 비지 않음 |
 | 400 | `INVALID_REQUEST` | 필드가 없거나 `kind` 값이 틀림 |
 | 413 | `TEXT_TOO_LONG` | `text` 가 한도를 넘음 |
 | 429 | `DAILY_LIMIT_EXCEEDED` | 오늘 분석 횟수를 다 씀 — 원본을 저장하지 않는다([`auth-api.md`](auth-api.md)) |

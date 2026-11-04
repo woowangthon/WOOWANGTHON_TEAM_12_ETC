@@ -63,6 +63,8 @@
 | | `NOT_FOUND` | 자료에서 확인 안 됨 — 「경험 없음」이 아니다(SPEC §0) |
 | `evidenceType` 추천 근거 종류 (스프린트 2) | `CITATION` | 원본 발췌문(근거) |
 | | `SUPPLEMENT` | 보완 — 되묻기에 사용자가 한 답(「내가 입력」) |
+| `sectionKind` 원본 구간 종류 (S-39) | `PAGE` | PDF 의 쪽 |
+| | `SLIDE` | PPTX 의 슬라이드 |
 | `questionType` 문항 유형 (S-41) | `MOTIVATION` | 지원 동기 · 포부 · 목표 |
 | | `SELF_INTRO` | 자기소개 · 성격 · 가치관 |
 | | `STRENGTH_WEAKNESS` | 장단점 |

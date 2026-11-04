@@ -1,6 +1,6 @@
 # ADR-003: Spring Boot + FastAPI + PostgreSQL — AI 서버는 DB 없이 JSON 만 주고받는다
 
-- 상태: 채택
+- 상태: 대체됨 → ADR-007 (「LangGraph 는 지금 쓰지 않는다 · AI 흐름은 함수로」 항목만. 나머지 — 스택 · AI 서버는 DB 를 만지지 않는다 · 내부망 — 는 유효)
 - 날짜: 2026-11-02
 
 ## 배경

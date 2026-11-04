@@ -17,6 +17,9 @@ FE ─POST /api/clarifications/{id}/answer ▶ BE  답 → 그 경험의 보완
 FE ─GET /api/questions──────────────▶ BE  넣었던 문항 목록(「내가 넣었던 문항」 다시 고르기 — S-40)
 FE ─PATCH /api/applications/{id}────▶ BE  지원처 종류 · 직무 바꾸기(S-42)
 FE ─PATCH /api/questions/{id}───────▶ BE  문항 유형 고치기(S-41)
+FE ─POST /api/questions/{id}/grounding-check ▶ BE  내가 쓴 답 근거 점검 시작(S-45) → 202
+                                       BE ─POST /ground-check──▶ AI  (답 + 사용자 경험 전부 + 보완)
+FE ─GET /api/questions/{id}/grounding-check (폴링) ▶ BE  ANALYZING → COMPLETED(문장마다 판정) / FAILED
 ```
 
 - **지원**(SPEC R-03 용어 · 2026-11-03 PM) = 지원처 하나 + 문항 여러 개. 문항은 늘 어느 지원에 딸린다(`applicationId`). 추천은 지금처럼 **문항마다 따로** 돈다 — AI 는 문항 사이를 같이 보지 않는다(SPEC 미결정 15). 한 지원 안에서 같은 경험이 여러 문항에 추천됐는지는 FE 가 문항들의 `recommendations` 로 계산해 표시한다(S-21).
@@ -446,9 +449,109 @@ FE ─PATCH /api/questions/{id}───────▶ BE  문항 유형 고치
 
 ---
 
+## 근거 점검 (S-45 · `P1`)
+
+사용자가 그 문항에 쓴 답(초안을 고친 글이든 직접 쓴 글이든)을 문장마다 칠한다. **문항마다 최신 하나**만 둔다 — 다시 점검하면 바뀐다. 문항의 추천 작업과 따로 돈다(문항이 `ANALYZING` · `FAILED` 여도 점검할 수 있다 — 추천 결과를 쓰지 않는다). BE → AI 는 [`ai-api.md`](ai-api.md) 「POST /ground-check」.
+
+근거 점검 `GroundingCheck`
+
+```json
+{
+  "questionId": 41,
+  "status": "COMPLETED",
+  "error": null,
+  "text": "저는 「바꿔요」 프로젝트에서 채팅 메시지가 늦게 도착하는 문제를 WebSocket 으로 바꿔 해결했습니다. 서버에 STOMP 엔드포인트를 만들고 앱의 폴링 코드를 구독 방식으로 바꿨습니다. 그 결과 응답 속도가 80% 빨라졌고 사용자 만족도가 크게 올랐습니다. 배포까지 제가 맡아 AWS 에 올렸습니다. 이 경험으로 문제의 원인을 끝까지 찾는 개발자가 되고 싶습니다.",
+  "sentences": [
+    {
+      "text": "저는 「바꿔요」 프로젝트에서 채팅 메시지가 늦게 도착하는 문제를 WebSocket 으로 바꿔 해결했습니다.",
+      "status": "SOURCE",
+      "evidence": [{ "type": "CITATION", "id": 201, "experienceId": 101, "activityId": 7, "text": "채팅 메시지가 늦게 도착하는 문제가 있었다. 내가 폴링을 WebSocket 으로 바꿔 해결했다." }],
+      "note": null
+    },
+    {
+      "text": "서버에 STOMP 엔드포인트를 만들고 앱의 폴링 코드를 구독 방식으로 바꿨습니다.",
+      "status": "USER_INPUT",
+      "evidence": [{ "type": "SUPPLEMENT", "id": 301, "experienceId": 101, "activityId": 7, "text": "서버에 STOMP 엔드포인트를 만들고, 앱의 3초 폴링 코드를 구독 방식으로 바꿨다" }],
+      "note": null
+    },
+    {
+      "text": "그 결과 응답 속도가 80% 빨라졌고 사용자 만족도가 크게 올랐습니다.",
+      "status": "UNSUPPORTED",
+      "evidence": [],
+      "note": "문장의 숫자(80)가 받치는 근거 · 보완에 없어요"
+    },
+    {
+      "text": "배포까지 제가 맡아 AWS 에 올렸습니다.",
+      "status": "UNSUPPORTED",
+      "evidence": [],
+      "note": "자료엔 배포를 팀원이 맡았다고 되어 있어요"
+    },
+    {
+      "text": "이 경험으로 문제의 원인을 끝까지 찾는 개발자가 되고 싶습니다.",
+      "status": "OPINION",
+      "evidence": [],
+      "note": null
+    }
+  ],
+  "createdAt": "2026-11-05T15:00:00+09:00",
+  "updatedAt": "2026-11-05T15:00:12+09:00"
+}
+```
+
+- `text` — 점검한 글 그대로. 실패했을 때 「다시 시도」는 이 글로 같은 `POST` 를 부른다.
+- `status` · `error` — 작업 상태(README 「값 목록」). `ANALYZING` · `FAILED` 면 `sentences` 는 `[]`. `FAILED` 의 `error.code` 는 `GET /api/questions/{questionId}` 와 같은 값 — 정해진 결과로 칠하지 않는다(대회 규칙 2).
+- `sentences` — 글을 나눈 문장, **글의 순서대로**. 문장 나누기는 AI 서버 코드가 한다(ai-api 「POST /ground-check」). FE 는 이 배열을 차례로 이어 보여 칠한다.
+- `sentences[].status` — README 「값 목록」 `groundingStatus`. 화면: `UNSUPPORTED` 는 눈에 띄게 칠하고 「지우거나, 사실이면 근거를 더해 주세요」, `OPINION` 은 칠하지 않고 AI 해석으로(SPEC S-45). 「근거 없음」을 「거짓」처럼 보이지 않는다.
+- `sentences[].evidence` — 받치는 것. `type` 은 `evidenceType`(`CITATION` · `SUPPLEMENT` · `EXPERIENCE`), `id` 는 그 근거 · 보완 · 경험의 ID. BE 가 `experienceId` · `activityId`(활동 세부 S-08 로 가는 길) · `text`(발췌문 `quote` · 보완 `answer` · 경험 `content` — **지금 상태로**)를 붙인다. `SOURCE` · `USER_INPUT` 은 1개 이상, `UNSUPPORTED` · `OPINION` 은 `[]`. 그새 지워진 근거 · 보완 · 경험은 빠진다 — 판정(`status`)은 점검했을 때 그대로다(다시 점검하면 새로 판정).
+- `sentences[].note` — `UNSUPPORTED` 일 때만 왜 근거 없음인지 한 줄(그 밖엔 `null`). AI 해석이거나 코드가 쓴 문구(숫자 대조)다 — FE 는 AI 해석으로 보인다.
+- 예시 읽는 법: 첫 문장은 회고 발췌 201 이 받친다(원문). 둘째는 문항 A 에서 답한 보완 301 만 받친다(내가 입력). 셋째는 자료에 없는 결과 · 수치다 — LLM 이 근거를 붙였더라도 「80」이 근거 · 보완에 없으니 코드가 근거 없음으로 돌린다. 넷째는 경험 103(`TEAM`, 「배포는 팀원이 맡아」)을 「제가」로 바꿔 쓴 문장이다. 다섯째는 포부라 점검하지 않는다.
+
+## POST /api/questions/{questionId}/grounding-check — 근거 점검 시작
+
+- 쓰는 곳: FE 지원 화면의 「근거 점검」
+- SPEC: `F-09` / `S-45` — 우선순위 `P1`
+
+요청 — `POST /api/questions/41/grounding-check`
+
+```json
+{ "text": "저는 「바꿔요」 프로젝트에서 채팅 메시지가 늦게 도착하는 문제를 WebSocket 으로 바꿔 해결했습니다. …" }
+```
+
+| 필드 | 값 |
+| --- | --- |
+| `text` | 점검할 답. 공백만 있으면 안 된다. 최대 **5000자**(`POST /api/questions` 의 `text` 와 같은 셈) |
+
+응답 202 — `GroundingCheck`, `status: "ANALYZING"` · `sentences: []`. 그 문항의 예전 점검을 이것으로 바꾼다. 실패한 점검을 다시 할 때도 이 호출이다(따로 `retry` 가 없다).
+
+- BE 는 그 사용자의 **경험 전부**(본문 · 수행 주체 · 출처 상태 · **원본에서 찾은 근거만**(`matched: true`) · 보완)를 지금 상태로 AI 에 보낸다 — 추천된 경험만이 아니다(SPEC S-45). 경험이 0개여도 받는다.
+- 분석 1회로 센다([`auth-api.md`](auth-api.md) `dailyAnalysis`).
+
+오류
+
+| HTTP | `code` | 언제 |
+| --- | --- | --- |
+| 400 | `EMPTY_TEXT` | `text` 가 비었거나 공백뿐 |
+| 400 | `INVALID_REQUEST` | `text` 가 없음 |
+| 404 | `QUESTION_NOT_FOUND` | 없는 문항 |
+| 409 | `GROUNDING_CHECK_IN_PROGRESS` | 그 문항의 점검이 아직 `ANALYZING` — 예전 것을 바꾸지 않는다 |
+| 413 | `TEXT_TOO_LONG` | `text` 가 5000자를 넘음 |
+| 429 | `DAILY_LIMIT_EXCEEDED` | 오늘 분석 횟수를 다 씀 — 예전 점검을 바꾸지 않는다 |
+
+## GET /api/questions/{questionId}/grounding-check — 근거 점검 결과
+
+- 쓰는 곳: FE 지원 화면(문항을 열 때 · 점검 중 폴링)
+- SPEC: `F-09` / `S-45`
+
+응답 200 — `{ "groundingCheck": GroundingCheck }`. 그 문항을 아직 점검하지 않았으면 `{ "groundingCheck": null }`.
+
+오류: 404 `QUESTION_NOT_FOUND`
+
+---
+
 ## 이 계약에 없는 것
 
 - 지원 · 문항 지우기, 문항 텍스트 · 지원처 이름 고치기 — 없다(종류 · 직무 · 문항 유형만 `PATCH`). 넣기 전엔 FE 에서 자유롭게 고치고, 넣은 뒤 잘못 넣었으면 그 지원에 새로 더한다(SPEC S-18)
 - 「자주 나오는 문항」 목록(S-26) — FE 에 둔다. API 없음. 「내가 넣었던 문항」(S-40)은 `GET /api/questions` 를 FE 가 묶어 보인다 — 새 API 없음
 - 예전 답변 다시 보기(S-43) — 확정 답변(ETC#67)이 생긴 뒤 계약을 더한다
 - 답변 초안(SPEC S-27 · ETC#26) · 공고 링크에서 본문 가져오기(SPEC 미결정 12)
+- 근거 점검의 예전 결과 모아 보기 · 문장을 고쳐 주기 — 없다. 점검은 문항마다 최신 하나, 글은 사람이 고친다(S-45). 근거 없는 문장을 새 경험 후보로 올리기는 확정 답변(ETC#67)에서

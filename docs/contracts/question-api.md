@@ -14,7 +14,9 @@ FE ─POST /api/questions─────────────▶ BE  (문항 
                                        BE ─POST /match──▶ AI  (문항 + 사용자 경험 전부 + 보완)
 FE ─GET /api/questions/{id} (폴링)───▶ BE  ANALYZING → COMPLETED(요구사항 · 추천 · 되묻기) / FAILED
 FE ─POST /api/clarifications/{id}/answer ▶ BE  답 → 그 경험의 보완
-FE ─GET /api/questions──────────────▶ BE  넣었던 문항 목록
+FE ─GET /api/questions──────────────▶ BE  넣었던 문항 목록(「내가 넣었던 문항」 다시 고르기 — S-40)
+FE ─PATCH /api/applications/{id}────▶ BE  지원처 종류 · 직무 바꾸기(S-42)
+FE ─PATCH /api/questions/{id}───────▶ BE  문항 유형 고치기(S-41)
 ```
 
 - **지원**(SPEC R-03 용어 · 2026-11-03 PM) = 지원처 하나 + 문항 여러 개. 문항은 늘 어느 지원에 딸린다(`applicationId`). 추천은 지금처럼 **문항마다 따로** 돈다 — AI 는 문항 사이를 같이 보지 않는다(SPEC 미결정 15). 한 지원 안에서 같은 경험이 여러 문항에 추천됐는지는 FE 가 문항들의 `recommendations` 로 계산해 표시한다(S-21).
@@ -31,6 +33,8 @@ FE ─GET /api/questions──────────────▶ BE  넣었
   "applicationId": 21,
   "organization": "OO 백엔드 부트캠프",
   "text": "기술적인 문제를 해결한 경험을 구체적으로 적어 주세요.",
+  "questionType": "PROBLEM_SOLVING",
+  "questionTypeBy": "AI",
   "status": "COMPLETED",
   "createdAt": "2026-11-04T10:00:00+09:00"
 }
@@ -39,6 +43,8 @@ FE ─GET /api/questions──────────────▶ BE  넣었
 - `applicationId` — 이 문항이 딸린 지원.
 - `organization` — 지원처 이름(그 지원의 것). 선택이라 `null` 일 수 있다.
 - `status` — README 「값 목록」 작업 상태(`ANALYZING` · `COMPLETED` · `FAILED`).
+- `questionType` — README 「값 목록」 문항 유형 하나(S-41). 매칭이 끝나면 AI 가 붙인다(`/match` 응답의 `questionType`). 아직 없으면(`ANALYZING` · `FAILED`, 사용자가 고르지 않음) `null`.
+- `questionTypeBy` — `AI`(매칭이 붙인 해석 — FE 는 AI 해석으로 보인다) · `USER`(사용자가 `PATCH` 로 골랐다). `questionType` 이 `null` 이면 `null`. **`USER` 면 다시 시도 · 매칭 결과가 덮어쓰지 않는다.**
 
 요구사항 `Requirement` — AI 가 문항을 쪼갠 「이 지원처가 보려는 것」 하나(SPEC R-03 용어)
 
@@ -83,14 +89,17 @@ FE ─GET /api/questions──────────────▶ BE  넣었
 {
   "id": 21,
   "organization": "OO 백엔드 부트캠프",
+  "organizationType": "BOOTCAMP",
+  "jobRole": "BACKEND",
   "questions": [
-    { "id": 41, "applicationId": 21, "organization": "OO 백엔드 부트캠프", "text": "기술적인 문제를 해결한 경험을 구체적으로 적어 주세요.", "status": "COMPLETED", "createdAt": "2026-11-04T10:00:00+09:00" },
-    { "id": 43, "applicationId": 21, "organization": "OO 백엔드 부트캠프", "text": "지원 동기와 수료 후 목표를 적어 주세요.", "status": "ANALYZING", "createdAt": "2026-11-04T10:00:00+09:00" }
+    { "id": 41, "applicationId": 21, "organization": "OO 백엔드 부트캠프", "text": "기술적인 문제를 해결한 경험을 구체적으로 적어 주세요.", "questionType": "PROBLEM_SOLVING", "questionTypeBy": "AI", "status": "COMPLETED", "createdAt": "2026-11-04T10:00:00+09:00" },
+    { "id": 43, "applicationId": 21, "organization": "OO 백엔드 부트캠프", "text": "지원 동기와 수료 후 목표를 적어 주세요.", "questionType": null, "questionTypeBy": null, "status": "ANALYZING", "createdAt": "2026-11-04T10:00:00+09:00" }
   ],
   "createdAt": "2026-11-04T10:00:00+09:00"
 }
 ```
 
+- `organizationType` · `jobRole` — README 「값 목록」 지원처 종류 · 직무(S-42). 사용자가 고른다 · 선택이라 `null` 일 수 있다. 문항 요약에는 싣지 않는다 — 지원의 것이다.
 - `questions` — 문항 요약(`QuestionSummary`), **넣은 순서대로**(지원서의 문항 순서). 추천 결과는 문항마다 `GET /api/questions/{questionId}`.
 
 ---
@@ -105,6 +114,8 @@ FE ─GET /api/questions──────────────▶ BE  넣었
 ```json
 {
   "organization": "OO 백엔드 부트캠프",
+  "organizationType": "BOOTCAMP",
+  "jobRole": "BACKEND",
   "questions": [
     { "text": "기술적인 문제를 해결한 경험을 구체적으로 적어 주세요." },
     { "text": "지원 동기와 수료 후 목표를 적어 주세요." }
@@ -115,6 +126,7 @@ FE ─GET /api/questions──────────────▶ BE  넣었
 | 필드 | 값 |
 | --- | --- |
 | `organization` | 지원처 이름(선택 — 없으면 `null`). 최대 100자 |
+| `organizationType` · `jobRole` | 지원처 종류 · 직무(선택 — 없거나 `null` 이면 비움). README 「값 목록」 값만(S-42) |
 | `questions` | 문항 **1 ~ 10개**, 넣은 순서가 지원서의 문항 순서. 각 `text` 는 `POST /api/questions` 의 `text` 와 같은 규칙(공백만 안 됨 · 최대 5000자) |
 
 응답 202 — 지원과 문항을 저장하고 문항마다 추천을 뒤에서 돌린다.
@@ -130,7 +142,7 @@ FE ─GET /api/questions──────────────▶ BE  넣었
 | HTTP | `code` | 언제 |
 | --- | --- | --- |
 | 400 | `EMPTY_TEXT` | 어떤 문항의 `text` 가 비었거나 공백뿐 |
-| 400 | `INVALID_REQUEST` | `questions` 가 없거나 0개 · 10개를 넘음 · `text` 가 없음 · `organization` 이 100자를 넘음 |
+| 400 | `INVALID_REQUEST` | `questions` 가 없거나 0개 · 10개를 넘음 · `text` 가 없음 · `organization` 이 100자를 넘음 · `organizationType` · `jobRole` 이 목록에 없는 값 |
 | 413 | `TEXT_TOO_LONG` | 어떤 문항의 `text` 가 5000자를 넘음 |
 | 429 | `DAILY_LIMIT_EXCEEDED` | 오늘 남은 분석 횟수가 문항 수보다 적음 |
 
@@ -175,12 +187,13 @@ FE ─GET /api/questions──────────────▶ BE  넣었
 요청
 
 ```json
-{ "organization": "OO 백엔드 부트캠프", "text": "기술적인 문제를 해결한 경험을 구체적으로 적어 주세요." }
+{ "organization": "OO 백엔드 부트캠프", "organizationType": "BOOTCAMP", "jobRole": "BACKEND", "text": "기술적인 문제를 해결한 경험을 구체적으로 적어 주세요." }
 ```
 
 | 필드 | 값 |
 | --- | --- |
 | `organization` | 지원처 이름(선택 — 없으면 `null`). 최대 100자 |
+| `organizationType` · `jobRole` | 새로 만드는 지원의 종류 · 직무(선택). `POST /api/applications` 와 같다 |
 | `text` | 문항 텍스트. 공고 일부를 같이 붙여도 된다. 공백만 있으면 안 된다. 최대 **5000자**(Java `String.length()` — JS `text.length` 와 같은 숫자) |
 
 응답 202 — 문항을 저장하고 추천을 뒤에서 돌린다. 문항 하나짜리 **지원을 새로 만든다**(`organization` 은 그 지원의 것) — 스프린트 2 처음 모양을 깨지 않으려고 남겨 둔다.
@@ -196,7 +209,7 @@ FE ─GET /api/questions──────────────▶ BE  넣었
 | HTTP | `code` | 언제 |
 | --- | --- | --- |
 | 400 | `EMPTY_TEXT` | `text` 가 비었거나 공백뿐 |
-| 400 | `INVALID_REQUEST` | `text` 가 없음 · `organization` 이 100자를 넘음 |
+| 400 | `INVALID_REQUEST` | `text` 가 없음 · `organization` 이 100자를 넘음 · `organizationType` · `jobRole` 이 목록에 없는 값 |
 | 413 | `TEXT_TOO_LONG` | `text` 가 5000자를 넘음 |
 | 429 | `DAILY_LIMIT_EXCEEDED` | 오늘 분석 횟수를 다 씀 — 추천도 LLM 을 불러 자료 넣기와 같이 센다. 문항을 저장하지 않는다([`auth-api.md`](auth-api.md)) |
 
@@ -212,8 +225,8 @@ FE ─GET /api/questions──────────────▶ BE  넣었
 ```json
 {
   "questions": [
-    { "id": 42, "applicationId": 22, "organization": "OO 연합 동아리", "text": "팀 프로젝트에서 맡은 역할과, 팀과 함께 일한 방식을 적어 주세요.", "status": "COMPLETED", "createdAt": "2026-11-04T10:20:00+09:00" },
-    { "id": 41, "applicationId": 21, "organization": "OO 백엔드 부트캠프", "text": "기술적인 문제를 해결한 경험을 구체적으로 적어 주세요.", "status": "COMPLETED", "createdAt": "2026-11-04T10:00:00+09:00" }
+    { "id": 42, "applicationId": 22, "organization": "OO 연합 동아리", "text": "팀 프로젝트에서 맡은 역할과, 팀과 함께 일한 방식을 적어 주세요.", "questionType": "COLLABORATION", "questionTypeBy": "AI", "status": "COMPLETED", "createdAt": "2026-11-04T10:20:00+09:00" },
+    { "id": 41, "applicationId": 21, "organization": "OO 백엔드 부트캠프", "text": "기술적인 문제를 해결한 경험을 구체적으로 적어 주세요.", "questionType": "PROBLEM_SOLVING", "questionTypeBy": "AI", "status": "COMPLETED", "createdAt": "2026-11-04T10:00:00+09:00" }
   ]
 }
 ```
@@ -233,6 +246,8 @@ FE ─GET /api/questions──────────────▶ BE  넣었
   "applicationId": 21,
   "organization": "OO 백엔드 부트캠프",
   "text": "기술적인 문제를 해결한 경험을 구체적으로 적어 주세요.",
+  "questionType": "PROBLEM_SOLVING",
+  "questionTypeBy": "AI",
   "status": "COMPLETED",
   "error": null,
   "requirements": [
@@ -282,6 +297,8 @@ FE ─GET /api/questions──────────────▶ BE  넣었
   "applicationId": 22,
   "organization": "OO 연합 동아리",
   "text": "팀 프로젝트에서 맡은 역할과, 팀과 함께 일한 방식을 적어 주세요.",
+  "questionType": "COLLABORATION",
+  "questionTypeBy": "AI",
   "status": "COMPLETED",
   "error": null,
   "requirements": [
@@ -341,6 +358,54 @@ FE ─GET /api/questions──────────────▶ BE  넣었
 
 오류: 404 `QUESTION_NOT_FOUND` · 409 `QUESTION_NOT_FAILED` 실패 상태가 아닌 문항 · 429 `DAILY_LIMIT_EXCEEDED` 오늘 분석 횟수를 다 씀
 
+## PATCH /api/applications/{applicationId} — 지원처 종류 · 직무 바꾸기
+
+- 쓰는 곳: FE 지원 화면의 지원처 종류 · 직무 칸
+- SPEC: `R-03` / `S-42` — 우선순위 `P1`
+
+보낸 필드만 바꾼다. `null` 을 보내면 비운다. 지원처 이름 · 문항은 여기서 바꾸지 않는다(S-18).
+
+요청 — `PATCH /api/applications/21`
+
+```json
+{ "organizationType": "BOOTCAMP", "jobRole": "BACKEND" }
+```
+
+응답 200 — 바뀐 `Application`. 추천은 다시 돌지 않는다(매칭 요청에 싣지 않는다 — S-42).
+
+오류
+
+| HTTP | `code` | 언제 |
+| --- | --- | --- |
+| 400 | `INVALID_REQUEST` | 목록에 없는 값 · 두 필드가 다 없음 |
+| 404 | `APPLICATION_NOT_FOUND` | 없는 지원 |
+
+## PATCH /api/questions/{questionId} — 문항 유형 고치기
+
+- 쓰는 곳: FE 추천 결과의 문항 유형
+- SPEC: `R-03` / `S-41` — 우선순위 `P1`
+
+문항 텍스트는 바꾸지 않는다(S-18) — 유형만.
+
+요청 — `PATCH /api/questions/41`
+
+```json
+{ "questionType": "ACHIEVEMENT" }
+```
+
+| 필드 | 값 |
+| --- | --- |
+| `questionType` | README 「값 목록」 문항 유형 하나. `null` 은 받지 않는다(AI 값으로 되돌리기는 없다 — 다시 고른다) |
+
+응답 200 — `GET /api/questions/{questionId}` 와 같은 모양. 값을 보냈으면 `questionTypeBy: "USER"`. 분석 중 · 실패한 문항도 고를 수 있다 — 그 뒤 매칭이 끝나도 덮어쓰지 않는다.
+
+오류
+
+| HTTP | `code` | 언제 |
+| --- | --- | --- |
+| 400 | `INVALID_REQUEST` | `questionType` 이 없음 · `null` · 목록에 없는 값 |
+| 404 | `QUESTION_NOT_FOUND` | 없는 문항 |
+
 ## POST /api/clarifications/{clarificationId}/answer — 되묻기에 답하기
 
 - 쓰는 곳: FE 추천 결과의 되묻기
@@ -383,6 +448,7 @@ FE ─GET /api/questions──────────────▶ BE  넣었
 
 ## 이 계약에 없는 것
 
-- 지원 · 문항 지우기 · 고치기, 지원처 이름 고치기 — 스프린트 2 엔 없다. 넣기 전엔 FE 에서 자유롭게 고치고, 넣은 뒤 잘못 넣었으면 그 지원에 새로 더한다(SPEC S-18)
-- 「자주 나오는 문항」 목록(S-26) — FE 에 둔다. API 없음
+- 지원 · 문항 지우기, 문항 텍스트 · 지원처 이름 고치기 — 없다(종류 · 직무 · 문항 유형만 `PATCH`). 넣기 전엔 FE 에서 자유롭게 고치고, 넣은 뒤 잘못 넣었으면 그 지원에 새로 더한다(SPEC S-18)
+- 「자주 나오는 문항」 목록(S-26) — FE 에 둔다. API 없음. 「내가 넣었던 문항」(S-40)은 `GET /api/questions` 를 FE 가 묶어 보인다 — 새 API 없음
+- 예전 답변 다시 보기(S-43) — 확정 답변(ETC#67)이 생긴 뒤 계약을 더한다
 - 답변 초안(SPEC S-27 · ETC#26) · 공고 링크에서 본문 가져오기(SPEC 미결정 12)

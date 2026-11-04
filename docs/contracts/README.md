@@ -63,8 +63,40 @@
 | | `NOT_FOUND` | 자료에서 확인 안 됨 — 「경험 없음」이 아니다(SPEC §0) |
 | `evidenceType` 추천 근거 종류 (스프린트 2) | `CITATION` | 원본 발췌문(근거) |
 | | `SUPPLEMENT` | 보완 — 되묻기에 사용자가 한 답(「내가 입력」) |
+| `questionType` 문항 유형 (S-41) | `MOTIVATION` | 지원 동기 · 포부 · 목표 |
+| | `SELF_INTRO` | 자기소개 · 성격 · 가치관 |
+| | `STRENGTH_WEAKNESS` | 장단점 |
+| | `ACHIEVEMENT` | 성취 · 몰입 · 열정 |
+| | `PROBLEM_SOLVING` | 문제 해결 · 기술적 어려움 |
+| | `COLLABORATION` | 협업 · 소통 · 팀워크 |
+| | `CONFLICT` | 갈등 · 의견 조율 |
+| | `FAILURE` | 실패 · 극복 · 아쉬움 |
+| | `GROWTH` | 성장 과정 · 배운 점 · 피드백 |
+| | `IDEA` | 아이디어 · 기획 제안 |
+| | `OTHER` | 기타 — 맞는 유형이 없다 |
+| `questionTypeBy` 문항 유형 출처 | `AI` | AI 가 매칭 때 붙인 해석 |
+| | `USER` | 사용자가 골랐다. **BE 만** 붙인다 |
+| `organizationType` 지원처 종류 (S-42) | `CLUB` | 동아리 · 학회 |
+| | `EXTRACURRICULAR` | 교내 비교과 프로그램 |
+| | `EXTERNAL` | 대외활동 · 서포터즈 · 공모전 |
+| | `BOOTCAMP` | 부트캠프 · 교육 과정 |
+| | `INTERN` | 인턴 |
+| | `JOB` | 채용(신입 · 경력) |
+| | `OTHER` | 기타 |
+| `jobRole` 직무 (S-42) | `BACKEND` | 백엔드 · 서버 |
+| | `FRONTEND` | 프론트엔드 · 웹 |
+| | `MOBILE` | 모바일 앱 |
+| | `AI_DATA` | AI · 데이터 |
+| | `INFRA` | 인프라 · 클라우드 · DevOps · 보안 |
+| | `DESIGN` | 디자인 |
+| | `PLANNING` | 기획 · PM |
+| | `MARKETING` | 마케팅 · 홍보 · 콘텐츠 |
+| | `BUSINESS` | 경영 · 사무 · 영업 |
+| | `OTHER` | 기타 |
 
 `competencies` 는 **배열**이다 — 경험 하나에 0 ~ 3개, 중복 없음, 앞에 둔 것이 더 잘 맞는다. 없으면 `[]`(`null` 이 아니다). 목록은 닫혀 있다 — 새 값은 SPEC 미결정 2 의 결정을 고치고 이 표에 먼저 더한 뒤 쓴다(동의어가 생기면 검색 · 매칭이 쪼개진다).
+
+`questionType` 은 문항 하나에 **하나**(배열 아님), `organizationType` · `jobRole` 은 지원에 하나씩이고 선택이라 `null` 일 수 있다. 셋 다 목록이 닫혀 있다 — 새 값은 SPEC 미결정 13 · 17 을 고치고 이 표에 먼저 더한다(「백엔드」 · 「서버」가 갈라지면 비슷한 답변을 못 묶는다 — S-43).
 
 ### 기간 `period`
 

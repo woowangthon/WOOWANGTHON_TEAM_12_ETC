@@ -29,7 +29,7 @@ role() {
 
 for r in FE BE AI; do
   T="$ROOT/WOOWANGTHON_TEAM_12_$r"
-  if [ ! -d "$T/.git" ]; then
+  if [ ! -e "$T/.git" ]; then
     echo "건너뜀 $r — $T 에 클론이 없다"
     continue
   fi

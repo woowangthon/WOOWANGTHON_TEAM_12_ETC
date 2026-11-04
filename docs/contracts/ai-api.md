@@ -10,14 +10,15 @@
 ## POST /extract — 활동 · 경험 · 근거 추출
 
 - 부르는 곳: BE 분석 작업(experience-api `POST /api/sources` · `retry` 뒤)
-- SPEC: `F-02` / `S-03` · `S-04` · `S-05` · `S-06`
+- SPEC: `F-02` / `S-03` · `S-04` · `S-05` · `S-06` · `F-04` / `S-44`(`existingActivities` · `sameAsActivityId`, `P1`)
 
 요청
 
 ```json
 {
   "sourceName": "바꿔요-회고.md",
-  "text": "# 바꿔요 — 캠퍼스 중고거래 앱 회고 (2025년 1학기 캡스톤)\n\n기간: 2025-03 ~ 2025-06, 4명 팀. 나는 백엔드를 맡았다.\n\n- 채팅 메시지가 늦게 도착하는 문제가 있었다. 내가 폴링을 WebSocket 으로 바꿔 해결했다.\n- 팀은 매주 금요일 스프린트 회고를 했다.\n- 배포는 팀원이 맡아 AWS 에 올렸다.\n\n## 알고리즘 스터디\n2024-09 부터 지금까지 매주 문제를 풀고 있다. 내가 문제 선정을 맡는다.\n"
+  "text": "# 바꿔요 — 캠퍼스 중고거래 앱 회고 (2025년 1학기 캡스톤)\n\n기간: 2025-03 ~ 2025-06, 4명 팀. 나는 백엔드를 맡았다.\n\n- 채팅 메시지가 늦게 도착하는 문제가 있었다. 내가 폴링을 WebSocket 으로 바꿔 해결했다.\n- 팀은 매주 금요일 스프린트 회고를 했다.\n- 배포는 팀원이 맡아 AWS 에 올렸다.\n\n## 알고리즘 스터디\n2024-09 부터 지금까지 매주 문제를 풀고 있다. 내가 문제 선정을 맡는다.\n",
+  "existingActivities": []
 }
 ```
 
@@ -25,6 +26,7 @@
 | --- | --- |
 | `sourceName` | 원본 이름(파일 이름 등). 활동 이름을 짐작할 단서로만 쓴다 |
 | `text` | 원본 텍스트 그대로. BE 가 저장한 것과 **글자 하나 다르지 않게** 보낸다 — 근거 대조 · 줄 번호의 기준이다 |
+| `existingActivities` | 이 사용자가 **이미 가진** 활동 — `{ id, name, period }` 의 배열(S-44, `P1`). 처음 넣는 사용자면 `[]`. 빼면 `[]` 와 같다(S-44 전 BE 와 맞물리게). 경험 본문 · 근거는 싣지 않는다. BE 는 `period.start` 최근 순으로 최대 **300개**까지 싣는다(`start` 가 `null` 인 활동은 뒤) — 넘으면 오래된 것이 빠진다. 다시 시도(`retry`)에서도 그때의 목록을 다시 만들어 보낸다 |
 
 응답 200
 
@@ -34,6 +36,7 @@
     {
       "name": "바꿔요 — 캠퍼스 중고거래 앱",
       "period": { "start": "2025-03", "end": "2025-06", "ongoing": false },
+      "sameAsActivityId": null,
       "experiences": [
         {
           "content": "채팅 메시지가 늦게 도착하는 문제를 폴링에서 WebSocket 으로 바꿔 해결했다",
@@ -80,6 +83,7 @@
     {
       "name": "알고리즘 스터디",
       "period": { "start": "2024-09", "end": null, "ongoing": true },
+      "sameAsActivityId": null,
       "experiences": [
         {
           "content": "매주 풀 문제를 고른다",
@@ -97,7 +101,36 @@
 }
 ```
 
-- 예시 읽는 법: 배포는 「팀원이 맡아」라서 `TEAM`(S-06). 「백엔드 API 설계를 전부」는 원본에 없는 발췌문이라 `matched: false` → `NEEDS_REVIEW`(S-04). 원본에 수치가 없으니 경험에도 수치가 없다(S-05).
+- 예시 읽는 법: 배포는 「팀원이 맡아」라서 `TEAM`(S-06). 「백엔드 API 설계를 전부」는 원본에 없는 발췌문이라 `matched: false` → `NEEDS_REVIEW`(S-04). 원본에 수치가 없으니 경험에도 수치가 없다(S-05). 처음 넣는 자료라 `existingActivities` 가 `[]` 이고 `sameAsActivityId` 는 전부 `null`.
+
+두 번째 자료를 넣을 때(S-44) — 위 회고로 활동 7 · 8 이 생긴 뒤 이력서를 넣는다(experience-api 「자료 넣기」의 PDF 예시와 같은 자료)
+
+```json
+{
+  "sourceName": "이력서-2026.pdf",
+  "text": "김차곡 — 백엔드 개발자\n2025 캡스톤 「바꿔요」 백엔드\n\n2024-09 ~ 알고리즘 스터디\n문제 선정을 맡는다",
+  "existingActivities": [
+    { "id": 7, "name": "바꿔요 — 캠퍼스 중고거래 앱", "period": { "start": "2025-03", "end": "2025-06", "ongoing": false } },
+    { "id": 8, "name": "알고리즘 스터디", "period": { "start": "2024-09", "end": null, "ongoing": true } }
+  ]
+}
+```
+
+응답 200 — 요점만(경험 · 근거는 위 예시와 같은 모양)
+
+```json
+{
+  "activities": [
+    { "name": "캡스톤 「바꿔요」", "period": { "start": "2025", "end": "2025", "ongoing": false }, "sameAsActivityId": 7, "experiences": [] },
+    { "name": "알고리즘 스터디", "period": { "start": "2024-09", "end": null, "ongoing": true }, "sameAsActivityId": 8, "experiences": [
+      { "content": "매주 풀 문제를 고른다", "competencies": ["OPERATION"], "actor": "ME", "sourceStatus": "SOURCE_CONFIRMED", "citations": [{ "quote": "문제 선정을 맡는다", "matched": true, "location": { "startLine": 5, "endLine": 5 } }] }
+    ] }
+  ],
+  "model": "<LLM 모델 이름>"
+}
+```
+
+- 이름이 달라도(「캡스톤 「바꿔요」」 / 「바꿔요 — 캠퍼스 중고거래 앱」) 같은 활동으로 보이면 그 `id` 를 붙인다. 기간이 다르게 적혀도(이력서는 연도만 — `"2025"`) 막지 않는다 — 사용자가 이름 · 기간을 나란히 보고 정한다.
 
 ### 응답 규칙 — 어기면 AI 서버가 `LLM_INVALID_OUTPUT` 오류로 돌려준다
 
@@ -106,6 +139,7 @@
 | `activities` | 배열. 활동을 못 찾으면 `[]` 로 200 — 오류가 아니다(BE 는 작업을 `COMPLETED` · `activityIds: []` 로) |
 | `activities[].name` | 비지 않은 문자열 |
 | `activities[].period` | README 「기간」 규칙. 원본에 없는 날짜를 지어내지 않는다 — 모르면 `null` |
+| `activities[].sameAsActivityId` | 같은 활동으로 보이는 기존 활동 — 요청 `existingActivities` 의 `id` 하나 또는 `null`(S-44). 늘 싣는다(`existingActivities` 가 `[]` 면 전부 `null`). **목록 밖 `id` 는 규칙 위반**이다 — 몰래 `null` 로 바꿔 「같은 활동 없음」처럼 보이게 하지 않는다. 같은 활동인지 확실하지 않으면 `null`. 서로 다른 새 활동 둘이 같은 `id` 를 가리켜도 된다. AI 해석이다 — BE · FE 는 제안으로만 쓰고 저절로 합치지 않는다 |
 | `activities[].experiences` | 배열(0개 가능). 원본에 활동 이름 · 기간만 있고 한 일이 없으면(이력서 항목 · MOC 링크 목록) `[]` 로 활동만 돌려준다(SPEC S-03) — 경험을 지어내 채우지 않는다 |
 | `experiences[].content` | 비지 않은 문자열. 원본에 없는 수치 · 역할 · 결과를 넣지 않는다(S-05) |
 | `experiences[].competencies` | 배열 **1 ~ 3개**. README 「값 목록」의 역량 값만 · 중복 없음 · 가장 잘 맞는 것부터. 원문에서 확인한 사실이 아니라 AI 해석이다(SPEC 미결정 2) |

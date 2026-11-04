@@ -1,6 +1,6 @@
 # experience-api — FE → BE
 
-> 스프린트 1 「경험 관리」(SPEC R-01) · 스프린트 2 보완(SPEC R-03 — 「보완 `Supplement`」 · 보완 고치기 · 지우기). 이름 규칙 · 값 목록 · 기간 · 오류 모양은 [README 「공통」](README.md#공통--모든-계약이-같이-쓰는-것).
+> 스프린트 1 「경험 관리」(SPEC R-01) · 스프린트 2 보완(SPEC R-03 — 「보완 `Supplement`」 · 보완 고치기 · 지우기). 같은 활동 제안(SPEC S-44 `P1` — `mergeSuggestion` · 따로 두기). 이름 규칙 · 값 목록 · 기간 · 오류 모양은 [README 「공통」](README.md#공통--모든-계약이-같이-쓰는-것).
 > 예시는 가상의 팀 프로젝트 회고 하나(「바꿔요」 · 알고리즘 스터디)로 이어진다 — [`ai-api.md`](ai-api.md) 예시와 같은 자료다.
 
 ## 흐름
@@ -26,7 +26,30 @@ FE ─PATCH · POST · DELETE …─────▶ BE  고치기 · 더하기 �
   "id": 7,
   "name": "바꿔요 — 캠퍼스 중고거래 앱",
   "period": { "start": "2025-03", "end": "2025-06", "ongoing": false },
-  "experienceCount": 4
+  "experienceCount": 4,
+  "mergeSuggestion": null
+}
+```
+
+- `mergeSuggestion` — 「기존 활동 X 와 같아 보여요」 AI 제안(SPEC S-44, `P1`). 없으면 `null`. 있으면 같아 보이는 **기존** 활동의 `{ "activityId", "name", "period" }` — `name` · `period` 는 지금 그 활동의 값이다(BE 가 응답 때 채운다). **모든 `ActivitySummary` · 활동 세부 응답에 실린다** — 이 파일의 다른 예시엔 줄였다(전부 `null`).
+  - 만드는 곳: 분석 작업이 `/extract` 응답의 `sameAsActivityId`(`ai-api.md`)로 **새 활동에** 붙인다. 그 밖에서는 생기지 않는다(직접 고치거나 옮겨도 새로 생기지 않는다).
+  - 「붙이기」 = `POST /api/activities/{mergeSuggestion.activityId}/merge` `{ "fromActivityId": <제안이 붙은 새 활동> }` — 기존 활동이 남는다(아래 「활동 합치기」). 「따로 두기」 = `DELETE /api/activities/{activityId}/merge-suggestion`.
+  - 사라지는 때: 따로 두기 · 제안이 붙은 활동이 합쳐져 사라질 때 · 가리키는 기존 활동이 합쳐져 사라질 때(BE 가 `null` 로 — 다른 활동으로 옮겨 가리키지 않는다). 사라진 제안은 다시 생기지 않는다.
+  - 자동으로 합치지 않는다. AI 해석이라 FE 는 「AI 제안」으로 보인다.
+
+예: 이력서를 넣어 생긴 활동 9 「캡스톤 「바꿔요」」에 붙은 제안(`ai-api.md` 「두 번째 자료를 넣을 때」)
+
+```json
+{
+  "id": 9,
+  "name": "캡스톤 「바꿔요」",
+  "period": { "start": "2025", "end": "2025", "ongoing": false },
+  "experienceCount": 0,
+  "mergeSuggestion": {
+    "activityId": 7,
+    "name": "바꿔요 — 캠퍼스 중고거래 앱",
+    "period": { "start": "2025-03", "end": "2025-06", "ongoing": false }
+  }
 }
 ```
 
@@ -150,7 +173,7 @@ PDF 를 넣을 때(S-39) — 1쪽은 1 ~ 2줄, 2쪽은 글자가 없어 빠지�
 | 429 | `DAILY_LIMIT_EXCEEDED` | 오늘 분석 횟수를 다 씀 — 원본을 저장하지 않는다([`auth-api.md`](auth-api.md)) |
 
 - 한도: **`50000`자**(BE#5 — README · 회고 몇 개 분량, LLM 한 번에 들어가는 크기). BE 는 Java `String.length()`(UTF-16 단위)로 세므로 JS `text.length` 와 같은 숫자다 — FE 는 같은 숫자로 미리 막아도 된다. AI 서버 한도(코드 포인트 수 50000, `ai-api.md`)보다 크지 않다.
-- 같은 자료를 두 번 넣으면 새 원본 · 새 활동이 생긴다(BE#5 기본값). 자동으로 합치지 않는다(SPEC 미결정 3).
+- 같은 자료를 두 번 넣으면 새 원본 · 새 활동이 생긴다(BE#5 기본값). 자동으로 합치지 않는다(SPEC 미결정 3). 대신 분석 작업은 사용자의 기존 활동 목록을 `/extract` 에 같이 보내고, 같아 보이는 기존 활동이 있으면 새 활동에 `mergeSuggestion` 을 붙인다(S-44, `P1` — 위 「ActivitySummary」).
 
 ## GET /api/jobs/{jobId} — 분석 작업 상태
 
@@ -345,6 +368,7 @@ FE 는 `jobId` 를 들고 있다가(새로고침 대비 주소 · 브라우저 �
 ```
 
 - 경험 104 처럼 AI 가 단 발췌문이 원본에 없으면 `matched: false` · `NEEDS_REVIEW` 다(S-04).
+- `mergeSuggestion` 도 `ActivitySummary` 와 같이 실린다(S-44 — 위 예시엔 줄였다).
 
 오류: 404 `ACTIVITY_NOT_FOUND` 없는 활동(합쳐져 사라진 활동 포함)
 
@@ -576,6 +600,20 @@ FE 는 `jobId` 를 들고 있다가(새로고침 대비 주소 · 브라우저 �
 | 400 | `INVALID_REQUEST` | `fromActivityId` 없음 |
 | 400 | `SAME_ACTIVITY` | `fromActivityId` 가 남길 활동과 같음 |
 | 404 | `ACTIVITY_NOT_FOUND` | 둘 중 하나가 없음(이미 합쳐진 활동 포함) |
+
+- `mergeSuggestion`(S-44): `fromActivityId` 활동이 사라지므로 그 제안도 사라진다. 사라진 활동을 가리키던 다른 활동의 제안은 `null` 이 된다. 남길 활동의 제안은 그대로다(같은 트랜잭션에서).
+- S-44 의 「붙이기」도 이 요청이다 — 남길 활동 = `mergeSuggestion.activityId`(기존), `fromActivityId` = 제안이 붙은 새 활동. 다른 방향(새 활동을 남기기)으로 합쳐도 막지 않는다.
+
+## DELETE /api/activities/{activityId}/merge-suggestion — 같은 활동 제안 따로 두기 (`P1`)
+
+- 쓰는 곳: FE 활동 세부 · 분석 완료 뒤의 「따로 두기」
+- SPEC: `F-04` / `S-44`
+
+그 활동의 `mergeSuggestion` 을 `null` 로 둔다. 다시 생기지 않는다. 두 활동은 그대로다. 요청 본문 없음.
+
+응답 204 — 본문 없음. 제안이 이미 없어도 204(두 번 눌러도 같다).
+
+오류: 404 `ACTIVITY_NOT_FOUND`
 
 ---
 

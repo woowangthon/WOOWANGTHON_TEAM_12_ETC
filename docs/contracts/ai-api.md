@@ -1,11 +1,11 @@
 # ai-api — BE → AI
 
-> 스프린트 1 「경험 관리」(SPEC F-02 — `POST /extract`) · 스프린트 2 「문항 매칭」(SPEC R-03 — `POST /match`). 이름 규칙 · 값 목록 · 기간 · 오류 모양은 [README 「공통」](README.md#공통--모든-계약이-같이-쓰는-것).
+> 스프린트 1 「경험 관리」(SPEC F-02 — `POST /extract`) · 스프린트 2 「문항 매칭」(SPEC R-03 — `POST /match`) · 근거 점검(SPEC S-45 — `POST /ground-check`, `P1`). 이름 규칙 · 값 목록 · 기간 · 오류 모양은 [README 「공통」](README.md#공통--모든-계약이-같이-쓰는-것).
 > AI 서버는 DB 를 만지지 않고 상태가 없다 — 받은 텍스트로 JSON 만 돌려준다([ADR-003](../decisions/ADR-003-stack-and-ai-boundary.md)). 저장 · ID · 사용자 구분은 BE.
 
 - 부르는 곳: BE 만, 내부망으로([ADR-004](../decisions/ADR-004-deploy.md)). 인증 없음.
 - 주소: `http://<AI 서버>:<포트>` — 값은 BE 설정(compose 서비스 이름).
-- 시간: 한 번 부르는 데 수십 초 걸릴 수 있다. BE 는 제한 시간(BE `AI_TIMEOUT_SECONDS`, 기본 120초)을 넘으면 끊고 작업을 `FAILED`(`AI_TIMEOUT`)로 둔다. AI 서버는 BE 의 작업 상태를 모른다. AI 서버는 LLM 폴백 · 다시 시도까지 합쳐 100초 안에 답하거나 `LLM_TIMEOUT` 으로 돌려준다(`LLM_TIMEOUT_SECONDS`). `/extract` · `/match` 둘 다 같다.
+- 시간: 한 번 부르는 데 수십 초 걸릴 수 있다. BE 는 제한 시간(BE `AI_TIMEOUT_SECONDS`, 기본 120초)을 넘으면 끊고 작업을 `FAILED`(`AI_TIMEOUT`)로 둔다. AI 서버는 BE 의 작업 상태를 모른다. AI 서버는 LLM 폴백 · 다시 시도까지 합쳐 100초 안에 답하거나 `LLM_TIMEOUT` 으로 돌려준다(`LLM_TIMEOUT_SECONDS`). `/extract` · `/match` · `/ground-check` 모두 같다.
 
 ## POST /extract — 활동 · 경험 · 근거 추출
 
@@ -329,6 +329,121 @@ BE 가 문항과 **그 사용자의 경험 전부**를 후보로 보낸다([ADR-
 | 500 | `INTERNAL_ERROR` | 그 밖 |
 
 BE 는 어떤 오류든 문항을 `FAILED`(`AI_FAILED`, `message` 에 위 `code`)로 둔다 — `/extract` 와 같다.
+
+## POST /ground-check — 내가 쓴 답의 근거 점검
+
+- 부르는 곳: BE 근거 점검 작업(question-api `POST /api/questions/{questionId}/grounding-check` 뒤)
+- SPEC: `F-09` / `S-45` — 우선순위 `P1`
+
+사용자가 쓴 답을 **코드로** 문장으로 나누고, 문장마다 그 사용자의 경험(근거 · 보완)이 받치는지 판정한다. 판정은 LLM 이 하고, 지어낸 ID · 문장 속 숫자는 **코드가** 막는다(S-04 원문 대조 코드 — AI `app/citations.py` 의 맞추기 기준을 다시 쓴다).
+
+요청 — question-api 「근거 점검」 예시. 경험은 `/match` 와 같은 모양이다(예시는 101 · 103 · 106 만 — 실제로는 경험 전부).
+
+```json
+{
+  "text": "저는 「바꿔요」 프로젝트에서 채팅 메시지가 늦게 도착하는 문제를 WebSocket 으로 바꿔 해결했습니다. 서버에 STOMP 엔드포인트를 만들고 앱의 폴링 코드를 구독 방식으로 바꿨습니다. 그 결과 응답 속도가 80% 빨라졌고 사용자 만족도가 크게 올랐습니다. 배포까지 제가 맡아 AWS 에 올렸습니다. 이 경험으로 문제의 원인을 끝까지 찾는 개발자가 되고 싶습니다.",
+  "experiences": [
+    {
+      "id": 101,
+      "activityName": "바꿔요 — 캠퍼스 중고거래 앱",
+      "period": { "start": "2025-03", "end": "2025-06", "ongoing": false },
+      "content": "채팅 메시지가 늦게 도착하는 문제를 폴링에서 WebSocket 으로 바꿔 해결했다",
+      "competencies": ["PROBLEM_SOLVING", "IMPLEMENTATION"],
+      "actor": "ME",
+      "sourceStatus": "SOURCE_CONFIRMED",
+      "citations": [{ "id": 201, "quote": "채팅 메시지가 늦게 도착하는 문제가 있었다. 내가 폴링을 WebSocket 으로 바꿔 해결했다." }],
+      "supplements": [{ "id": 301, "question": "폴링을 WebSocket 으로 바꿀 때 직접 고친 부분은 어디였나요?", "answer": "서버에 STOMP 엔드포인트를 만들고, 앱의 3초 폴링 코드를 구독 방식으로 바꿨다" }]
+    },
+    {
+      "id": 103,
+      "activityName": "바꿔요 — 캠퍼스 중고거래 앱",
+      "period": { "start": "2025-03", "end": "2025-06", "ongoing": false },
+      "content": "서비스를 AWS 에 배포했다",
+      "competencies": ["IMPLEMENTATION"],
+      "actor": "TEAM",
+      "sourceStatus": "SOURCE_CONFIRMED",
+      "citations": [{ "id": 203, "quote": "배포는 팀원이 맡아 AWS 에 올렸다." }],
+      "supplements": []
+    },
+    {
+      "id": 106,
+      "activityName": "알고리즘 스터디",
+      "period": { "start": "2024-09", "end": null, "ongoing": true },
+      "content": "스터디원 6명의 풀이를 매주 리뷰했다",
+      "competencies": ["LEARNING"],
+      "actor": "ME",
+      "sourceStatus": "USER_ENTERED",
+      "citations": [],
+      "supplements": []
+    }
+  ]
+}
+```
+
+| 필드 | 값 |
+| --- | --- |
+| `text` | 점검할 답(BE 한도 5000자). 비지 않은 문자열 |
+| `experiences` | 사용자의 경험 전부 — `/match` 요청과 같은 모양. **0개면 `[]`** — 오류가 아니다 |
+| `experiences[].citations` | **원본에서 찾은 근거만**(`matched: true`) `{ id, quote }`. 확인 못 한 근거는 싣지 않는다 — 「원문」으로 칠하지 않게 |
+| `experiences[].sourceStatus` | `USER_ENTERED` 인 경험만 본문(`content`)이 근거(`EXPERIENCE`)가 될 수 있다 — 사용자가 직접 넣거나 고친 글이라 「내가 입력」이다. AI 가 뽑은 본문(`SOURCE_CONFIRMED` · `NEEDS_REVIEW`)은 근거가 아니다(근거는 발췌문이다) |
+
+응답 200
+
+```json
+{
+  "sentences": [
+    { "text": "저는 「바꿔요」 프로젝트에서 채팅 메시지가 늦게 도착하는 문제를 WebSocket 으로 바꿔 해결했습니다.", "status": "SOURCE", "evidence": [{ "type": "CITATION", "id": 201 }], "note": null },
+    { "text": "서버에 STOMP 엔드포인트를 만들고 앱의 폴링 코드를 구독 방식으로 바꿨습니다.", "status": "USER_INPUT", "evidence": [{ "type": "SUPPLEMENT", "id": 301 }], "note": null },
+    { "text": "그 결과 응답 속도가 80% 빨라졌고 사용자 만족도가 크게 올랐습니다.", "status": "UNSUPPORTED", "evidence": [], "note": "문장의 숫자(80)가 받치는 근거 · 보완에 없어요" },
+    { "text": "배포까지 제가 맡아 AWS 에 올렸습니다.", "status": "UNSUPPORTED", "evidence": [], "note": "자료엔 배포를 팀원이 맡았다고 되어 있어요" },
+    { "text": "이 경험으로 문제의 원인을 끝까지 찾는 개발자가 되고 싶습니다.", "status": "OPINION", "evidence": [], "note": null }
+  ],
+  "model": "<LLM 모델 이름>"
+}
+```
+
+- 예시 읽는 법: 셋째 문장에 LLM 이 「201 이 받친다」고 답했어도 코드가 「80」을 201 에서 못 찾아 `UNSUPPORTED` 로 돌리고 `note` 를 쓴다. 넷째는 103 이 `TEAM` 인데 「제가 맡아」라서 근거 없음이다(LLM 판정 — 채점으로 잰다). 「스터디원 6명의 풀이를 리뷰했다」는 문장이 있었다면 `USER_INPUT` · `{ "type": "EXPERIENCE", "id": 106 }` 이다(106 은 직접 넣은 경험이고 「6」이 본문에 있다).
+
+### 문장 나누기 — 코드가 한다
+
+LLM 이 문장을 다시 쓰거나 빠뜨리지 않게 AI 서버 코드가 나눈다. 판정만 LLM 에 문장 번호로 묻는다.
+
+- `.` `?` `!` `…` `。` 뒤에 공백 · 줄바꿈 · 글 끝이 오면 거기서 끊는다(「3.5」 「v2.1」 은 뒤에 공백이 없어 끊지 않는다). 줄바꿈에서도 끊는다.
+- 끊은 조각의 앞뒤 공백을 걷는다. 빈 조각은 버린다. 글자는 바꾸지 않는다 — `sentences[].text` 는 요청 `text` 의 이어진 일부다.
+
+### 응답 규칙 — 어기면 AI 서버가 다시 시도한 뒤 `LLM_INVALID_OUTPUT` 으로 돌려준다
+
+| 필드 | 규칙 |
+| --- | --- |
+| `sentences` | 위 「문장 나누기」의 결과와 개수 · 순서 · 글자가 같다(코드가 만든다) |
+| `sentences[].status` | README 「값 목록」 `groundingStatus` |
+| `sentences[].evidence` | `{ "type", "id" }` 배열, 중복 없음. `SOURCE` → `CITATION` 1개 이상(`SUPPLEMENT` · `EXPERIENCE` 가 같이 와도 된다). `USER_INPUT` → `SUPPLEMENT` · `EXPERIENCE` 만 1개 이상. `UNSUPPORTED` · `OPINION` → `[]`. `id` 는 **요청에 있는** 근거 · 보완 · 경험 ID — `EXPERIENCE` 는 `sourceStatus: USER_ENTERED` 경험만 |
+| `sentences[].note` | `UNSUPPORTED` 면 비지 않은 한 줄 — 왜 근거 없음인지(자료에 없는 결과 · 수치 · 「팀이 했다」를 「내가 했다」로 · 확인 못 한 내용). 그 밖엔 `null` |
+| `model` | 실제로 답한 LLM 이름. 선택 |
+
+판정 규칙(프롬프트 · 채점):
+
+- 받친다 = 문장의 사실(한 일 · 결과 · 역할 · 수치)이 근거 · 보완 · 본문에 **다 있다**. 일부만 있으면 받치지 않는다 — 「해결했다」만 있는데 「만족도가 크게 올랐다」를 더한 문장은 `UNSUPPORTED`(과장).
+- `TEAM` · `UNKNOWN` 경험의 일을 「내가 · 제가」로 쓴 문장은 `UNSUPPORTED`. 「팀이 함께」로 쓰면 받칠 수 있다.
+- `OPINION` 은 지난 일 · 결과에 대한 주장이 없는 문장만 — 동기 · 포부 · 느낌 · 배운 점 · 이어 주는 말(「이 경험으로 저는…」). 지난 일을 말하면서 근거가 없는 문장을 `OPINION` 으로 빼지 않는다.
+
+코드가 LLM 판정 뒤에 확인한다 — 고칠 수 있는 것은 **엄하게** 고치고(근거 있음 → 근거 없음 쪽으로만), 고칠 수 없는 것은 위반이다.
+
+- 지어낸 `id` · `type` 과 `status` 가 안 맞음 · 문장 수가 다름 → 위반(다시 시도 → `LLM_INVALID_OUTPUT`).
+- **숫자 대조**: 문장 속 숫자(연속된 숫자 — `3`, `80`, `1,200`, `3.5`)가 그 문장 `evidence` 의 글(발췌문 · 보완 답 · 경험 본문)과 그 경험의 활동 이름 · 기간에 **하나라도 없으면** `UNSUPPORTED` · `evidence: []` · `note: "문장의 숫자(<숫자>)가 받치는 근거 · 보완에 없어요"`. 맞추는 기준은 S-04 대조와 같다(NFKC · 공백 무시). `OPINION` 문장에 숫자가 있어도 같다 — 숫자가 든 문장은 생각이 될 수 없다. 한글 수사(「세 번」)는 코드가 못 잡는다 — 채점으로 잰다.
+
+### 오류
+
+| HTTP | `code` | 언제 |
+| --- | --- | --- |
+| 400 | `INVALID_REQUEST` | `text` 가 없거나 공백뿐(나눈 문장이 0개) · `experiences` 가 없음(`null`) · 경험 `id` 중복 |
+| 413 | `TEXT_TOO_LONG` | `text` 와 경험 글을 합친 글자 수가 **100000** 을 넘음(`/match` 와 같은 `MAX_MATCH_CHARS`) |
+| 502 | `LLM_ERROR` | LLM API 호출이 실패함 |
+| 502 | `LLM_INVALID_OUTPUT` | LLM 출력이 위 규칙을 벗어남(다시 시도한 뒤에도). 그럴듯하게 고쳐서 돌려주지 않는다 — 숫자 대조로 `UNSUPPORTED` 로 돌리는 것만 예외(엄한 쪽) |
+| 504 | `LLM_TIMEOUT` | 제한 시간 안에 답하지 않음 |
+| 500 | `INTERNAL_ERROR` | 그 밖 |
+
+BE 는 어떤 오류든 점검을 `FAILED`(`AI_FAILED`, `message` 에 위 `code`)로 둔다 — `/match` 와 같다.
 
 ## GET /health — 살아 있나
 

@@ -28,7 +28,7 @@ FE ─POST /api/auth/logout──────────▶ BE  세션 지움
 }
 ```
 
-- `dailyAnalysis` — 오늘(한국 날짜) 시작한 분석 수와 한도. 분석은 **AI 를 부르는 여섯 곳**에서 하나씩 센다: `POST /api/sources` · `POST /api/jobs/{id}/retry` · `POST /api/questions` · `POST /api/questions/{id}/retry` · `POST /api/applications`(문항마다 1회) · `POST /api/applications/{id}/questions`. 실패한 분석도 센다(이미 LLM 을 불렀을 수 있다). 요청이 틀려(400 · 413) 시작하지 못한 것은 세지 않는다. 한국 시간 자정에 0 으로 돌아간다.
+- `dailyAnalysis` — 오늘(한국 날짜) 시작한 분석 수와 한도. 분석은 **AI 를 부르는 일곱 곳**에서 하나씩 센다: `POST /api/sources` · `POST /api/jobs/{id}/retry` · `POST /api/questions` · `POST /api/questions/{id}/retry` · `POST /api/applications`(문항마다 1회) · `POST /api/applications/{id}/questions` · `POST /api/ask`(entrance-api, 경험이 0개라 AI 를 부르지 않으면 세지 않는다). 입구의 가르기 · 지원 나누기(`POST /api/entrance/route` · `…/parse-application`)는 AI 를 부르지만 세지 않는다 — 짧은 호출이고 뒤따르는 자료 넣기 · 지원 넣기가 센다. 실패한 분석도 센다(이미 LLM 을 불렀을 수 있다). 요청이 틀려(400 · 413) 시작하지 못한 것은 세지 않는다. 한국 시간 자정에 0 으로 돌아간다.
 - 한도 숫자는 BE 설정값(SPEC 미결정 6) — 기본 20, 테스트 계정 200.
 
 ## POST /api/auth/signup — 가입
@@ -80,7 +80,7 @@ FE ─POST /api/auth/logout──────────▶ BE  세션 지움
 | HTTP | `code` | 어디서 | 언제 |
 | --- | --- | --- | --- |
 | 401 | `UNAUTHENTICATED` | 위 가입 · 로그인 · 로그아웃을 뺀 모든 `/api/…` | 로그인하지 않음 · 세션이 끝남(7일 · BE 재시작) |
-| 429 | `DAILY_LIMIT_EXCEEDED` | 분석을 시작하는 여섯 곳(위 `dailyAnalysis`) | 오늘 한도를 다 씀 — 원본 · 문항을 저장하지 않고 분석을 시작하지 않는다. FE 는 「오늘 분석 횟수를 다 썼어요」처럼 이유를 보인다(S-15) |
+| 429 | `DAILY_LIMIT_EXCEEDED` | 분석을 시작하는 일곱 곳(위 `dailyAnalysis`) | 오늘 한도를 다 씀 — 원본 · 문항을 저장하지 않고 분석을 시작하지 않는다. FE 는 「오늘 분석 횟수를 다 썼어요」처럼 이유를 보인다(S-15) |
 
 - 사용자별로 나뉜다: 다른 사용자의 원본 · 활동 · 경험 · 근거 · 문항은 목록에 없고, ID 로 불러도 `404 …_NOT_FOUND` 다(있는지 알려 주지 않는다).
 

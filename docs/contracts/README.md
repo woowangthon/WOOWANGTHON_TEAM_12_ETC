@@ -16,7 +16,8 @@
 | [`auth-api.md`](auth-api.md) | FE → BE | 가입 · 로그인 · 내 정보 · 하루 분석 한도, 모든 API 의 401 · 429 (R-02) |
 | [`experience-api.md`](experience-api.md) | FE → BE | 자료 넣기 · 분석 작업 · 활동 · 경험 · 근거 (스프린트 1) · 보완 (스프린트 2) |
 | [`question-api.md`](question-api.md) | FE → BE | 지원(문항 여러 개) · 지원 문항 · 추천 · 되묻기에 답하기 (스프린트 2) |
-| [`ai-api.md`](ai-api.md) | BE → AI | 추출 `/extract` (스프린트 1) · 매칭 `/match` (스프린트 2) |
+| [`entrance-api.md`](entrance-api.md) | FE → BE | 홈 입력 가르기 · 한 줄 질문 꺼내기 · 지원처 · 문항 나누기 — 저장 없는 동기 호출 (스프린트 3 — S-28 ~ S-30) |
+| [`ai-api.md`](ai-api.md) | BE → AI | 추출 `/extract` (스프린트 1) · 매칭 `/match` (스프린트 2) · 입구 `/route` · `/ask` · `/parse-application` (스프린트 3) |
 | [`mcp-api.md`](mcp-api.md) | 외부 AI(MCP) · FE → BE | 연결 주소 만들기 · 끊기, MCP 읽기 도구 `search_experiences` · `list_activities` · `get_activity` (스프린트 3 — S-32) |
 
 ## 공통 — 모든 계약이 같이 쓰는 것
@@ -65,6 +66,10 @@
 | | `SUPPLEMENT` | 보완 — 되묻기에 사용자가 한 답(「내가 입력」) |
 | `sectionKind` 원본 구간 종류 (S-39) | `PAGE` | PDF 의 쪽 |
 | | `SLIDE` | PPTX 의 슬라이드 |
+| `entranceKind` 홈 입력 가르기 (S-28) | `SOURCE` | 자료 — 쌓기(S-01)로 |
+| | `APPLICATION` | 문항 · 공고 — 지원(S-18 · S-30)으로 |
+| | `ASK` | 한 줄 질문 — 꺼내기(S-29)로 |
+| | `UNSURE` | 애매함 — 사용자에게 묻는다 |
 | `questionType` 문항 유형 (S-41) | `MOTIVATION` | 지원 동기 · 포부 · 목표 |
 | | `SELF_INTRO` | 자기소개 · 성격 · 가치관 |
 | | `STRENGTH_WEAKNESS` | 장단점 |

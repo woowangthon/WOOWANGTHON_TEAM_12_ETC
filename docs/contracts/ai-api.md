@@ -140,9 +140,9 @@ BE 는 어떤 오류든 작업을 `FAILED`(`AI_FAILED`, `message` 에 위 `code`
 ## POST /match — 지원 문항에 맞는 경험 추천 · 되묻기
 
 - 부르는 곳: BE 추천 작업(question-api `POST /api/questions` · `retry` 뒤)
-- SPEC: `F-06` · `F-07` · `F-08` / `S-19` · `S-20` · `S-22` · `S-25`
+- SPEC: `F-06` · `F-07` · `F-08` / `S-19` · `S-20` · `S-22` · `S-25` · `S-41`(`P1`)
 
-BE 가 문항과 **그 사용자의 경험 전부**를 후보로 보낸다([ADR-003](../decisions/ADR-003-stack-and-ai-boundary.md) — 임베딩 · 후보 줄이기는 넘칠 때). AI 서버는 문항을 요구사항으로 쪼개고, 요구사항마다 근거를 판정하고, 경험을 0 ~ 3개 추천하고, 부족한 사실을 0 ~ 3개 묻는다. LLM 을 안에서 몇 번 부를지는 AI 서버가 정한다 — 응답은 하나다.
+BE 가 문항과 **그 사용자의 경험 전부**를 후보로 보낸다([ADR-003](../decisions/ADR-003-stack-and-ai-boundary.md) — 임베딩 · 후보 줄이기는 넘칠 때). AI 서버는 문항을 요구사항으로 쪼개고, 요구사항마다 근거를 판정하고, 경험을 0 ~ 3개 추천하고, 부족한 사실을 0 ~ 3개 묻고, 문항 유형을 하나 붙인다. LLM 을 안에서 몇 번 부를지는 AI 서버가 정한다 — 응답은 하나다.
 
 요청 — 문항 B(question-api 예시). 경험 101 엔 문항 A 에서 답한 보완 301 이 실려 있다.
 
@@ -230,6 +230,7 @@ BE 가 문항과 **그 사용자의 경험 전부**를 후보로 보낸다([ADR-
 
 ```json
 {
+  "questionType": "COLLABORATION",
   "requirements": [
     { "text": "팀에서 내가 맡은 역할", "status": "SUPPORTED", "experienceIds": [101] },
     { "text": "팀과 함께 일한 방식", "status": "PARTIAL", "experienceIds": [102] }
@@ -263,6 +264,7 @@ BE 가 문항과 **그 사용자의 경험 전부**를 후보로 보낸다([ADR-
 
 | 필드 | 규칙 |
 | --- | --- |
+| `questionType` | README 「값 목록」 `questionType` 값 **하나**(S-41). 문항이 묻는 꼴 — 맞는 게 없으면 `OTHER`. 매칭과 같은 호출에서 정한다(LLM 을 따로 부르지 않는다). 경험이 `[]` 여도 붙인다 |
 | `requirements` | 배열 **1 ~ 6개** |
 | `requirements[].text` | 비지 않은 문자열 — 문항이 보려는 것 하나(도구 「Python · SQL」 또는 능력 서술 「데이터 정합성 검증」) |
 | `requirements[].status` | `requirementStatus` 값(README) — `SUPPORTED` 근거가 받친다 · `PARTIAL` 일부만 받친다 · `NOT_FOUND` 자료에서 확인 안 됨 |
@@ -279,6 +281,7 @@ BE 가 문항과 **그 사용자의 경험 전부**를 후보로 보낸다([ADR-
 
 - 코드가 확인하는 것: 개수 · 값 목록 · **ID 가 요청에 있는지**(경험 · 근거 · 보완 — 지어낸 ID 면 위반). 이유 · 질문의 내용(수치 유도 · 같은 사실 다시 묻기)은 코드로 다 막을 수 없어 채점으로 잰다(AI#21 · `ai-scope.md`).
 - 경험이 `[]` 면 `requirements` 는 전부 `NOT_FOUND`, `recommendations` · `clarifications` 는 `[]`.
+- `questionType` 은 문항 쪽 해석이다 — 추천 · 되묻기를 고르는 데 쓰지 않아도 되고, 경험에 저장하지 않는다(SPEC 미결정 8 · 13). BE 는 문항에 `questionTypeBy: "AI"` 로 저장하되, 사용자가 이미 고른(`USER`) 문항이면 덮어쓰지 않는다. 지원처 종류 · 직무(S-42)는 요청에 싣지 않는다.
 
 ### 오류
 

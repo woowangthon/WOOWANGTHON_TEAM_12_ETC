@@ -126,7 +126,7 @@ FE ─DELETE /api/mcp/connection──────▶ BE  연결 끊기 → 그 
 | --- | --- |
 | `query` | 선택. 공백으로 나눈 낱말 중 **하나라도** 들어 있는 경험(대소문자 무시, 부분 일치). 찾는 곳: 경험 `content` · 근거 `quote` · 보완 `question` · `answer` · 활동 `name`. 빼거나 빈 문자열이면 낱말로 거르지 않는다 |
 | `competencies` | 선택. 역량 값 배열 — 이 중 **하나라도** 붙은 경험(README 「값 목록」). 목록 밖 값은 오류 |
-| `year` | 선택. `"YYYY"` — 활동 `period` 가 그해와 겹치는 경험(`start` 가 `null` 인 활동은 빠진다. `ongoing` 이면 지금까지로 본다) |
+| `year` | 선택. `"YYYY"` — 활동 `period` 가 그해와 겹치는 경험(`start` 가 `null` 인 활동은 빠진다. `ongoing` 이면 지금까지로, `end` 가 `null` 이고 진행 중도 아니면 시작한 해 하나로 본다) |
 | `limit` | 선택. 1 ~ 50, 기본 20 |
 
 - 조건은 모두 그리고(AND)로 묶는다. 아무것도 안 주면 사용자의 경험 전부(최대 `limit`).

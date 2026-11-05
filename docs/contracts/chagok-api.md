@@ -169,7 +169,8 @@ FE ─POST /api/chagok/runs/{runId}/cancel───────────▶ B
 | --- | --- |
 | `AI_UNAVAILABLE` | AI 서버에 닿지 못함 · 5xx |
 | `AI_TIMEOUT` | 일 전체가 `CHAGOK_TIMEOUT_SECONDS`(기본 **120**초)를 넘음 |
-| `LLM_TIMEOUT` · `LLM_ERROR` | AI 이벤트 `error` 의 코드 그대로(`ai-api.md` 「POST /agent」) |
+| `LLM_TIMEOUT` · `LLM_ERROR` · `MCP_UNAVAILABLE` | AI 이벤트 `error` 의 코드 그대로(`ai-api.md` 「POST /agent」) |
+| `INTERNAL_ERROR` | AI 이벤트 `error` 의 같은 코드 · BE 가 단계 · 쓰기를 저장하지 못함 · 일 도중 서버가 다시 시작됨 |
 | `TOO_MANY_STEPS` | 도구를 정해진 수(기본 8번) 넘게 부름 |
 | `INVALID_AGENT_OUTPUT` | AI 가 계약 밖 이벤트를 보냄 · `confirm` 의 도구가 쓰기 도구가 아님 · 마지막 줄이 `done` · `confirm` · `error` 가 아님 |
 | 쓰기 API 의 `code` | 확인 뒤 실행이 실패 — `DAILY_LIMIT_EXCEEDED` · `INVALID_REQUEST` · `EMPTY_TEXT` · `TEXT_TOO_LONG` |

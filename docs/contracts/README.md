@@ -14,7 +14,7 @@
 | --- | --- | --- |
 | `<영역>-api.md` | FE → BE | 엔드포인트 · 요청 · 응답 · 오류 — 영역마다 한 파일 |
 | [`auth-api.md`](auth-api.md) | FE → BE | 가입 · 로그인 · 내 정보 · 하루 분석 한도, 모든 API 의 401 · 429 (R-02) |
-| [`experience-api.md`](experience-api.md) | FE → BE | 자료 넣기 · 분석 작업 · 활동 · 경험 · 근거 (스프린트 1) · 보완 (스프린트 2) · 그때의 나 · 이어짐 (S-34 · S-35) · 경험마다 쓰인 지원 `usedIn` (S-38) · 경험 찾기 `GET /api/experiences` (S-58) |
+| [`experience-api.md`](experience-api.md) | FE → BE | 자료 넣기 · 분석 작업 · 활동 · 경험 · 근거 (스프린트 1) · 보완 (스프린트 2) · 그때의 나 · 이어짐 (S-34 · S-35) · 경험마다 쓰인 지원 `usedIn` (S-38) · 경험 찾기 `GET /api/experiences` (S-58) · 자료 여러 개 한 번에 `POST /api/sources/batch` · 활동에 자료 더하기 `activityId` (S-59 · S-60) |
 | [`question-api.md`](question-api.md) | FE → BE | 지원(문항 여러 개) · 지원 문항 · 추천 · 되묻기에 답하기 (스프린트 2) · 근거 점검 (S-45) · 답변 초안 (S-27 · 구성 틀 S-50) · 확정 답변 · 새 경험 후보 (S-48) · 비슷한 확정 답변 (S-43) · 지원 상태 · 낸 달 (S-36 · S-37) |
 | [`entrance-api.md`](entrance-api.md) | FE → BE | 홈 입력 가르기 · 한 줄 질문 꺼내기 · 지원처 · 문항 나누기 — 저장 없는 동기 호출 (스프린트 3 — S-28 ~ S-30) |
 | [`chagok-api.md`](chagok-api.md) | FE → BE | 차곡이 도구 루프 — 일 시작 · 단계 읽기(폴링) · 확인하고 실행 · 그만두기 (S-31) |
@@ -44,7 +44,8 @@
 | `actor` 수행 주체 | `ME` | 나 |
 | | `TEAM` | 팀(나 아닌 팀원 포함) |
 | | `UNKNOWN` | 알 수 없음 — 원본으로 판단할 수 없다 |
-| `status` 작업 상태 | `ANALYZING` | 분석 중 |
+| `status` 작업 상태 | `QUEUED` | 차례를 기다림 — 같이 넣은 앞 자료의 분석이 끝나면 시작(experience-api S-59, `P2`) |
+| | `ANALYZING` | 분석 중 |
 | | `COMPLETED` | 완료 |
 | | `FAILED` | 실패 — `error` 에 이유 |
 | `competencies` 역량 | `IMPLEMENTATION` | 기술 구현 |

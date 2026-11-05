@@ -11,7 +11,7 @@
 ## POST /extract — 활동 · 경험 · 근거 추출
 
 - 부르는 곳: BE 분석 작업(experience-api `POST /api/sources` · `retry` 뒤)
-- SPEC: `F-02` / `S-03` · `S-04` · `S-05` · `S-06` · `F-04` / `S-44`(`existingActivities` · `sameAsActivityId`, `P1`)
+- SPEC: `F-02` / `S-03` · `S-04` · `S-05` · `S-06` · `F-04` / `S-44`(`existingActivities` · `sameAsActivityId`, `P1`) · `F-01` / `S-60`(`targetActivityId`, `P2`)
 
 요청
 
@@ -28,6 +28,7 @@
 | `sourceName` | 원본 이름(파일 이름 등). 활동 이름을 짐작할 단서로만 쓴다 |
 | `text` | 원본 텍스트 그대로. BE 가 저장한 것과 **글자 하나 다르지 않게** 보낸다 — 근거 대조 · 줄 번호의 기준이다 |
 | `existingActivities` | 이 사용자가 **이미 가진** 활동 — `{ id, name, period }` 의 배열(S-44, `P1`). 처음 넣는 사용자면 `[]`. 빼면 `[]` 와 같다(S-44 전 BE 와 맞물리게). 경험 본문 · 근거는 싣지 않는다. BE 는 `period.start` 최근 순으로 최대 **300개**까지 싣는다(`start` 가 `null` 인 활동은 뒤) — 넘으면 오래된 것이 빠진다. 다시 시도(`retry`)에서도 그때의 목록을 다시 만들어 보낸다 |
+| `targetActivityId` | 활동 세부의 「자료 더하기」(S-60, `P2`)일 때 사용자가 고른 활동 — `existingActivities` 의 `id` 하나. 그 밖엔 `null`(빼도 된다). BE 는 대상을 목록에 반드시 싣는다(300개 한도와 상관없이). 목록에 없는 `id` 면 400 `INVALID_REQUEST`. 쓰는 법은 응답 규칙 `sameAsActivityId` |
 
 응답 200
 
@@ -141,7 +142,7 @@
 | `activities` | 배열. 활동을 못 찾으면 `[]` 로 200 — 오류가 아니다(BE 는 작업을 `COMPLETED` · `activityIds: []` 로) |
 | `activities[].name` | 비지 않은 문자열 |
 | `activities[].period` | README 「기간」 규칙. 원본에 없는 날짜를 지어내지 않는다 — 모르면 `null` |
-| `activities[].sameAsActivityId` | 같은 활동으로 보이는 기존 활동 — 요청 `existingActivities` 의 `id` 하나 또는 `null`(S-44). 늘 싣는다(`existingActivities` 가 `[]` 면 전부 `null`). **목록 밖 `id` 는 규칙 위반**이다 — 몰래 `null` 로 바꿔 「같은 활동 없음」처럼 보이게 하지 않는다. 같은 활동인지 확실하지 않으면 `null`. 서로 다른 새 활동 둘이 같은 `id` 를 가리켜도 된다. AI 해석이다 — BE · FE 는 제안으로만 쓰고 저절로 합치지 않는다 |
+| `activities[].sameAsActivityId` | 같은 활동으로 보이는 기존 활동 — 요청 `existingActivities` 의 `id` 하나 또는 `null`(S-44). `targetActivityId` 가 있으면(S-60) 사용자가 「이 자료는 이 활동의 자료」라고 고른 것이다 — 자료 속 활동 중 대상과 같은 활동에 대상 `id` 를 붙인다. 자료에 활동 이름 · 기간이 없거나 다르게 적혀도 내용이 대상 활동 이야기면 붙인다(README 의 프로젝트 소개 · 회고처럼). 대상이 아닌 활동에 대상 `id` 를 붙이지 않는다 — 이력서처럼 활동이 여럿이면 나머지는 평소대로(다른 기존 활동 `id` 또는 `null`). 대상과 같은 활동이 없으면 아무 활동에도 대상 `id` 를 붙이지 않는다. 늘 싣는다(`existingActivities` 가 `[]` 면 전부 `null`). **목록 밖 `id` 는 규칙 위반**이다 — 몰래 `null` 로 바꿔 「같은 활동 없음」처럼 보이게 하지 않는다. 같은 활동인지 확실하지 않으면 `null`. 서로 다른 새 활동 둘이 같은 `id` 를 가리켜도 된다. AI 해석이다 — BE · FE 는 제안으로만 쓰고 저절로 합치지 않는다 |
 | `activities[].category` | 활동 분류(S-57) — README 「값 목록」 `activityCategory` 값 하나 또는 `null`. 늘 싣는다. 활동 이름 · 내용으로 가장 가까운 하나를 고르고, 가늠이 안 되면 `null` — 억지로 고르지 않는다. 목록 밖 값은 규칙 위반이다. 원문에서 확인한 사실이 아니라 AI 해석이다 |
 | `activities[].experiences` | 배열(0개 가능). 원본에 활동 이름 · 기간만 있고 한 일이 없으면(이력서 항목 · MOC 링크 목록) `[]` 로 활동만 돌려준다(SPEC S-03) — 경험을 지어내 채우지 않는다 |
 | `experiences[].content` | 비지 않은 문자열. 원본에 없는 수치 · 역할 · 결과를 넣지 않는다(S-05) |
@@ -165,14 +166,14 @@
 
 | HTTP | `code` | 언제 |
 | --- | --- | --- |
-| 400 | `INVALID_REQUEST` | `text` 가 없거나 비었음 |
+| 400 | `INVALID_REQUEST` | `text` 가 없거나 비었음 · `targetActivityId` 가 `existingActivities` 에 없음 |
 | 413 | `TEXT_TOO_LONG` | `text` 가 **50000자**를 넘음(파이썬 `len` — 유니코드 코드 포인트 수, AI 서버 `MAX_TEXT_CHARS`). BE 한도는 이 숫자보다 크면 안 된다 |
 | 502 | `LLM_ERROR` | LLM API 호출이 실패함(키 · 한도 · 네트워크) |
 | 502 | `LLM_INVALID_OUTPUT` | LLM 출력이 위 규칙을 벗어남(AI 서버 안에서 다시 시도한 뒤에도). 그럴듯하게 고쳐서 돌려주지 않는다 |
 | 504 | `LLM_TIMEOUT` | LLM 이 AI 서버의 제한 시간 안에 답하지 않음 |
 | 500 | `INTERNAL_ERROR` | 그 밖 |
 
-BE 는 어떤 오류든 작업을 `FAILED`(`AI_FAILED`, `message` 에 위 `code`)로 둔다. 정해진 결과로 대신 채우지 않는다(대회 규칙 2).
+BE 는 어떤 오류든 작업을 `FAILED`(`AI_FAILED`, `message` 에 위 `code`)로 둔다. BE 가 `sameAsActivityId` 를 어떻게 쓰는지(제안 · 자료 더하기에선 바로 붙이기)는 experience-api 「자료 넣기」. 정해진 결과로 대신 채우지 않는다(대회 규칙 2).
 
 ## POST /match — 지원 문항에 맞는 경험 추천 · 되묻기
 

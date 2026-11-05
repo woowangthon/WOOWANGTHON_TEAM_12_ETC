@@ -21,8 +21,8 @@ FE ─PATCH /api/questions/{id}───────▶ BE  문항 유형 고치
 FE ─POST /api/questions/{id}/grounding-check ▶ BE  내가 쓴 답 근거 점검 시작(S-45) → 202
                                        BE ─POST /ground-check──▶ AI  (답 + 사용자 경험 전부 + 보완)
 FE ─GET /api/questions/{id}/grounding-check (폴링) ▶ BE  ANALYZING → COMPLETED(문장마다 판정) / FAILED
-FE ─POST /api/questions/{id}/draft──▶ BE  고른 경험 1 ~ 3개로 답변 초안 시작(S-27) → 202
-                                       BE ─POST /draft──▶ AI  (문항 + 고른 경험만 + 보완)
+FE ─POST /api/questions/{id}/draft──▶ BE  고른 경험 1 ~ 3개 + 구성 틀로 답변 초안 시작(S-27 · S-50) → 202
+                                       BE ─POST /draft──▶ AI  (문항 + 고른 경험만 + 보완 + 켜 둔 작성 지침 S-49)
 FE ─GET /api/questions/{id} (폴링)───▶ BE  draft: ANALYZING → COMPLETED(문장마다 근거 · 쓰지 않은 것) / FAILED
 FE ─POST /api/clarifications/{id}/answer ▶ BE  초안 omitted의 clarificationId로 답 → 그 경험의 보완
 FE ─POST /api/questions/{id}/draft──▶ BE  사용자가 다시 만들기를 누르면 최신 보완으로 재생성
@@ -629,6 +629,11 @@ FE ─POST /api/questions/{id}/draft──▶ BE  사용자가 다시 만들기�
     { "text": "Java · Spring 을 쓴 경험", "question": null, "experienceId": null, "clarificationId": null, "supplementId": null },
     { "text": "이 경험에서 배운 점 · 느낀 점", "question": "채팅 방식을 바꾸며 배운 점이나 느낀 점이 있나요?", "experienceId": 101, "clarificationId": 65, "supplementId": null }
   ],
+  "frame": "STAR",
+  "guidelines": [
+    { "id": 901, "text": "첫 문장에 무엇을 했고 어떻게 됐는지 먼저 쓴다", "source": "유튜브 「자소서 첫 문장 쓰는 법」", "applied": true, "note": null },
+    { "id": 905, "text": "결과는 꼭 수치로 쓴다", "source": "멘토 피드백", "applied": false, "note": "결과를 보여 줄 수치가 자료에 없어 넣지 않았어요" }
+  ],
   "createdAt": "2026-11-04T10:10:00+09:00",
   "updatedAt": "2026-11-04T10:10:21+09:00"
 }
@@ -643,6 +648,9 @@ FE ─POST /api/questions/{id}/draft──▶ BE  사용자가 다시 만들기�
 - `omitted[].text` · `question` · `experienceId` — AI `/draft` 응답 그대로. 경험에 연결된 것은 `experienceIds` 안의 경험 ID 와 구체적인 질문이 함께 있다. 연결되지 않은 빈칸은 둘 다 `null` 이며 FE 는 답 저장 칸을 붙이지 않고 사용자가 직접 쓸 거리로 보인다.
 - `omitted[].clarificationId` — BE 가 초안 완료 시 질문마다 새로 붙여 저장하는 되묻기 ID. 추천 되묻기와 같은 ID 공간을 쓰되 초안에 속한 것으로 구분한다. 경험이 `null` 이면 이 값도 `null` 이고 되묻기를 만들지 않는다. 새로고침해도 같은 ID 다. FE 는 배열 순번 · 문구 · 추천 되묻기 ID 로 대신 답하지 않는다.
 - `omitted[].supplementId` — 아직 답하지 않았으면 `null`, 답했으면 만든 보완 ID. BE 가 현재 연결을 조회해 응답하므로 새로고침해도 답한 상태가 유지된다. 답은 활동 세부의 보완에서 확인 · 수정한다(S-24). 보완을 지우면 `null` 로 돌아가 다시 답할 수 있다. 경험을 지우면 해당 `omitted` 항목은 응답에서 빠진다.
+- `frame` — 이 초안을 쓴 구성 틀(README 「값 목록」 `draftFrame`, S-50). 요청한 값 그대로 — `NONE` 은 「틀 없이」. `ANALYZING` · `FAILED` 에도 있다(실패한 초안의 「다시 만들기」가 같은 틀을 보낸다). 틀이 생기기 전에 저장된 초안은 BE 가 `NONE` 으로 채운다. FE 는 틀 이름 · 출처(README 「구성 틀」)를 초안 옆에 보인다.
+- `guidelines` — 이 초안에 실은 작성 지침(S-49), 실은 순서대로. 켜 둔 지침이 없었으면 `[]`. `ANALYZING` · `FAILED` 면 `[]`. `id` · `text` · `source` 는 **초안을 만들 때의 것**을 BE 가 저장해 둔다 — 그 뒤 지침을 고치거나 지워도 바뀌지 않는다(`id` 가 지금 없는 지침일 수 있다). 틀이 생기기 전에 저장된 초안은 `[]`.
+- `guidelines[].applied` · `note` — AI 가 그 지침을 이번 초안에 반영했다고 보는지(**AI 해석** — ai-api `/draft` 응답 그대로). `applied: true` 면 `note: null`, `false` 면 `note` 에 왜 못 했는지 한 줄(근거 규칙과 부딪침 · 이 문항에 맞지 않음 등). FE 는 「적용한 지침」과 「이번엔 반영 못 함 — `note`」를 나눠 보인다. 지침은 문체 · 구성 · 강조만 바꾼다 — 반영했다고 근거 규칙이 느슨해지지 않는다.
 - 필드 5개는 모두 응답한다. 경험에 붙지 않는 빈칸은 `text` 만 문자열이고 나머지 네 필드는 `null` 이다. 건너뛰기는 요청하지 않는 것 — 보완이 생기지 않고 초안의 표시 · 복사를 막지 않는다.
 - 예시 읽는 법: 첫 문장은 회고 발췌 201 이 받친다(원문 — 101 이 `ME` 라 「제가」로 쓸 수 있다). 둘째는 되묻기 61 에 답한 보완 301 만 받친다(내가 입력) — 「3초」의 3 이 301 에 있어 숫자 확인을 지난다. 되묻기 62(확인한 방법)는 건너뛰어 받칠 게 없으니 쓰지 않고 `omitted` 로 간다. 「Java · Spring」은 문항 A 요구사항에서 `NOT_FOUND` 였던 것, 「배운 점 · 느낀 점」은 자료에 없어 지어내지 않은 것이다. `TEAM` 경험 102 를 같이 골랐다면 「팀은 매주 금요일 스프린트 회고를 했습니다」로 쓰고 「제가」로 바꾸지 않는다.
 
@@ -669,17 +677,19 @@ AI#48 · BE#72 · FE#104 에서 함께 맞춘다. 새 AI 응답에는 모든 문
 요청 — `POST /api/questions/41/draft`
 
 ```json
-{ "experienceIds": [101] }
+{ "experienceIds": [101], "frame": "STAR" }
 ```
 
 | 필드 | 값 |
 | --- | --- |
 | `experienceIds` | 그 문항 `recommendations` 의 경험 ID **1 ~ 3개**, 중복 없음. AI 에 이 순서로 싣는다 |
+| `frame` | 선택. 구성 틀 — README `draftFrame` 값 하나(S-50). 빼면 `NONE`(틀 없이 — 지금과 같다). FE 는 처음엔 문항 유형으로 미리 고른 틀(README 「문항 유형 → 제안 틀」), 다시 만들 땐 그 초안의 `frame` 을 골라 둔다 |
 
 응답 202 — `Draft`, `status: "ANALYZING"` · `sentences: []` · `omitted: []`. 그 문항의 예전 초안(완료든 실패든)을 이것으로 바꾼다. 실패한 초안을 다시 만들 때도 이 호출이다(따로 `retry` 가 없다).
 
 - BE 는 **고른 경험만** 지금 상태로 AI 에 보낸다 — 본문 · 역량 · 수행 주체 · 출처 상태 · 활동 이름 · 기간 · **원본에서 찾은 근거만**(`matched: true`) · 보완 전부. 원본에서 못 찾은 발췌는 「원문」으로 칠하지 않게 싣지 않는다(근거 점검과 같다).
 - BE 는 저장된 매칭 결과와 지원의 직무도 싣는다(ETC#141) — 그 문항의 `requirements`(`text` · `status` 만), **고른 경험의** 추천 `reason` · `emphasis` · `gaps`, 지원의 `jobRole`(없으면 싣지 않는다). LLM 을 더 부르지 않고 지금 저장된 값을 그대로 옮긴다. AI 해석이라 초안의 근거가 되지 않는다 — `Draft` 응답 모양은 그대로이고 이 값들을 초안에 저장하지 않는다. 직무를 `PATCH` 로 바꾸면 다음에 만드는 초안부터 반영된다.
+- BE 는 그 사용자의 **지금 켜 둔 작성 지침**(guideline-api, 최대 10개 · 만든 순서)을 `{ id, text }` 로 싣고, `frame` 이 `NONE` 이 아니면 `question.frame` 으로 싣는다(ai-api 「POST /draft」). 초안에는 그때의 지침 `text` · `source` 를 저장해 둔다(위 `Draft.guidelines`). 지침은 FE 가 요청에 싣지 않는다 — 켜고 끄기는 guideline-api 에서.
 - 분석 1회로 센다([`auth-api.md`](auth-api.md) `dailyAnalysis`).
 
 - 보완에 답한 뒤에도 **사용자가 다시 만들기를 누를 때만** 호출한다. FE 는 답 저장의 성공을 확인한 뒤 같은 `experienceIds` 로 요청하고, BE 는 그때 저장된 보완 전부를 싣는다. 답 저장 실패 시 오류 · 다시 시도를 보이고 저장된 것처럼 표시하지 않는다.
@@ -690,7 +700,7 @@ AI#48 · BE#72 · FE#104 에서 함께 맞춘다. 새 AI 응답에는 모든 문
 
 | HTTP | `code` | 언제 |
 | --- | --- | --- |
-| 400 | `INVALID_REQUEST` | `experienceIds` 가 없음 · 0개 · 4개 이상 · 중복 · 그 문항 `recommendations` 에 없는 경험(그새 지워진 경험 포함) |
+| 400 | `INVALID_REQUEST` | `experienceIds` 가 없음 · 0개 · 4개 이상 · 중복 · 그 문항 `recommendations` 에 없는 경험(그새 지워진 경험 포함) · `frame` 이 `draftFrame` 밖 값 |
 | 404 | `QUESTION_NOT_FOUND` | 없는 문항 |
 | 409 | `QUESTION_NOT_COMPLETED` | 문항의 추천이 `COMPLETED` 가 아님(`ANALYZING` · `FAILED`) |
 | 409 | `DRAFT_IN_PROGRESS` | 그 문항의 초안이 아직 `ANALYZING` — 예전 것을 바꾸지 않는다 |
@@ -862,6 +872,6 @@ BE 가 AI 에 보내는 것(ai-api 「POST /new-facts」):
 - 「자주 나오는 문항」 목록(S-26) — FE 에 둔다. API 없음. 「내가 넣었던 문항」(S-40)은 `GET /api/questions` 를 FE 가 묶어 보인다 — 새 API 없음
 - 예전 답변 다시 보기(S-43) — 확정 답변(위 「확정 답변」)의 모양 위에 ETC#109 에서 더한다
 - 공고 링크에서 본문 가져오기 — entrance-api `parse-application` 의 `url`(S-46). 여기는 원문 링크 `postingUrl` 을 남기기만 한다 · 넣은 뒤 링크 고치기 없음
-- 답변 초안을 화면에서 고쳐 저장하기(사용자는 고친 글을 「확정」한다 — S-48), 작성 지침 · 구성 틀(ETC#68), 예전 초안 이력 · 비교, 문항 여러 개를 한 번에 초안으로, 글자 수 맞추기 — 없다. 초안은 문항마다 최신 하나다(S-27)
+- 답변 초안을 화면에서 고쳐 저장하기(사용자는 고친 글을 「확정」한다 — S-48), 지침 저장 · 켜고 끄기(→ [`guideline-api.md`](guideline-api.md) — 여기는 초안에 실린 지침만), 틀을 문항에 저장하기(틀은 초안 요청의 `frame`), 예전 초안 이력 · 비교, 문항 여러 개를 한 번에 초안으로, 글자 수 맞추기 — 없다. 초안은 문항마다 최신 하나다(S-27)
 - 근거 점검의 예전 결과 모아 보기 · 문장을 고쳐 주기 — 없다. 점검은 문항마다 최신 하나, 글은 사람이 고친다(S-45). 새 경험 후보는 근거 점검 결과가 아니라 확정 답변에서 따로 찾는다(S-48 — 근거 없음엔 과장 · 「팀 → 제가」도 섞인다)
 - 확정 답변의 이력 · 확정 취소 · 후보에서 새 활동 만들기 · 여러 문항 한꺼번에 찾기 — 없다(S-48). 후보 찾기는 진행 중인 일(S-47 · `work-api.md`)에 아직 넣지 않는다 — 문항 화면에서 바로 보인다

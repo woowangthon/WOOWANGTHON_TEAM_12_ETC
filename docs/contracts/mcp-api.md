@@ -1,6 +1,6 @@
 # mcp-api — 외부 AI(MCP 클라이언트) → BE · FE → BE
 
-> 다른 AI 에서 내 경험 꺼내 쓰기(SPEC R-04 · `F-11` · `S-32`, ETC#24). **읽기만** — 더하기 · 고치기는 ETC#27.
+> 다른 AI 에서 내 경험 꺼내 쓰기(SPEC R-04 · `F-11` · `S-32`, ETC#24). 외부 AI 는 **읽기만** — 더하기 · 고치기는 ETC#27. 차곡이(S-31)는 같은 도구에 쓰기 도구를 더해 보지만, 쓰기는 사용자 확인 뒤 BE 가 실행한다(「토큰 범위」 · 「쓰기 도구」, ETC#132).
 > 서버는 BE 에 둔다. 도구는 BE MCP 에만 정의하고 차곡이(S-31)는 이 MCP 의 클라이언트로 같은 도구를 쓴다 — [ADR-008](../decisions/ADR-008-mcp-tools-in-be.md). 차곡이가 쓸 때 도구를 더하면 이 파일에 더한다.
 > 이름 규칙 · 값 목록 · 기간 · 오류 모양은 [README 「공통」](README.md#공통--모든-계약이-같이-쓰는-것). 경험 · 근거 · 보완 모양은 [`experience-api.md`](experience-api.md) 「모양」 그대로다.
 
@@ -26,6 +26,19 @@ FE ─DELETE /api/mcp/connection──────▶ BE  연결 끊기 → 그 
 - 연결하면 경험 · 근거가 그 AI 서비스로 전송된다 — FE 는 주소를 만들기 전에 알린다(SPEC S-32).
 
 > 버린 안: **OAuth** — 클라이언트 호환이 가장 좋지만 인가 서버를 붙이는 데 하루 이상 든다. **`Authorization: Bearer` 헤더만** — Claude Code 에선 되지만 claude.ai 커넥터에 넣을 칸이 없어 데모 7 이 막힌다(BE 가 헤더도 같이 받는 건 자유).
+
+## 토큰 범위 — 외부 연결(READ) · 차곡이(CHAGOK) (S-31 · `P1`, ETC#132)
+
+같은 `POST /mcp/{token}` 에 두 종류의 토큰이 들어온다. 도구 정의는 하나이고, 범위가 **보이는 도구 · 부를 수 있는 도구**만 가른다.
+
+| 범위 | 누가 만드나 | 수명 | `tools/list` | `tools/call` |
+| --- | --- | --- | --- | --- |
+| `READ` | 사용자가 연결 화면에서(위 API) | 끊거나 다시 만들 때까지 | 읽기 도구 3개 | 읽기 도구 |
+| `CHAGOK` | BE 가 차곡이 일 하나마다(`chagok-api.md`) | **10분** 또는 그 일이 끝날 때까지 — 먼저 오는 쪽. 지나면 401 | 읽기 3개 + 쓰기 도구 | 읽기 도구만. 쓰기 도구는 `CONFIRM_REQUIRED` |
+
+- 차곡이(AI 서버)는 BE 가 `POST /agent` 에 실어 준 **내부망 주소**(`MCP_INTERNAL_BASE_URL` + 토큰)로 부른다 — AI 서버는 밖에 나가지 않는다(ADR-004). 「사용자 X 를 대신해」는 이 토큰이 정한다(ADR-008 에서 미룬 내부 호출 인증).
+- `CHAGOK` 토큰은 연결 화면(`GET /api/mcp/connection`)에 보이지 않고, 사용자당 연결 하나 규칙에도 세지 않는다.
+- 토큰 저장은 `READ` 와 같다(해시만). 만료 시각을 같이 둔다.
 
 ---
 
@@ -195,6 +208,30 @@ FE ─DELETE /api/mcp/connection──────▶ BE  연결 끊기 → 그 
 
 응답 — `GET /api/activities/{activityId}` 와 같다(모든 경험에 `competenciesBy` · `supplements` 포함).
 
+### 쓰기 도구 — 차곡이만 (S-31 · `P1`)
+
+`CHAGOK` 토큰의 `tools/list` 에만 보인다 — `annotations: { "readOnlyHint": false }`. **MCP 로는 실행되지 않는다**: `tools/call` 로 부르면 늘 `isError: true` + `CONFIRM_REQUIRED`. 차곡이는 `confirm` 이벤트로 사용자 확인을 요청하고(`ai-api.md` 「POST /agent」), 사용자가 확인하면 BE 가 같은 도구 코드로 실행한다(`chagok-api.md` 「confirm」) — 저장 · 변경은 확인 뒤에만(S-31). 도구 설명에 「사용자 확인 뒤 BE 가 실행한다 — 직접 부르지 말고 confirm 으로 요청하라」를 적는다.
+
+#### `create_application` — 지원 만들기
+
+입력 — `question-api.md` `POST /api/applications` 요청과 같다(`organization` · `organizationType` · `jobRole` · `postingUrl` · `questions` 1 ~ 10개). 검사 규칙도 같다.
+
+결과(확인 뒤 실행) — `{ "applicationId": 21, "questionIds": [41] }`. 문항마다 추천이 뒤에서 돈다 · 문항마다 분석 1회로 센다(그 API 그대로).
+
+- 문항은 사용자가 준 글 · 맥락 문항에 **적힌 것만** 싣는다 — 만들지 않는다(R-03 범위 제외 · S-30 과 같다).
+
+#### `add_source` — 자료 넣기
+
+입력
+
+```json
+{ "text": "…사용자가 부탁에 붙여 넣은 글 그대로…" }
+```
+
+`experience-api.md` `POST /api/sources` 에 `kind: "TEXT"` · `name: null` · `sections: null` 로 넣은 것과 같다(이름은 BE 가 붙인다 · `text` 최대 50000자). 결과 — `{ "sourceId": 12, "jobId": 34 }`(분석은 그 API 대로 뒤에서).
+
+- `text` 는 사용자가 넣은 글 **그대로**다 — 차곡이가 요약 · 고쳐 쓴 글을 자료로 넣지 않는다(근거 대조의 기준이 원본이라서 · ETC#27 방향과 같다).
+
 ### 도구 오류
 
 도구 안의 실패는 HTTP 200 + JSON-RPC 정상 응답에 `isError: true` 로 돌려준다 — 외부 AI 가 읽고 다시 부를 수 있게. 텍스트는 README 「오류 응답」 모양의 JSON.
@@ -207,6 +244,7 @@ FE ─DELETE /api/mcp/connection──────▶ BE  연결 끊기 → 그 
 | --- | --- |
 | `INVALID_ARGUMENT` | 입력 모양이 틀림 — 목록 밖 역량 · `year` 형식 · `limit` 범위 · `activityId` 없음 |
 | `ACTIVITY_NOT_FOUND` | 없는 활동이거나 **다른 사용자의 활동**(있는지도 알려 주지 않는다) |
+| `CONFIRM_REQUIRED` | 쓰기 도구를 `tools/call` 로 부름 — 사용자 확인 뒤 BE 만 실행한다(`CHAGOK` 토큰. `READ` 토큰에선 없는 도구라 `-32602`) |
 | `INTERNAL_ERROR` | 그 밖에 BE 안에서 실패 — 정해진 결과로 대신 채우지 않는다(대회 규칙 2) |
 
 없는 도구 이름은 JSON-RPC 오류 `-32602`.
@@ -218,7 +256,7 @@ FE ─DELETE /api/mcp/connection──────▶ BE  연결 끊기 → 그 
 
 ## 이 계약에 없는 것
 
-- 쓰기 도구(자료 넣기 · 보완 저장 · 지원 만들기) — ETC#27, 사용자 확인 뒤. 방향: 외부 AI 의 쓰기는 경험 · 보완을 직접 고치지 않고 **원본(자료)으로 들어와** 지금의 추출 · 근거 대조를 그대로 거친다 — 「AI 가 요약해 넣은 말」이 원문 확인 / 내가 입력 / AI 해석 어디에도 섞이지 않게
+- 외부 AI 의 쓰기 도구(자료 넣기 · 보완 저장 · 지원 만들기) — ETC#27, 사용자 확인 뒤. 차곡이용 `create_application` · `add_source` 는 위 「쓰기 도구」(MCP 로 실행되지 않음). 보완 저장 도구는 1차에 없다. 방향: 외부 AI 의 쓰기는 경험 · 보완을 직접 고치지 않고 **원본(자료)으로 들어와** 지금의 추출 · 근거 대조를 그대로 거친다 — 「AI 가 요약해 넣은 말」이 원문 확인 / 내가 입력 / AI 해석 어디에도 섞이지 않게
 - 원본 전문 읽기(`get_source`) — 근거에 `sourceName` · `quote` 가 실려 오므로 데모 7 엔 두지 않는다. 기획의 `get_evidence` 도 같은 이유로 `search_experiences` · `get_activity` 결과에 합쳤다
-- 지원 · 문항 · 추천 읽기 — 차곡이(S-31)가 필요할 때 더한다
+- 지원 · 문항 · 추천 읽기 · 근거 점검 · 초안 도구 — 차곡이(S-31)가 필요할 때 더한다(S-45 · S-27 이 선 뒤)
 - 의미 검색(임베딩) — 앱 검색(ETC#32)과 같이 본다

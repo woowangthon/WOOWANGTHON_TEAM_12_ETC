@@ -97,6 +97,7 @@ FE ─GET /api/questions/{id} (폴링)───▶ BE  draft: ANALYZING → COMP
   "organization": "OO 백엔드 부트캠프",
   "organizationType": "BOOTCAMP",
   "jobRole": "BACKEND",
+  "postingUrl": "https://example.com/recruit/1234",
   "questions": [
     { "id": 41, "applicationId": 21, "organization": "OO 백엔드 부트캠프", "text": "기술적인 문제를 해결한 경험을 구체적으로 적어 주세요.", "questionType": "PROBLEM_SOLVING", "questionTypeBy": "AI", "status": "COMPLETED", "createdAt": "2026-11-04T10:00:00+09:00" },
     { "id": 43, "applicationId": 21, "organization": "OO 백엔드 부트캠프", "text": "지원 동기와 수료 후 목표를 적어 주세요.", "questionType": null, "questionTypeBy": null, "status": "ANALYZING", "createdAt": "2026-11-04T10:00:00+09:00" }
@@ -106,6 +107,7 @@ FE ─GET /api/questions/{id} (폴링)───▶ BE  draft: ANALYZING → COMP
 ```
 
 - `organizationType` · `jobRole` — README 「값 목록」 지원처 종류 · 직무(S-42). 사용자가 고른다 · 선택이라 `null` 일 수 있다. 문항 요약에는 싣지 않는다 — 지원의 것이다.
+- `postingUrl` — 공고 원문 링크(S-46 · `P1`). 넣을 때 사용자가 확인한 값 · 없으면 `null`. FE 는 지원 화면에서 새 탭으로 연다. 서버는 이 링크를 다시 읽지 않는다(본문 · 요약을 저장하지 않는다). 넣은 뒤엔 고치지 않는다.
 - `questions` — 문항 요약(`QuestionSummary`), **넣은 순서대로**(지원서의 문항 순서). 추천 결과는 문항마다 `GET /api/questions/{questionId}`.
 
 ---
@@ -122,6 +124,7 @@ FE ─GET /api/questions/{id} (폴링)───▶ BE  draft: ANALYZING → COMP
   "organization": "OO 백엔드 부트캠프",
   "organizationType": "BOOTCAMP",
   "jobRole": "BACKEND",
+  "postingUrl": "https://example.com/recruit/1234",
   "questions": [
     { "text": "기술적인 문제를 해결한 경험을 구체적으로 적어 주세요." },
     { "text": "지원 동기와 수료 후 목표를 적어 주세요." }
@@ -133,6 +136,7 @@ FE ─GET /api/questions/{id} (폴링)───▶ BE  draft: ANALYZING → COMP
 | --- | --- |
 | `organization` | 지원처 이름(선택 — 없으면 `null`). 최대 100자 |
 | `organizationType` · `jobRole` | 지원처 종류 · 직무(선택 — 없거나 `null` 이면 비움). README 「값 목록」 값만(S-42) |
+| `postingUrl` | 공고 원문 링크(선택 — 없거나 `null` 이면 비움, S-46). `http://` · `https://` 만, 최대 2000자. 빼고 보내면 `null` 과 같다(S-46 전 FE 와 맞물리게) |
 | `questions` | 문항 **1 ~ 10개**, 넣은 순서가 지원서의 문항 순서. 각 `text` 는 `POST /api/questions` 의 `text` 와 같은 규칙(공백만 안 됨 · 최대 5000자) |
 
 응답 202 — 지원과 문항을 저장하고 문항마다 추천을 뒤에서 돌린다.
@@ -148,7 +152,7 @@ FE ─GET /api/questions/{id} (폴링)───▶ BE  draft: ANALYZING → COMP
 | HTTP | `code` | 언제 |
 | --- | --- | --- |
 | 400 | `EMPTY_TEXT` | 어떤 문항의 `text` 가 비었거나 공백뿐 |
-| 400 | `INVALID_REQUEST` | `questions` 가 없거나 0개 · 10개를 넘음 · `text` 가 없음 · `organization` 이 100자를 넘음 · `organizationType` · `jobRole` 이 목록에 없는 값 |
+| 400 | `INVALID_REQUEST` | `questions` 가 없거나 0개 · 10개를 넘음 · `text` 가 없음 · `organization` 이 100자를 넘음 · `organizationType` · `jobRole` 이 목록에 없는 값 · `postingUrl` 이 `http(s)://` 가 아니거나 2000자를 넘음 |
 | 413 | `TEXT_TOO_LONG` | 어떤 문항의 `text` 가 5000자를 넘음 |
 | 429 | `DAILY_LIMIT_EXCEEDED` | 오늘 남은 분석 횟수가 문항 수보다 적음 |
 
@@ -630,6 +634,6 @@ FE ─GET /api/questions/{id} (폴링)───▶ BE  draft: ANALYZING → COMP
 - 지원 · 문항 지우기, 문항 텍스트 · 지원처 이름 고치기 — 없다(종류 · 직무 · 문항 유형만 `PATCH`). 넣기 전엔 FE 에서 자유롭게 고치고, 넣은 뒤 잘못 넣었으면 그 지원에 새로 더한다(SPEC S-18)
 - 「자주 나오는 문항」 목록(S-26) — FE 에 둔다. API 없음. 「내가 넣었던 문항」(S-40)은 `GET /api/questions` 를 FE 가 묶어 보인다 — 새 API 없음
 - 예전 답변 다시 보기(S-43) — 확정 답변(ETC#67)이 생긴 뒤 계약을 더한다
-- 공고 링크에서 본문 가져오기(SPEC 미결정 12)
+- 공고 링크에서 본문 가져오기 — entrance-api `parse-application` 의 `url`(S-46). 여기는 원문 링크 `postingUrl` 을 남기기만 한다 · 넣은 뒤 링크 고치기 없음
 - 답변 초안을 화면에서 고쳐 저장하기 · 확정 답변 · 근거 없는 문장을 새 경험으로(ETC#67), 작성 지침 · 구성 틀(ETC#68), 예전 초안 이력 · 비교, 문항 여러 개를 한 번에 초안으로, 글자 수 맞추기 — 없다. 초안은 문항마다 최신 하나다(S-27)
 - 근거 점검의 예전 결과 모아 보기 · 문장을 고쳐 주기 — 없다. 점검은 문항마다 최신 하나, 글은 사람이 고친다(S-45). 근거 없는 문장을 새 경험 후보로 올리기는 확정 답변(ETC#67)에서

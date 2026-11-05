@@ -125,7 +125,7 @@
 
 ### 오류 응답
 
-모든 4xx · 5xx 는 같은 모양이다. `code` 는 각 계약의 엔드포인트에 적은 값, `message` 는 사람이 읽는 설명(로그용 — 화면 문구로 그대로 쓰지 않아도 된다).
+모든 4xx · 5xx 는 같은 모양이다. `code` 는 각 계약의 엔드포인트에 적은 값, `message` 는 사람이 읽는 설명(로그용 — 화면 문구로 그대로 쓰지 않아도 된다). 예외: entrance-api `parse-application` 의 422 `URL_BLOCKED` · `URL_UNREADABLE` 은 `message` 가 **화면에 그대로 보이는 한국어 한 줄**이다(S-46 — 왜 못 읽었는지).
 
 ```json
 { "error": { "code": "TEXT_TOO_LONG", "message": "텍스트가 50000자를 넘습니다" } }

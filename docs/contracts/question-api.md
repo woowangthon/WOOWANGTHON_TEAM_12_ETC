@@ -26,6 +26,7 @@ FE ─POST /api/questions/{id}/draft──▶ BE  고른 경험 1 ~ 3개 + 구�
 FE ─GET /api/questions/{id} (폴링)───▶ BE  draft: ANALYZING → COMPLETED(문장마다 근거 · 쓰지 않은 것) / FAILED
 FE ─POST /api/clarifications/{id}/answer ▶ BE  초안 omitted의 clarificationId로 답 → 그 경험의 보완
 FE ─POST /api/questions/{id}/draft──▶ BE  사용자가 다시 만들기를 누르면 최신 보완으로 재생성
+FE ─GET /api/questions/{id}/similar-answers ▶ BE  비슷한 문항의 확정 답변(S-43 — 참고만 · AI 안 부름)
 ```
 
 - **지원**(SPEC R-03 용어 · 2026-11-03 PM) = 지원처 하나 + 문항 여러 개. 문항은 늘 어느 지원에 딸린다(`applicationId`). 추천은 지금처럼 **문항마다 따로** 돈다 — AI 는 문항 사이를 같이 보지 않는다(SPEC 미결정 15). 한 지원 안에서 같은 경험이 여러 문항에 추천됐는지는 FE 가 문항들의 `recommendations` 로 계산해 표시한다(S-21).
@@ -712,7 +713,7 @@ AI#48 · BE#72 · FE#104 에서 함께 맞춘다. 새 AI 응답에는 모든 문
 
 사용자가 그 문항에 낼 글로 「확정」한 답이다. **문항마다 최신 하나** — 다시 확정하면 바뀐다. 초안을 고친 글이든 직접 쓴 글이든 같다. 확정하면 FE 가 이어서 **새 경험 후보 찾기**를 시작한다 — 글에서 사용자가 새로 쓴 사실 문장만 후보로 돌려주고, 사용자가 확인하면 그 후보가 경험이 된다(SPEC S-48 · 미결정 14 가). 저절로 저장하지 않는다. BE → AI 는 [`ai-api.md`](ai-api.md) 「POST /new-facts」.
 
-확정 답변은 근거가 아니다 — `/match` · `/draft` · `/ground-check` 요청에 싣지 않는다. 후보를 저장해 생긴 **경험**만 다른 경험처럼 쓰인다. 비슷한 문항에서 다시 보기(S-43)는 ETC#109 에서 이 모양 위에 더한다.
+확정 답변은 근거가 아니다 — `/match` · `/draft` · `/ground-check` 요청에 싣지 않는다. 후보를 저장해 생긴 **경험**만 다른 경험처럼 쓰인다. 비슷한 문항에서 참고로 다시 보기는 아래 「비슷한 확정 답변」(S-43)이다.
 
 확정 답변 `Answer` — 문항 A, 초안을 고쳐 확정하고 후보 찾기가 끝난 뒤
 
@@ -863,6 +864,73 @@ BE 가 AI 에 보내는 것(ai-api 「POST /new-facts」):
 
 오류: 404 `NEW_FACT_NOT_FOUND` · 409 `NEW_FACT_ALREADY_DECIDED`
 
+## 비슷한 확정 답변 (S-43 · `P1`)
+
+사용자가 다른 문항에서 확정한 답을 **참고로** 다시 보인다(SPEC S-43 · 미결정 14 다). 근거가 아니다 — 지원 동기엔 그 지원처 이야기가 섞인다. 이 목록은 화면에 보이기만 하고 `/match` · `/draft` · `/ground-check` · `/new-facts` 요청에 싣지 않는다. 초안 문장의 근거로 붙지 않고, 매칭 후보도 되지 않는다.
+
+비슷한 답변 `SimilarAnswer`
+
+```json
+{
+  "questionId": 42,
+  "questionText": "팀 프로젝트에서 맡은 역할과, 팀과 함께 일한 방식을 적어 주세요.",
+  "questionType": "COLLABORATION",
+  "applicationId": 22,
+  "organization": "OO 연합 동아리",
+  "organizationType": "CLUB",
+  "jobRole": null,
+  "text": "「바꿔요」에서 저는 채팅 기능을 맡았고, …",
+  "confirmedAt": "2026-11-06T09:30:00+09:00"
+}
+```
+
+- `text` · `confirmedAt` — 그 문항의 확정 답(위 `Answer`)과 같다. `newFacts` 는 싣지 않는다.
+- `questionText` · `questionType` — 그 문항의 지금 값. `organization` · `organizationType` · `jobRole` — 그 지원의 지금 값(`null` 일 수 있다). 고르는 데 쓴 값을 그대로 돌려주니 FE 가 「같은 유형」 같은 표시를 붙일 수 있다.
+
+## GET /api/questions/{questionId}/similar-answers — 비슷한 확정 답변 목록
+
+- 쓰는 곳: FE 지원 화면 문항 하나(답변을 쓰는 자리)의 「예전에 쓴 답」
+- SPEC: `F-09` / `S-43` — 우선순위 `P1`
+
+응답 200 — `GET /api/questions/41/similar-answers`
+
+```json
+{
+  "answers": [
+    { "questionId": 45, "questionText": "개발 중 겪은 어려움과 해결 과정을 적어 주세요.", "questionType": "PROBLEM_SOLVING", "applicationId": 24, "organization": "OO 소프트웨어 교육 과정", "organizationType": "BOOTCAMP", "jobRole": "BACKEND", "text": "…", "confirmedAt": "2026-10-20T21:00:00+09:00" },
+    { "questionId": 47, "questionText": "기술 문제를 해결한 경험을 적어 주세요.", "questionType": "PROBLEM_SOLVING", "applicationId": 25, "organization": "OO 연합 동아리", "organizationType": "CLUB", "jobRole": null, "text": "…", "confirmedAt": "2026-10-28T20:00:00+09:00" },
+    { "questionId": 46, "questionText": "지원 동기를 적어 주세요.", "questionType": "MOTIVATION", "applicationId": 24, "organization": "OO 소프트웨어 교육 과정", "organizationType": "BOOTCAMP", "jobRole": "BACKEND", "text": "…", "confirmedAt": "2026-10-20T21:10:00+09:00" }
+  ]
+}
+```
+
+예시 읽는 법: 문항 41 은 유형 `PROBLEM_SOLVING`, 지원 21 은 `BOOTCAMP` · `BACKEND` 다. 45 는 셋 다 같아 맨 앞, 47 은 유형만 같고, 46 은 유형이 달라도 직무 · 종류가 같아 뒤에 온다. 47 이 46 보다 앞인 것은 유형이 직무 · 종류보다 먼저이기 때문이다.
+
+- **고르기** — 로그인한 사용자의 확정 답 가운데 기준 문항 자신의 답을 뺀 것. 같은 지원의 다른 문항도 들어간다.
+- **같다** — 기준 문항과 그 문항의 `questionType` · 그 지원의 `jobRole` · `organizationType` 을 지금 값으로 비교한다. `null` 과 `OTHER` 는 어느 것과도 같지 않다 — 「값이 없다」 · 「맞는 값이 없다」는 비슷하다는 뜻이 아니다. `questionTypeBy` 는 보지 않는다.
+- **순서** — 유형 → 직무 → 종류 순으로 앞에서부터 비교한다. 같으면 `confirmedAt` 이 최근인 것부터.
+
+| 차례 | 같은 것 |
+| --- | --- |
+| 1 | 유형 · 직무 · 종류 |
+| 2 | 유형 · 직무 |
+| 3 | 유형 · 종류 |
+| 4 | 유형 |
+| 5 | 직무 · 종류 |
+| 6 | 직무 |
+| 7 | 종류 |
+
+- 셋 다 같지 않으면 빠진다. **최대 5개**, 페이지 나누기 없음. 없으면 `{ "answers": [] }` — FE 는 그 자리를 아무것도 보이지 않는다(빈 안내도 없다).
+- 요청마다 BE 가 계산한다. 결과를 저장하지 않고, AI 를 부르지 않으며, **분석 횟수를 쓰지 않는다.** 문항의 추천 상태와 상관없이 200 이다 — `ANALYZING` · `FAILED` 라 유형이 없으면 직무 · 종류로만 고른다.
+- FE 는 문항을 열 때 부른다. 추천이 끝나 유형이 붙거나, 유형 · 직무 · 종류를 고치거나, 답을 확정하면 다시 부른다.
+- FE 는 「참고 — 근거 아님」으로 보이고, 지원처 · 문항을 같이 보인다. 실패하면 오류 · 다시 시도를 보인다 — 빈 목록처럼 보이지 않는다(대회 규칙 2).
+
+오류
+
+| HTTP | `code` | 언제 |
+| --- | --- | --- |
+| 404 | `QUESTION_NOT_FOUND` | 없는 문항 · 다른 사용자의 문항 |
+
 ---
 
 ## 이 계약에 없는 것
@@ -870,7 +938,7 @@ BE 가 AI 에 보내는 것(ai-api 「POST /new-facts」):
 - 지원 · 문항 지우기, 문항 텍스트 · 지원처 이름 고치기 — 없다(종류 · 직무 · 상태 · 낸 달 · 문항 유형만 `PATCH`).
 - 지원 상태(S-36)의 바뀐 이력 · 상태별 개수 · 합격률 · 상태로 거르기 — 없다. 상태는 꼬리표 하나다. 받은 피드백(면접 질문 · 탈락 사유 · 멘토 의견)을 경험에 쌓기는 ETC#30. 타임라인(`GET /api/activities`)에 지원을 섞어 주는 API 도 없다 — FE 가 `GET /api/applications` 의 `submittedMonth` 로 합친다(S-37) 넣기 전엔 FE 에서 자유롭게 고치고, 넣은 뒤 잘못 넣었으면 그 지원에 새로 더한다(SPEC S-18)
 - 「자주 나오는 문항」 목록(S-26) — FE 에 둔다. API 없음. 「내가 넣었던 문항」(S-40)은 `GET /api/questions` 를 FE 가 묶어 보인다 — 새 API 없음
-- 예전 답변 다시 보기(S-43) — 확정 답변(위 「확정 답변」)의 모양 위에 ETC#109 에서 더한다
+- 예전 답변을 근거로 쓰기 · 글을 비교한 유사도(LLM · 임베딩) · 예전 답을 「내가 쓴 답」 칸에 채워 넣기 · 지원처 이름 바꿔 주기 — 없다(S-43). 비슷함은 유형 · 직무 · 종류 세 값으로만 고른다
 - 공고 링크에서 본문 가져오기 — entrance-api `parse-application` 의 `url`(S-46). 여기는 원문 링크 `postingUrl` 을 남기기만 한다 · 넣은 뒤 링크 고치기 없음
 - 답변 초안을 화면에서 고쳐 저장하기(사용자는 고친 글을 「확정」한다 — S-48), 지침 저장 · 켜고 끄기(→ [`guideline-api.md`](guideline-api.md) — 여기는 초안에 실린 지침만), 틀을 문항에 저장하기(틀은 초안 요청의 `frame`), 예전 초안 이력 · 비교, 문항 여러 개를 한 번에 초안으로, 글자 수 맞추기 — 없다. 초안은 문항마다 최신 하나다(S-27)
 - 근거 점검의 예전 결과 모아 보기 · 문장을 고쳐 주기 — 없다. 점검은 문항마다 최신 하나, 글은 사람이 고친다(S-45). 새 경험 후보는 근거 점검 결과가 아니라 확정 답변에서 따로 찾는다(S-48 — 근거 없음엔 과장 · 「팀 → 제가」도 섞인다)

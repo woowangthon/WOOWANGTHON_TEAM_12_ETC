@@ -14,8 +14,8 @@
 | --- | --- | --- |
 | `<영역>-api.md` | FE → BE | 엔드포인트 · 요청 · 응답 · 오류 — 영역마다 한 파일 |
 | [`auth-api.md`](auth-api.md) | FE → BE | 가입 · 로그인 · 내 정보 · 하루 분석 한도, 모든 API 의 401 · 429 (R-02) |
-| [`experience-api.md`](experience-api.md) | FE → BE | 자료 넣기 · 분석 작업 · 활동 · 경험 · 근거 (스프린트 1) · 보완 (스프린트 2) · 그때의 나 · 이어짐 (S-34 · S-35) |
-| [`question-api.md`](question-api.md) | FE → BE | 지원(문항 여러 개) · 지원 문항 · 추천 · 되묻기에 답하기 (스프린트 2) · 근거 점검 (S-45) · 답변 초안 (S-27) |
+| [`experience-api.md`](experience-api.md) | FE → BE | 자료 넣기 · 분석 작업 · 활동 · 경험 · 근거 (스프린트 1) · 보완 (스프린트 2) · 그때의 나 · 이어짐 (S-34 · S-35) · 경험마다 쓰인 지원 `usedIn` (S-38) |
+| [`question-api.md`](question-api.md) | FE → BE | 지원(문항 여러 개) · 지원 문항 · 추천 · 되묻기에 답하기 (스프린트 2) · 근거 점검 (S-45) · 답변 초안 (S-27) · 지원 상태 · 낸 달 (S-36 · S-37) |
 | [`entrance-api.md`](entrance-api.md) | FE → BE | 홈 입력 가르기 · 한 줄 질문 꺼내기 · 지원처 · 문항 나누기 — 저장 없는 동기 호출 (스프린트 3 — S-28 ~ S-30) |
 | [`ai-api.md`](ai-api.md) | BE → AI | 추출 `/extract` (스프린트 1) · 매칭 `/match` (스프린트 2) · 근거 점검 `/ground-check` (S-45) · 답변 초안 `/draft` (S-27) · 입구 `/route` · `/ask` · `/parse-application` (스프린트 3) · 이어짐 제안 `/link-suggestions` (S-35) |
 | [`mcp-api.md`](mcp-api.md) | 외부 AI(MCP) · FE → BE | 연결 주소 만들기 · 끊기, MCP 읽기 도구 `search_experiences` · `list_activities` · `get_activity` (스프린트 3 — S-32) |
@@ -108,10 +108,17 @@
 | `linkStatus` 이어짐 상태 (S-35) | `SUGGESTED` | AI 제안 — 사용자가 아직 정하지 않았다 |
 | | `CONFIRMED` | 맞아요 — 사용자가 이어졌다고 확인했다 |
 | | `REJECTED` | 아니에요 — 다시 제안하지 않는다. 화면 · 활동 세부 응답엔 나오지 않는다 |
+| `applicationStatus` 지원 상태 (S-36) | `WRITING` | 작성 중 — 새 지원은 이것 |
+| | `SUBMITTED` | 냈음 — 결과를 기다린다 |
+| | `PASSED` | 합격 |
+| | `NOT_PASSED` | 불합격 — 작업 상태 `FAILED` 와 헷갈리지 않게 이 이름 |
+| | `UNKNOWN` | 모름 — 내긴 했는데 결과를 모른다(못 들었다 · 기억나지 않는다) |
 
 `competencies` 는 **배열**이다 — 경험 하나에 0 ~ 3개, 중복 없음, 앞에 둔 것이 더 잘 맞는다. 없으면 `[]`(`null` 이 아니다). 목록은 닫혀 있다 — 새 값은 SPEC 미결정 2 의 결정을 고치고 이 표에 먼저 더한 뒤 쓴다(동의어가 생기면 검색 · 매칭이 쪼개진다).
 
 `questionType` 은 문항 하나에 **하나**(배열 아님), `organizationType` · `jobRole` 은 지원에 하나씩이고 선택이라 `null` 일 수 있다. 셋 다 목록이 닫혀 있다 — 새 값은 SPEC 미결정 13 · 17 을 고치고 이 표에 먼저 더한다(「백엔드」 · 「서버」가 갈라지면 비슷한 답변을 못 묶는다 — S-43).
+
+`applicationStatus` 는 지원에 **하나**, 늘 값이 있다. 사용자가 붙인 꼬리표일 뿐이다 — 합격률 · 상태별 개수 · 점수로 모아 보이지 않는다(SPEC 범위 제외: 합격 가능성 · S-36).
 
 ### 기간 `period`
 

@@ -3,6 +3,7 @@
 > 스프린트 2 「문항 매칭」(SPEC R-03). 이름 규칙 · 값 목록 · 오류 모양은 [README 「공통」](README.md#공통--모든-계약이-같이-쓰는-것).
 > 경험 · 근거 · 보완의 모양은 [`experience-api.md`](experience-api.md), BE → AI 는 [`ai-api.md`](ai-api.md) 「POST /match」.
 > 예시는 스프린트 1 예시(「바꿔요」 · 경험 101 ~ 104 · 근거 201 ~ 204)를 잇는다 — 문항 A(기술 문제 해결)에서 되묻기에 답한 보완 301 이 문항 B(역할 · 협업)에서 근거로 다시 쓰인다(S-25).
+> 지원 기록(SPEC R-05 F-14 `P1` — 지원 상태 `applicationStatus` · 낸 달 `submittedMonth`, S-36 · S-37). 경험마다 쓰인 지원(S-38)은 `experience-api.md` 「GET /api/activities/{activityId}」의 `usedIn`.
 
 ## 흐름
 
@@ -15,7 +16,7 @@ FE ─POST /api/questions─────────────▶ BE  (문항 
 FE ─GET /api/questions/{id} (폴링)───▶ BE  ANALYZING → COMPLETED(요구사항 · 추천 · 되묻기) / FAILED
 FE ─POST /api/clarifications/{id}/answer ▶ BE  답 → 그 경험의 보완
 FE ─GET /api/questions──────────────▶ BE  넣었던 문항 목록(「내가 넣었던 문항」 다시 고르기 — S-40)
-FE ─PATCH /api/applications/{id}────▶ BE  지원처 종류 · 직무 바꾸기(S-42)
+FE ─PATCH /api/applications/{id}────▶ BE  지원처 종류 · 직무 바꾸기(S-42) · 지원 상태 · 낸 달 바꾸기(S-36)
 FE ─PATCH /api/questions/{id}───────▶ BE  문항 유형 고치기(S-41)
 FE ─POST /api/questions/{id}/grounding-check ▶ BE  내가 쓴 답 근거 점검 시작(S-45) → 202
                                        BE ─POST /ground-check──▶ AI  (답 + 사용자 경험 전부 + 보완)
@@ -98,6 +99,8 @@ FE ─GET /api/questions/{id} (폴링)───▶ BE  draft: ANALYZING → COMP
   "organizationType": "BOOTCAMP",
   "jobRole": "BACKEND",
   "postingUrl": "https://example.com/recruit/1234",
+  "applicationStatus": "SUBMITTED",
+  "submittedMonth": "2026-11",
   "questions": [
     { "id": 41, "applicationId": 21, "organization": "OO 백엔드 부트캠프", "text": "기술적인 문제를 해결한 경험을 구체적으로 적어 주세요.", "questionType": "PROBLEM_SOLVING", "questionTypeBy": "AI", "status": "COMPLETED", "createdAt": "2026-11-04T10:00:00+09:00" },
     { "id": 43, "applicationId": 21, "organization": "OO 백엔드 부트캠프", "text": "지원 동기와 수료 후 목표를 적어 주세요.", "questionType": null, "questionTypeBy": null, "status": "ANALYZING", "createdAt": "2026-11-04T10:00:00+09:00" }
@@ -108,6 +111,12 @@ FE ─GET /api/questions/{id} (폴링)───▶ BE  draft: ANALYZING → COMP
 
 - `organizationType` · `jobRole` — README 「값 목록」 지원처 종류 · 직무(S-42). 사용자가 고른다 · 선택이라 `null` 일 수 있다. 문항 요약에는 싣지 않는다 — 지원의 것이다.
 - `postingUrl` — 공고 원문 링크(S-46 · `P1`). 넣을 때 사용자가 확인한 값 · 없으면 `null`. FE 는 지원 화면에서 새 탭으로 연다. 서버는 이 링크를 다시 읽지 않는다(본문 · 요약을 저장하지 않는다). 넣은 뒤엔 고치지 않는다.
+- `applicationStatus` — README 「값 목록」 지원 상태(S-36 · `P1`). **늘 값이 있다** — 새 지원은 `WRITING`(넣을 때 요청에 싣지 않는다). 사용자가 `PATCH` 로만 바꾼다 — 추천 · 초안이 끝나도 저절로 바뀌지 않는다. FE 는 목록의 **꼬리표**로 보인다(보드 · 칸 옮기기가 아니다). 합격률 · 상태별 개수로 모아 보이지 않고, 합격 · 불합격을 점수처럼 칠하지 않는다(SPEC 범위 제외).
+- `submittedMonth` — 낸 달 `"YYYY-MM"`(S-37). 타임라인 「지원도 같이 보기」에서 이 달에 한 줄로 놓인다. 규칙:
+  - `applicationStatus` 가 `WRITING` 이면 늘 `null` — 타임라인에 놓이지 않는다.
+  - `WRITING` 에서 다른 상태로 바뀔 때 값이 없으면 **BE 가 그 달**(서울 시간)을 붙인다. 다른 상태끼리 바꿀 땐(냈음 → 합격) 그대로 둔다. `WRITING` 으로 되돌리면 `null`.
+  - 사용자가 `PATCH` 로 고친다 — 예전에 낸 지원을 나중에 넣었을 때 그해 자리에 놓이게.
+  - 「모름」(`UNKNOWN`)도 낸 것이라 달이 붙는다.
 - `questions` — 문항 요약(`QuestionSummary`), **넣은 순서대로**(지원서의 문항 순서). 추천 결과는 문항마다 `GET /api/questions/{questionId}`.
 
 ---
@@ -145,6 +154,7 @@ FE ─GET /api/questions/{id} (폴링)───▶ BE  draft: ANALYZING → COMP
 { "applicationId": 21, "questionIds": [41, 43] }
 ```
 
+- 새 지원은 `applicationStatus: "WRITING"` · `submittedMonth: null` 로 시작한다(S-36). 요청엔 싣지 않는다(실어도 무시한다) — 상태 · 낸 달은 `PATCH` 로만.
 - 문항마다 분석 1회로 센다([`auth-api.md`](auth-api.md) `dailyAnalysis`). 남은 횟수가 문항 수보다 적으면 **아무것도 저장하지 않고** 429 — 일부만 넣지 않는다.
 
 오류
@@ -206,7 +216,7 @@ FE ─GET /api/questions/{id} (폴링)───▶ BE  draft: ANALYZING → COMP
 | `organizationType` · `jobRole` | 새로 만드는 지원의 종류 · 직무(선택). `POST /api/applications` 와 같다 |
 | `text` | 문항 텍스트. 공고 일부를 같이 붙여도 된다. 공백만 있으면 안 된다. 최대 **5000자**(Java `String.length()` — JS `text.length` 와 같은 숫자) |
 
-응답 202 — 문항을 저장하고 추천을 뒤에서 돌린다. 문항 하나짜리 **지원을 새로 만든다**(`organization` 은 그 지원의 것) — 스프린트 2 처음 모양을 깨지 않으려고 남겨 둔다.
+응답 202 — 문항을 저장하고 추천을 뒤에서 돌린다. 문항 하나짜리 **지원을 새로 만든다**(`organization` 은 그 지원의 것, 상태는 `WRITING` — S-36) — 스프린트 2 처음 모양을 깨지 않으려고 남겨 둔다.
 
 ```json
 { "questionId": 41, "applicationId": 21, "status": "ANALYZING" }
@@ -372,12 +382,12 @@ FE ─GET /api/questions/{id} (폴링)───▶ BE  draft: ANALYZING → COMP
 
 오류: 404 `QUESTION_NOT_FOUND` · 409 `QUESTION_NOT_FAILED` 실패 상태가 아닌 문항 · 429 `DAILY_LIMIT_EXCEEDED` 오늘 분석 횟수를 다 씀
 
-## PATCH /api/applications/{applicationId} — 지원처 종류 · 직무 바꾸기
+## PATCH /api/applications/{applicationId} — 지원처 종류 · 직무 · 지원 상태 · 낸 달 바꾸기
 
-- 쓰는 곳: FE 지원 화면의 지원처 종류 · 직무 칸
-- SPEC: `R-03` / `S-42` — 우선순위 `P1`
+- 쓰는 곳: FE 지원 화면의 지원처 종류 · 직무 칸 · 지원 목록 · 지원 화면의 상태 꼬리표
+- SPEC: `R-03` / `S-42` · `R-05` / `S-36` · `S-37` — 우선순위 `P1`
 
-보낸 필드만 바꾼다. `null` 을 보내면 비운다. 지원처 이름 · 문항은 여기서 바꾸지 않는다(S-18).
+보낸 필드만 바꾼다. 지원처 이름 · 문항 · 공고 링크는 여기서 바꾸지 않는다(S-18 · S-46).
 
 요청 — `PATCH /api/applications/21`
 
@@ -385,13 +395,30 @@ FE ─GET /api/questions/{id} (폴링)───▶ BE  draft: ANALYZING → COMP
 { "organizationType": "BOOTCAMP", "jobRole": "BACKEND" }
 ```
 
-응답 200 — 바뀐 `Application`. 추천은 다시 돌지 않는다(매칭 요청에 싣지 않는다 — S-42).
+```json
+{ "applicationStatus": "SUBMITTED" }
+```
+
+```json
+{ "applicationStatus": "PASSED", "submittedMonth": "2025-02" }
+```
+
+| 필드 | 값 |
+| --- | --- |
+| `organizationType` · `jobRole` | README 「값 목록」 값 하나. `null` 을 보내면 비운다(S-42) |
+| `applicationStatus` | README 「값 목록」 지원 상태 하나. `null` 은 받지 않는다 — 늘 값이 있다(S-36) |
+| `submittedMonth` | 낸 달 `"YYYY-MM"`(S-37). 바꾼 뒤 상태가 `WRITING` 이면 받지 않는다. `null` 은 받지 않는다 — 지우려면 상태를 `WRITING` 으로 |
+
+- `applicationStatus` 만 보내면 낸 달은 「지원 `Application`」의 규칙대로 BE 가 정한다 — `WRITING` → 다른 상태면 그 달, → `WRITING` 이면 `null`. 둘 다 보내면 보낸 달이 이긴다.
+- 같은 값을 다시 보내도 200(바뀐 것 없음).
+
+응답 200 — 바뀐 `Application`. 추천은 다시 돌지 않는다(종류 · 직무 · 상태 모두 매칭 요청에 싣지 않는다 — S-42).
 
 오류
 
 | HTTP | `code` | 언제 |
 | --- | --- | --- |
-| 400 | `INVALID_REQUEST` | 목록에 없는 값 · 두 필드가 다 없음 |
+| 400 | `INVALID_REQUEST` | 목록에 없는 값 · 바꿀 필드가 하나도 없음 · `applicationStatus` 가 `null` · `submittedMonth` 가 `null` 이거나 `YYYY-MM` 이 아님(`2025-2` · `2025` 안 됨) · 바꾼 뒤 상태가 `WRITING` 인데 `submittedMonth` 를 보냄 |
 | 404 | `APPLICATION_NOT_FOUND` | 없는 지원 |
 
 ## PATCH /api/questions/{questionId} — 문항 유형 고치기
@@ -631,7 +658,8 @@ FE ─GET /api/questions/{id} (폴링)───▶ BE  draft: ANALYZING → COMP
 
 ## 이 계약에 없는 것
 
-- 지원 · 문항 지우기, 문항 텍스트 · 지원처 이름 고치기 — 없다(종류 · 직무 · 문항 유형만 `PATCH`). 넣기 전엔 FE 에서 자유롭게 고치고, 넣은 뒤 잘못 넣었으면 그 지원에 새로 더한다(SPEC S-18)
+- 지원 · 문항 지우기, 문항 텍스트 · 지원처 이름 고치기 — 없다(종류 · 직무 · 상태 · 낸 달 · 문항 유형만 `PATCH`).
+- 지원 상태(S-36)의 바뀐 이력 · 상태별 개수 · 합격률 · 상태로 거르기 — 없다. 상태는 꼬리표 하나다. 받은 피드백(면접 질문 · 탈락 사유 · 멘토 의견)을 경험에 쌓기는 ETC#30. 타임라인(`GET /api/activities`)에 지원을 섞어 주는 API 도 없다 — FE 가 `GET /api/applications` 의 `submittedMonth` 로 합친다(S-37) 넣기 전엔 FE 에서 자유롭게 고치고, 넣은 뒤 잘못 넣었으면 그 지원에 새로 더한다(SPEC S-18)
 - 「자주 나오는 문항」 목록(S-26) — FE 에 둔다. API 없음. 「내가 넣었던 문항」(S-40)은 `GET /api/questions` 를 FE 가 묶어 보인다 — 새 API 없음
 - 예전 답변 다시 보기(S-43) — 확정 답변(ETC#67)이 생긴 뒤 계약을 더한다
 - 공고 링크에서 본문 가져오기 — entrance-api `parse-application` 의 `url`(S-46). 여기는 원문 링크 `postingUrl` 을 남기기만 한다 · 넣은 뒤 링크 고치기 없음

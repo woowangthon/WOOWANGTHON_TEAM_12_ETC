@@ -1,6 +1,6 @@
 # experience-api — FE → BE
 
-> 스프린트 1 「경험 관리」(SPEC R-01) · 스프린트 2 보완(SPEC R-03 — 「보완 `Supplement`」 · 보완 고치기 · 지우기). 같은 활동 제안(SPEC S-44 `P1` — `mergeSuggestion` · 따로 두기). 그때의 나 · 이어짐(SPEC R-05 F-13 `P1` — 활동 `note` · `ActivityLink` · 이어짐 제안 받기 · 정하기). 이름 규칙 · 값 목록 · 기간 · 오류 모양은 [README 「공통」](README.md#공통--모든-계약이-같이-쓰는-것).
+> 스프린트 1 「경험 관리」(SPEC R-01) · 스프린트 2 보완(SPEC R-03 — 「보완 `Supplement`」 · 보완 고치기 · 지우기). 같은 활동 제안(SPEC S-44 `P1` — `mergeSuggestion` · 따로 두기). 그때의 나 · 이어짐(SPEC R-05 F-13 `P1` — 활동 `note` · `ActivityLink` · 이어짐 제안 받기 · 정하기). 경험마다 쓰인 지원(SPEC R-05 F-14 `P1` — 활동 세부의 `usedIn`, S-38). 이름 규칙 · 값 목록 · 기간 · 오류 모양은 [README 「공통」](README.md#공통--모든-계약이-같이-쓰는-것).
 > 예시는 가상의 팀 프로젝트 회고 하나(「바꿔요」 · 알고리즘 스터디)로 이어진다 — [`ai-api.md`](ai-api.md) 예시와 같은 자료다.
 
 ## 흐름
@@ -81,6 +81,7 @@ FE ─PATCH /api/activity-links/{id} { status }────▶ BE  CONFIRMED · 
 - `citations` 는 아래 `Citation` 의 배열. AI 가 뽑은 경험은 1개 이상이지만, 근거가 없는 경험도 올 수 있다(그때 `NEEDS_REVIEW`).
 - `competencies` 는 역량 값의 배열(README 「값 목록」 — 0 ~ 3개, 중복 없음, 앞이 더 잘 맞는 것). 없으면 `[]`. AI 가 붙인 것은 **해석**이라 FE 는 원문 사실처럼 보이지 않게 한다(SPEC 미결정 2 · DESIGN). BE 는 받은 순서대로 저장하고 돌려준다.
 - `competenciesBy` — 지금 `competencies` 를 누가 붙였나(README 「값 목록」 — `AI` · `USER`). **BE 만** 붙인다: 분석이 만든 경험은 `AI`, 직접 추가(`POST …/experiences`)는 `USER`, 경험 수정(`PATCH`)에서 `competencies` 가 실제로 바뀌면(순서 · `[]` 포함) `USER`. 본문 · 수행 주체만 고치거나, 옮기거나, 합치거나, 보완이 생겨도 그대로다. FE 는 `AI` 일 때만 역량 앞에 「AI」 표시를 붙인다 — `sourceStatus` 로 짐작하지 않는다(본문만 고쳐도 `USER_ENTERED` 가 되기 때문). **모든 `Experience` 응답에 실린다** — 이 파일 · `question-api.md` 의 다른 예시엔 줄였다.
+- `usedIn` — 쓰인 지원(S-38 `P1`). **활동 세부의 경험에만** 더 붙는다 — 아래 「GET /api/activities/{activityId}」의 「쓰인 지원 `usedIn`」.
 
 근거 `Citation`
 
@@ -400,6 +401,42 @@ FE 는 `jobId` 를 들고 있다가(새로고침 대비 주소 · 브라우저 �
 - 경험 104 처럼 AI 가 단 발췌문이 원본에 없으면 `matched: false` · `NEEDS_REVIEW` 다(S-04).
 - `mergeSuggestion` · `note` 도 `ActivitySummary` 와 같이 실린다(S-44 · S-34 — 위 예시엔 줄였다).
 - `links` — 이 활동이 `from` 이든 `to` 든 걸린 이어짐(`ActivityLink`, S-35 `P1`). **`REJECTED` 는 빼고** `createdAt` 순. 없으면 `[]`. 모든 활동 세부 응답(합치기 응답 포함)에 실린다 — 위 예시엔 줄였다.
+- `experiences[].usedIn` — 이 경험이 **쓰인 지원**(S-38 `P1`). 활동 세부 모양의 응답(이 응답 · 합치기 응답)의 경험에만 있다 — 위 예시엔 줄였다. 아래 「쓰인 지원 `usedIn`」.
+
+쓰인 지원 `usedIn` — `P1` (SPEC S-38)
+
+활동 7 세부의 경험 101 — 문항 A(지원 21)와 문항 B(지원 22) 추천에 나왔다(`question-api.md` 예시)
+
+```json
+{
+  "id": 101,
+  "activityId": 7,
+  "content": "채팅 메시지가 늦게 도착하는 문제를 폴링에서 WebSocket 으로 바꿔 해결했다",
+  "…": "…",
+  "usedIn": [
+    {
+      "applicationId": 22,
+      "organization": "OO 연합 동아리",
+      "applicationStatus": "PASSED",
+      "submittedMonth": "2025-02",
+      "questions": [{ "id": 42, "text": "팀 프로젝트에서 맡은 역할과, 팀과 함께 일한 방식을 적어 주세요." }]
+    },
+    {
+      "applicationId": 21,
+      "organization": "OO 백엔드 부트캠프",
+      "applicationStatus": "SUBMITTED",
+      "submittedMonth": "2026-11",
+      "questions": [{ "id": 41, "text": "기술적인 문제를 해결한 경험을 구체적으로 적어 주세요." }]
+    }
+  ]
+}
+```
+
+- 「쓰였다」 = 그 지원의 어느 문항 `recommendations` 에 이 경험이 **지금** 있다. 보완을 다시 쓴 지원(S-25)도 추천에 있으니 저절로 센다. 초안(S-27)에 고른 경험은 늘 추천 안의 것이라 따로 세지 않는다. 추천이 없는 문항(`ANALYZING` · `FAILED`)은 세지 않는다.
+- 배열 하나 = 지원 하나. **개수가 「지원서 N곳에 쓰임」의 N** 이다. 지원은 최근에 넣은 것부터(`Application.createdAt` 내림차순), `questions` 는 그 지원에서 이 경험이 추천된 문항만 지원서 순서로. 없으면 `[]` — FE 는 아무것도 보이지 않는다(재촉하지 않는다).
+- `organization` · `applicationStatus` · `submittedMonth` — 그 지원의 지금 값(`question-api.md` 「지원 `Application`」). 상태는 사용자가 붙인 꼬리표다 — 합격률처럼 모아 보이지 않는다.
+- 경험을 옮기거나 활동을 합쳐도 따라간다(추천이 경험 ID 를 가리킨다).
+- 그 밖의 응답의 `Experience`(추천 · 초안 · MCP · 경험 수정 · 추가 · 옮기기 응답 등)엔 싣지 않는다 — FE 는 활동 세부를 다시 읽어 갱신한다.
 
 예: 활동 8 「알고리즘 스터디」에 계기를 남기고 이어짐을 제안받은 뒤의 세부(경험은 줄임)
 

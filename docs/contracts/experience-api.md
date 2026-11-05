@@ -1,6 +1,6 @@
 # experience-api — FE → BE
 
-> 스프린트 1 「경험 관리」(SPEC R-01) · 스프린트 2 보완(SPEC R-03 — 「보완 `Supplement`」 · 보완 고치기 · 지우기). 활동 분류(SPEC S-57 `P1` — `category` · `categoryBy`). 같은 활동 제안(SPEC S-44 `P1` — `mergeSuggestion` · 따로 두기). 그때의 나 · 이어짐(SPEC R-05 F-13 `P1` — 활동 `note` · `ActivityLink` · 이어짐 제안 받기 · 정하기). 경험마다 쓰인 지원(SPEC R-05 F-14 `P1` — 활동 세부의 `usedIn`, S-38). 이름 규칙 · 값 목록 · 기간 · 오류 모양은 [README 「공통」](README.md#공통--모든-계약이-같이-쓰는-것).
+> 스프린트 1 「경험 관리」(SPEC R-01) · 스프린트 2 보완(SPEC R-03 — 「보완 `Supplement`」 · 보완 고치기 · 지우기). 활동 분류(SPEC S-57 `P1` — `category` · `categoryBy`). 같은 활동 제안(SPEC S-44 `P1` — `mergeSuggestion` · 따로 두기). 그때의 나 · 이어짐(SPEC R-05 F-13 `P1` — 활동 `note` · `ActivityLink` · 이어짐 제안 받기 · 정하기). 경험마다 쓰인 지원(SPEC R-05 F-14 `P1` — 활동 세부의 `usedIn`, S-38). 경험 찾기(SPEC S-58 `P1` — `GET /api/experiences`). 이름 규칙 · 값 목록 · 기간 · 오류 모양은 [README 「공통」](README.md#공통--모든-계약이-같이-쓰는-것).
 > 예시는 가상의 팀 프로젝트 회고 하나(「바꿔요」 · 알고리즘 스터디)로 이어진다 — [`ai-api.md`](ai-api.md) 예시와 같은 자료다.
 
 ## 흐름
@@ -11,6 +11,7 @@ FE ─POST /api/sources──────────▶ BE  원본 저장 · �
 FE ─GET /api/jobs/{id} (폴링)───▶ BE  ANALYZING → COMPLETED / FAILED
 FE ─GET /api/activities─────────▶ BE  타임라인
 FE ─GET /api/activities/{id}────▶ BE  세부(경험 · 근거)
+FE ─GET /api/experiences?query=…▶ BE  경험 찾기 · 거르기(S-58 — MCP search_experiences 와 같은 검색)
 FE ─PATCH · POST · DELETE …─────▶ BE  고치기 · 더하기 · 지우기 · 옮기기 · 합치기
 
 그때의 나 · 이어짐 (S-34 · S-35, P1)
@@ -474,6 +475,69 @@ FE 는 `jobId` 를 들고 있다가(새로고침 대비 주소 · 브라우저 �
 활동 7 의 세부에도 같은 이어짐 501 이 실린다(`to` 쪽).
 
 오류: 404 `ACTIVITY_NOT_FOUND` 없는 활동(합쳐져 사라진 활동 포함)
+
+## GET /api/experiences — 경험 찾기 (`P1`)
+
+- 쓰는 곳: FE 경험 찾기(검색칸 · 거르기 — 위치는 FE 가 정한다)
+- SPEC: `F-03` / `S-58`
+
+사용자의 경험을 낱말로 찾고 거른다. **MCP `search_experiences`(`mcp-api.md`)와 같은 검색**이다 — 낱말 · 역량 · 연도의 규칙과 순서가 같고, BE 는 한 코드로 둘을 돌린다(같은 입력이면 같은 결과). AI 를 부르지 않는다. 한도를 세지 않는다.
+
+쿼리(전부 선택)
+
+| 이름 | 값 |
+| --- | --- |
+| `query` | 공백으로 나눈 낱말 중 **하나라도** 들어 있는 경험(대소문자 무시, 부분 일치). 찾는 곳: 경험 `content` · 근거 `quote` · 보완 `question` · `answer` · 활동 `name`. 빼거나 빈 문자열이면 낱말로 거르지 않는다 |
+| `competencies` | 역량 값을 쉼표로 — `competencies=PROBLEM_SOLVING,COLLABORATION`. 이 중 **하나라도** 붙은 경험(README 「값 목록」) |
+| `year` | `YYYY` — 활동 `period` 가 그해와 겹치는 경험. 규칙은 `search_experiences` 의 `year` 와 같다(`start` 가 `null` 인 활동은 빠진다) |
+| `sourceStatus` | 값 하나(README 「값 목록」 `sourceStatus`) — 그 출처 상태인 경험. 「확인 필요만 보기」는 `NEEDS_REVIEW` |
+| `category` | 값 하나(README 「값 목록」 `activityCategory`) — 그 분류 활동의 경험. 미분류 활동의 경험은 이 값을 주면 빠진다(S-57 「전체」에만) |
+| `limit` | 1 ~ 200, 기본 100 |
+
+- 조건은 모두 그리고(AND). 아무것도 안 주면 경험 전부(최대 `limit`).
+- 순서: 맞은 낱말 수가 많은 것 → 활동 `period.start` 최근 것(`null` 은 뒤) → 경험 `id` — `search_experiences` 와 같다.
+
+응답 200
+
+```json
+{
+  "total": 1,
+  "experiences": [
+    {
+      "id": 101,
+      "activity": {
+        "id": 7,
+        "name": "바꿔요 — 캠퍼스 중고거래 앱",
+        "period": { "start": "2025-03", "end": "2025-06", "ongoing": false },
+        "category": "PROJECT"
+      },
+      "content": "채팅 메시지가 늦게 도착하는 문제를 폴링에서 WebSocket 으로 바꿔 해결했다",
+      "competencies": ["PROBLEM_SOLVING", "IMPLEMENTATION"],
+      "competenciesBy": "AI",
+      "actor": "ME",
+      "sourceStatus": "SOURCE_CONFIRMED",
+      "citations": [
+        {
+          "id": 201,
+          "sourceId": 12,
+          "sourceName": "바꿔요-회고.md",
+          "quote": "채팅 메시지가 늦게 도착하는 문제가 있었다. 내가 폴링을 WebSocket 으로 바꿔 해결했다.",
+          "matched": true,
+          "location": { "startLine": 5, "endLine": 5, "section": null }
+        }
+      ],
+      "supplements": [],
+      "mcpChange": null,
+      "origin": null
+    }
+  ]
+}
+```
+
+- 경험 하나는 위 `Experience` 와 같고 `activityId` 대신 `activity`(`id` · `name` · `period` · `category`)를 싣는다. `usedIn`(활동 세부에만)은 싣지 않는다. 경험을 누르면 FE 는 `activity.id` 로 활동 세부를 연다.
+- `total` — `limit` 을 적용하기 전 맞은 개수. `total` 이 `experiences` 개수보다 크면 FE 는 「N개 중 M개」와 더 좁히라는 안내를 보인다. 맞은 게 없으면 `{ "total": 0, "experiences": [] }` — 오류가 아니다. FE 는 「쌓인 자료에서 찾지 못했어요」로 보인다(「경험 없음」이 아니다).
+
+오류: 400 `INVALID_REQUEST` — 값 목록 밖의 `competencies` · `sourceStatus` · `category`, `YYYY` 가 아닌 `year`, 범위 밖 `limit`
 
 ## PATCH /api/activities/{activityId} — 활동 수정
 

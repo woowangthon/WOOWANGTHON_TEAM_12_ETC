@@ -15,11 +15,12 @@
 | `<영역>-api.md` | FE → BE | 엔드포인트 · 요청 · 응답 · 오류 — 영역마다 한 파일 |
 | [`auth-api.md`](auth-api.md) | FE → BE | 가입 · 로그인 · 내 정보 · 하루 분석 한도, 모든 API 의 401 · 429 (R-02) |
 | [`experience-api.md`](experience-api.md) | FE → BE | 자료 넣기 · 분석 작업 · 활동 · 경험 · 근거 (스프린트 1) · 보완 (스프린트 2) · 그때의 나 · 이어짐 (S-34 · S-35) · 경험마다 쓰인 지원 `usedIn` (S-38) |
-| [`question-api.md`](question-api.md) | FE → BE | 지원(문항 여러 개) · 지원 문항 · 추천 · 되묻기에 답하기 (스프린트 2) · 근거 점검 (S-45) · 답변 초안 (S-27) · 지원 상태 · 낸 달 (S-36 · S-37) |
+| [`question-api.md`](question-api.md) | FE → BE | 지원(문항 여러 개) · 지원 문항 · 추천 · 되묻기에 답하기 (스프린트 2) · 근거 점검 (S-45) · 답변 초안 (S-27 · 구성 틀 S-50) · 확정 답변 · 새 경험 후보 (S-48) · 지원 상태 · 낸 달 (S-36 · S-37) |
 | [`entrance-api.md`](entrance-api.md) | FE → BE | 홈 입력 가르기 · 한 줄 질문 꺼내기 · 지원처 · 문항 나누기 — 저장 없는 동기 호출 (스프린트 3 — S-28 ~ S-30) |
 | [`chagok-api.md`](chagok-api.md) | FE → BE | 차곡이 도구 루프 — 일 시작 · 단계 읽기(폴링) · 확인하고 실행 · 그만두기 (S-31) |
 | [`work-api.md`](work-api.md) | FE → BE | 진행 중인 일 · 막 끝난 일을 한 번에 읽기 · 소식 읽음 (S-47) |
-| [`ai-api.md`](ai-api.md) | BE → AI | 추출 `/extract` (스프린트 1) · 매칭 `/match` (스프린트 2) · 근거 점검 `/ground-check` (S-45) · 답변 초안 `/draft` (S-27) · 입구 `/route` · `/ask` · `/parse-application` (스프린트 3) · 이어짐 제안 `/link-suggestions` (S-35) · 차곡이 도구 루프 `/agent` (S-31) |
+| [`guideline-api.md`](guideline-api.md) | FE → BE | 작성 지침 목록 · 붙여 넣은 글 정리(동기 · 저장 안 함) · 저장 · 켜고 끄기 · 지우기 (S-49) |
+| [`ai-api.md`](ai-api.md) | BE → AI | 추출 `/extract` (스프린트 1) · 매칭 `/match` (스프린트 2) · 근거 점검 `/ground-check` (S-45) · 답변 초안 `/draft` (S-27) · 입구 `/route` · `/ask` · `/parse-application` (스프린트 3) · 이어짐 제안 `/link-suggestions` (S-35) · 차곡이 도구 루프 `/agent` (S-31) · 작성 지침 정리 `/guidelines` (S-49) |
 | [`mcp-api.md`](mcp-api.md) | 외부 AI(MCP) · 차곡이(AI) · FE → BE | 연결 주소 만들기 · 끊기, MCP 읽기 도구 `search_experiences` · `list_activities` · `get_activity` (스프린트 3 — S-32) · 토큰 범위 READ / CHAGOK · 차곡이 쓰기 도구 `create_application` · `add_source` (S-31) |
 
 ## 공통 — 모든 계약이 같이 쓰는 것
@@ -116,6 +117,10 @@
 | `linkStatus` 이어짐 상태 (S-35) | `SUGGESTED` | AI 제안 — 사용자가 아직 정하지 않았다 |
 | | `CONFIRMED` | 맞아요 — 사용자가 이어졌다고 확인했다 |
 | | `REJECTED` | 아니에요 — 다시 제안하지 않는다. 화면 · 활동 세부 응답엔 나오지 않는다 |
+| `draftFrame` 구성 틀 (S-50) | `STAR` | 상황 → 과제 → 행동 → 결과 |
+| | `CARL` | 맥락 → 행동 → 결과 → 배운 점 |
+| | `PREP` | 결론 → 이유 → 사례 → 결론(두괄식) |
+| | `NONE` | 틀 없이 — 기본 순서(상황 → 판단 → 행동 → 결과 → 배운 점) |
 | `applicationStatus` 지원 상태 (S-36) | `WRITING` | 작성 중 — 새 지원은 이것 |
 | | `SUBMITTED` | 냈음 — 결과를 기다린다 |
 | | `PASSED` | 합격 |
@@ -127,6 +132,25 @@
 `questionType` 은 문항 하나에 **하나**(배열 아님), `organizationType` · `jobRole` 은 지원에 하나씩이고 선택이라 `null` 일 수 있다. 셋 다 목록이 닫혀 있다 — 새 값은 SPEC 미결정 13 · 17 을 고치고 이 표에 먼저 더한다(「백엔드」 · 「서버」가 갈라지면 비슷한 답변을 못 묶는다 — S-43).
 
 `applicationStatus` 는 지원에 **하나**, 늘 값이 있다. 사용자가 붙인 꼬리표일 뿐이다 — 합격률 · 상태별 개수 · 점수로 모아 보이지 않는다(SPEC 범위 제외: 합격 가능성 · S-36).
+
+#### 구성 틀 `draftFrame` — 출처 · 문항 유형 → 제안 틀 (S-50)
+
+공개된 작성 기법을 **우리가** 골라 둔 것이다(작성 지침과 달리 — SPEC 미결정 16 ①). 초안 하나에 하나. 단계는 사실을 세우는 순서일 뿐, 받칠 게 없는 단계는 건너뛴다(ai-api 「POST /draft」). FE 는 틀 이름 · 단계 · 출처 링크를 보인다.
+
+| 값 | 이름 | 출처 |
+| --- | --- | --- |
+| `STAR` | STAR 기법 | University of Washington Career & Internship Center 「STAR Method of Interviewing」 — https://careers.uw.edu/resources/star-method-of-interviewing/ |
+| `CARL` | CARL 기법 | University of Edinburgh Reflection Toolkit 「The CARL framework of reflection」 — https://reflection.ed.ac.uk/reflectors-toolkit/reflecting-on-experience/carl |
+| `PREP` | PREP 기법(두괄식) | FourWeekMBA 「PREP Method」 — https://fourweekmba.com/prep-method/ |
+
+제안 틀 — FE 가 문항 유형(`questionType`)으로 미리 고른다. LLM 을 부르지 않는 **코드 표**다. 유형이 AI 해석(`questionTypeBy: AI`)이면 제안도 「문항 유형에 맞춘 제안」으로 보인다. 사용자가 바꾸면 그 초안의 `frame` 이 된다.
+
+| `questionType` | 제안 틀 |
+| --- | --- |
+| `PROBLEM_SOLVING` · `ACHIEVEMENT` · `COLLABORATION` · `CONFLICT` · `IDEA` | `STAR` |
+| `FAILURE` · `GROWTH` | `CARL` |
+| `MOTIVATION` · `SELF_INTRO` · `STRENGTH_WEAKNESS` | `PREP` |
+| `OTHER` · 유형 없음(`null`) | `NONE` |
 
 ### 기간 `period`
 

@@ -1,12 +1,12 @@
 # ai-api — BE → AI
 
-> 스프린트 1 「경험 관리」(SPEC F-02 — `POST /extract`) · 스프린트 2 「문항 매칭」(SPEC R-03 — `POST /match`) · 근거 점검(SPEC S-45 — `POST /ground-check`, `P1`) · 답변 초안(SPEC S-27 — `POST /draft`, `P1`) · 스프린트 3 「입구 하나」(SPEC F-10 — `POST /route` · `POST /ask` · `POST /parse-application`) · 이어짐 제안(SPEC S-35 — `POST /link-suggestions`, `P1`) · 차곡이 도구 루프(SPEC S-31 — `POST /agent`, `P1`). 이름 규칙 · 값 목록 · 기간 · 오류 모양은 [README 「공통」](README.md#공통--모든-계약이-같이-쓰는-것).
+> 스프린트 1 「경험 관리」(SPEC F-02 — `POST /extract`) · 스프린트 2 「문항 매칭」(SPEC R-03 — `POST /match`) · 근거 점검(SPEC S-45 — `POST /ground-check`, `P1`) · 답변 초안(SPEC S-27 — `POST /draft`, `P1`) · 스프린트 3 「입구 하나」(SPEC F-10 — `POST /route` · `POST /ask` · `POST /parse-application`) · 이어짐 제안(SPEC S-35 — `POST /link-suggestions`, `P1`) · 차곡이 도구 루프(SPEC S-31 — `POST /agent`, `P1`) · 작성 지침 정리(SPEC S-49 — `POST /guidelines`, `P1`). 이름 규칙 · 값 목록 · 기간 · 오류 모양은 [README 「공통」](README.md#공통--모든-계약이-같이-쓰는-것).
 > AI 서버는 DB 를 만지지 않고 상태가 없다 — 받은 텍스트로 JSON 만 돌려준다([ADR-003](../decisions/ADR-003-stack-and-ai-boundary.md)). 저장 · ID · 사용자 구분은 BE.
 
 - 부르는 곳: BE 만, 내부망으로([ADR-004](../decisions/ADR-004-deploy.md)). 인증 없음.
 - 주소: `http://<AI 서버>:<포트>` — 값은 BE 설정(compose 서비스 이름).
 - 시간: 한 번 부르는 데 수십 초 걸릴 수 있다. BE 는 제한 시간(BE `AI_TIMEOUT_SECONDS`, 기본 120초)을 넘으면 끊고 작업을 `FAILED`(`AI_TIMEOUT`)로 둔다. AI 서버는 BE 의 작업 상태를 모른다. AI 서버는 LLM 폴백 · 다시 시도까지 합쳐 100초 안에 답하거나 `LLM_TIMEOUT` 으로 돌려준다(`LLM_TIMEOUT_SECONDS`). `/extract` · `/match` · `/ground-check` · `/draft` 모두 같다.
-- 입구 셋(`/route` · `/ask` · `/parse-application`)과 이어짐 제안(`/link-suggestions`)은 사용자가 화면에서 기다리는 **동기** 호출이다(entrance-api · experience-api) — BE 는 60초(`AI_SYNC_TIMEOUT_SECONDS`)에서 끊고, AI 서버는 폴백 · 다시 시도까지 합쳐 **50초** 안에 답하거나 `LLM_TIMEOUT` 이다(`LLM_SYNC_TIMEOUT_SECONDS`).
+- 입구 셋(`/route` · `/ask` · `/parse-application`) · 이어짐 제안(`/link-suggestions`) · 지침 정리(`/guidelines`)는 사용자가 화면에서 기다리는 **동기** 호출이다(entrance-api · experience-api · guideline-api) — BE 는 60초(`AI_SYNC_TIMEOUT_SECONDS`)에서 끊고, AI 서버는 폴백 · 다시 시도까지 합쳐 **50초** 안에 답하거나 `LLM_TIMEOUT` 이다(`LLM_SYNC_TIMEOUT_SECONDS`).
 
 ## POST /extract — 활동 · 경험 · 근거 추출
 
@@ -461,6 +461,7 @@ BE 는 어떤 오류든 점검을 `FAILED`(`AI_FAILED`, `message` 에 위 `code`
     "organization": "OO 백엔드 부트캠프",
     "text": "기술적인 문제를 해결한 경험을 구체적으로 적어 주세요.",
     "jobRole": "BACKEND",
+    "frame": "STAR",
     "requirements": [
       { "text": "기술 문제의 원인을 찾아 해결한 경험", "status": "SUPPORTED" },
       { "text": "해결한 뒤 결과를 확인한 방법", "status": "NOT_FOUND" },
@@ -482,6 +483,10 @@ BE 는 어떤 오류든 점검을 `FAILED`(`AI_FAILED`, `message` 에 위 `code`
       "emphasis": "폴링의 한계를 보고 WebSocket 으로 바꾼 판단",
       "gaps": ["직접 고친 범위가 자료에 없다", "고친 뒤 확인한 방법이 자료에 없다"]
     }
+  ],
+  "guidelines": [
+    { "id": 901, "text": "첫 문장에 무엇을 했고 어떻게 됐는지 먼저 쓴다" },
+    { "id": 905, "text": "결과는 꼭 수치로 쓴다" }
   ]
 }
 ```
@@ -490,12 +495,14 @@ BE 는 어떤 오류든 점검을 `FAILED`(`AI_FAILED`, `message` 에 위 `code`
 | --- | --- |
 | `question.organization` · `question.text` | `/match` 와 같다 |
 | `question.jobRole` | 선택. 그 문항이 속한 지원의 직무 — README 「값 목록」 `jobRole` 값 하나(S-42). 지원에 직무가 없으면(동아리 · 비교과 등) **싣지 않는다**(`null` 도 같게 읽는다) |
+| `question.frame` | 선택. 구성 틀 — README 「값 목록」 `draftFrame` 값 하나(S-50). 없거나 `NONE` 이면 기본 순서로 쓴다(아래 「구성 틀 · 작성 지침」) |
 | `question.requirements` | 선택. 그 문항의 매칭 요구사항 `{ text, status }` 배열 — question-api `Requirement` 에서 `experienceIds` 를 뺀 것, 저장된 순서 그대로. 없거나 `[]` 면 문항만 보고 쓴다 |
 | `experiences` | 사용자가 고른 경험 **1 ~ 3개**, 고른 순서대로 — `/match` 요청과 같은 모양. `id` 중복 없음 |
 | `experiences[].citations` | **원본에서 찾은 근거만**(`matched: true`) `{ id, quote }` — `/ground-check` 와 같다. 확인 못 한 근거는 싣지 않는다 |
 | `experiences[].supplements` | 보완 `{ id, question, answer }` 전부. 사용자가 직접 말한 사실이다(「내가 입력」) |
 | `experiences[].sourceStatus` | `USER_ENTERED` 인 경험만 본문(`content`)이 근거(`EXPERIENCE`)가 될 수 있다 — `/ground-check` 와 같다 |
 | `experiences[].reason` · `emphasis` · `gaps` | 선택. 그 문항의 추천에서 **이 경험의** 이유 · 강조점(문자열) · 부족한 점(문자열 배열) — question-api `Recommendation` 그대로. 없으면 싣지 않는다 |
+| `guidelines` | 선택. 사용자가 켜 둔 작성 지침 `{ id, text }` **0 ~ 10개**(S-49 — guideline-api), `id` 중복 없음. 없거나 `[]` 면 지침 없이 쓴다 |
 
 **매칭 결과 · 직무는 AI 해석이라 근거가 아니다**(ETC#141). 무엇을 앞세우고 무엇을 빈칸으로 볼지 정하는 **단서**로만 쓴다.
 
@@ -504,6 +511,13 @@ BE 는 어떤 오류든 점검을 `FAILED`(`AI_FAILED`, `message` 에 위 `code`
 - 강조점은 **근거로 받칠 수 있는 만큼만** 앞세운다 — 문장 순서 · 비중을 정할 뿐 사실을 더하지 않는다. 강조점에 쓸 사실이 근거 · 보완 · 본문에 없으면 쓰지 않고 `omitted` 로. 예시의 「폴링의 한계를 보고 … 판단」은 근거 201 이 「바꿔 해결했다」까지만 받치므로 「한계를 판단했다」를 사실 문장으로 만들지 않는다 — 근거 규칙이 우선이다(SPEC 미결정 16 과 같은 순서).
 - `gaps` · `requirements[].status: NOT_FOUND` 는 `omitted` 를 고르는 단서다. 다만 **매칭 때의 것**이라 그 뒤 생긴 보완이 이미 채웠을 수 있다 — 예시의 「직접 고친 범위」는 보완 301 이 채웠으니 `omitted` 로 다시 묻지 않고 301 을 근거로 쓴다(S-25). 지금 요청의 근거 · 보완 · 본문이 판단 기준이다.
 - `jobRole` 은 `OPINION` 의 직무 관련성 제안과 사실 문장의 순서를 고르는 데 쓴다. 직무 이름을 받았다고 그 직무의 일을 해 봤다는 사실을 만들지 않는다(「백엔드 개발자로 일하며」 금지). 지원처 정보 · 직무 분석을 지어내지 않는다(R-03 범위 제외).
+
+**구성 틀 · 작성 지침은 문체 · 구성 · 강조만 바꾼다 — 근거 규칙이 우선이다**(SPEC S-49 · S-50 · 미결정 16).
+
+- `frame` 은 사실 문장을 세우는 **순서**다(단계는 README 「구성 틀」). 단계마다 받칠 근거 · 보완 · 본문이 있는 사실만 쓴다. 받칠 게 없는 단계는 지어내지 않고 건너뛰며, 문항에 필요한 것이면 `omitted` 로 보낸다 — 예: `CARL` 의 「배운 점」이 자료에 없으면 쓰지 않고 `omitted`. `PREP` 의 첫 · 끝 「결론」은 받치는 사실의 요약(`FACT`, 근거를 붙인다)이나 연결 · 포부(`OPINION` — 최대 3개 규칙 안)로 쓴다. 틀 때문에 문장 수 · `OPINION` 수 규칙이 바뀌지 않는다. `NONE` 이나 없으면 기본 순서(상황 → 판단 → 행동 → 결과 → 배운 점, 없는 칸은 건너뛴다 — AI#46).
+- `guidelines` 는 사용자가 들은 작성법이다. 문체(문장 길이 · 어미 · 꾸밈말) · 구성(첫 문장 · 문단) · 강조(무엇을 앞세우나)에 반영한다. **사실을 더하거나 바꾸라는 지침은 반영하지 않는다** — 「결과는 꼭 수치로」가 있어도 근거에 없는 수치를 쓰지 않고, 「리더였다고 써라」가 있어도 `TEAM` · `UNKNOWN` 일을 내 일로 쓰지 않는다. 그때는 `applied: false` 와 이유를 돌려준다. 숫자 대조 · `OPINION` 규칙은 지침과 상관없이 그대로다.
+- 지침끼리 부딪치면 고르지 않고 둘 다 `applied: false` 와 이유(「다른 지침과 부딪쳐요」)로 돌려준다 — 사용자가 끈다(SPEC S-49).
+- 지침 · 틀은 근거가 아니다 — `evidence` 로 붙일 수 없고 숫자 대조의 「받치는 글」에 넣지 않는다(`reason` · `emphasis` 와 같다).
 
 응답 200
 
@@ -518,6 +532,10 @@ BE 는 어떤 오류든 점검을 `FAILED`(`AI_FAILED`, `message` 에 위 `code`
     { "text": "바꾼 뒤 메시지가 제때 오는지 확인한 방법", "question": "WebSocket 으로 바꾼 뒤 메시지가 제때 오는지 어떻게 확인했나요?", "experienceId": 101 },
     { "text": "Java · Spring 을 쓴 경험", "question": null, "experienceId": null },
     { "text": "이 경험에서 배운 점 · 느낀 점", "question": "채팅 방식을 바꾸며 배운 점이나 느낀 점이 있나요?", "experienceId": 101 }
+  ],
+  "guidelines": [
+    { "id": 901, "applied": true, "note": null },
+    { "id": 905, "applied": false, "note": "결과를 보여 줄 수치가 자료에 없어 넣지 않았어요" }
   ],
   "model": "<LLM 모델 이름>"
 }
@@ -537,6 +555,7 @@ BE 는 어떤 오류든 점검을 `FAILED`(`AI_FAILED`, `message` 에 위 `code`
 | `omitted[].text` | 문항에 필요한데 고른 경험의 근거 · 보완 · 직접 입력한 본문에 없어 쓰지 않은 것, 공백뿐이 아닌 짧은 구절. 답을 유도하는 수치 · 역할을 넣지 않는다 |
 | `omitted[].experienceId` | 그 사실을 보완할 **요청 `experiences` 중 하나의 정수 ID**. 어느 경험의 빈칸인지 붙일 수 없으면 `null` — 새 경험 ID 를 만들거나 임의의 경험에 붙이지 않는다 |
 | `omitted[].question` | `experienceId` 가 있으면 그 경험 · 문항에 맞는 구체적인 질문(공백뿐인 문자열 금지). `experienceId: null` 이면 반드시 `null`. 질문만 `null` 이거나 경험만 `null` 인 조합은 금지 |
+| `guidelines` | 요청 `guidelines` 마다 **하나씩, 같은 순서로** `{ id, applied, note }`. 요청에 지침이 없으면 `[]`(빼도 `[]` 로 읽는다). `applied` 는 `true` · `false`. `applied: true` 면 `note: null`, `false` 면 `note` 는 왜 못 했는지 한 줄(1 ~ 80자, 화면에 그대로 보인다 — 「자료에 수치가 없어 넣지 않았어요」) |
 | `model` | 실제로 답한 LLM 이름. 선택 |
 
 쓰는 규칙(프롬프트 · 채점):
@@ -555,14 +574,15 @@ BE 는 어떤 오류든 점검을 `FAILED`(`AI_FAILED`, `message` 에 위 `code`
 
 - 개수 · 값 목록 · 지어낸 `id` · `EXPERIENCE` 가 `USER_ENTERED` 가 아닌 경험을 가리킴 · 근거 0개인 `FACT` · 근거가 붙은 `OPINION` · `OPINION` 3개 초과 · 받칠 것이 있는데 문장 0개.
 - `omitted` 객체의 필수 필드 · 타입 · 공백뿐인 `text`/질문 · 요청 밖 `experienceId` · 질문과 경험의 `null` 짝. 이 검증은 `/draft` 에 적용한다. 문자열 배열인 예전 응답을 객체로 추측해 고치지 않는다.
+- `guidelines` 의 `id` 가 요청과 개수 · 순서까지 같지 않음 · `applied` 와 `note` 의 짝이 틀림(`true` 인데 `note` 있음 · `false` 인데 `note` 없음 · 80자 넘음). 「반영했다」가 맞는지는 코드가 못 잰다 — 채점으로 잰다(지침을 켜도 받치지 않는 문장 · 없는 수치가 늘지 않는지 · 「수치로 써라」에 `applied: false` 를 돌려주는지).
 - **숫자 대조**: `OPINION` 에 숫자가 하나라도 있으면 위반(활동 이름 · 기간에 있더라도 금지). `FACT` 는 문장 속 숫자가 그 문장 `evidence` 의 글(발췌문 · 보완 답 · 경험 본문)과 그 경험의 활동 이름 · 기간에 하나라도 없으면 위반 — 요청의 `reason` · `emphasis` · `gaps` · `requirements` 는 이 글에 넣지 않는다(ETC#141) — 기준은 `/ground-check` 「숫자 대조」와 같다(NFKC · 공백 무시). 한글 수사(「세 번」) · 「내가 한 일」로 바꿔 쓰기 · 근거에 없는 결과는 코드가 다 못 잡는다 — 채점으로 잰다(AI#26 · `ai-scope.md`). AI#48 은 사실을 `OPINION` 으로 빼는 수 · 감정 지어냄 · 지원 동기 문항의 전후 품질도 잰다.
 
 ### 오류
 
 | HTTP | `code` | 언제 |
 | --- | --- | --- |
-| 400 | `INVALID_REQUEST` | `question.text` 가 없거나 비었음 · `experiences` 가 없음 · 0개 · 4개 이상 · 경험 `id` 중복 · 선택 칸이 있는데 모양이 틀림(`jobRole` 이 목록 밖 값 · `requirements[].status` 가 `requirementStatus` 밖 값 · `gaps` 가 문자열 배열이 아님 등) |
-| 413 | `TEXT_TOO_LONG` | 문항 텍스트와 경험 글(선택 칸의 요구사항 · 이유 · 강조점 · 부족한 점 포함)을 합친 글자 수가 **100000** 을 넘음(`/match` 와 같은 `MAX_MATCH_CHARS`) |
+| 400 | `INVALID_REQUEST` | `question.text` 가 없거나 비었음 · `experiences` 가 없음 · 0개 · 4개 이상 · 경험 `id` 중복 · 선택 칸이 있는데 모양이 틀림(`jobRole` 이 목록 밖 값 · `requirements[].status` 가 `requirementStatus` 밖 값 · `gaps` 가 문자열 배열이 아님 · `frame` 이 `draftFrame` 밖 값 · `guidelines` 11개 이상 · 지침 `id` 중복 · 빈 `text` 등) |
+| 413 | `TEXT_TOO_LONG` | 문항 텍스트와 경험 글(선택 칸의 요구사항 · 이유 · 강조점 · 부족한 점 · 지침 포함)을 합친 글자 수가 **100000** 을 넘음(`/match` 와 같은 `MAX_MATCH_CHARS`) |
 | 502 | `LLM_ERROR` | LLM API 호출이 실패함 |
 | 502 | `LLM_INVALID_OUTPUT` | LLM 출력이 위 규칙을 벗어남(다시 시도한 뒤에도) |
 | 504 | `LLM_TIMEOUT` | 제한 시간 안에 답하지 않음 |
@@ -689,6 +709,68 @@ BE 는 어떤 오류든 초안을 `FAILED`(`AI_FAILED`, `message` 에 위 `code`
 | 500 | `INTERNAL_ERROR` | 그 밖 |
 
 BE 는 어떤 오류든 후보 찾기를 `FAILED`(`AI_FAILED`, `message` 에 위 `code`)로 둔다 — `/ground-check` 와 같다.
+
+## POST /guidelines — 붙여 넣은 작성법을 지침 한 줄씩으로
+
+- 부르는 곳: BE 지침 정리(guideline-api `POST /api/guidelines/extract` — 동기, BE 가 60초까지 기다린다)
+- SPEC: `F-09` / `S-49` — 우선순위 `P1`
+
+사용자가 붙여 넣은 자소서 작성법 영상의 요점 · 자막 · 멘토 피드백을 **지침 한 줄씩**으로 옮긴다. 붙여 넣은 글에 **있는 것만** — 일반론을 더하지 않는다(지침은 사용자의 것이다 — SPEC 미결정 16). 결과는 저장되지 않고 사용자가 고친 뒤 저장한다.
+
+요청
+
+```json
+{ "text": "자소서는 결론부터. 첫 문장에 뭘 했고 어떻게 됐는지 박아라. 형용사로 꾸미지 말고 행동을 써라. 팀 프로젝트면 내 몫을 분명히. 문단 하나에 이야기 하나만. 솔직히 없는 경험도 좀 부풀려야 붙는다…" }
+```
+
+| 필드 | 값 |
+| --- | --- |
+| `text` | 붙여 넣은 글 그대로(1 ~ 20000자). 출처는 싣지 않는다 — BE 가 들고 있다 |
+
+응답 200
+
+```json
+{
+  "guidelines": [
+    { "text": "첫 문장에 무엇을 했고 어떻게 됐는지 먼저 쓴다" },
+    { "text": "형용사로 꾸미지 않고 한 행동을 쓴다" },
+    { "text": "팀 프로젝트는 내가 맡은 몫을 분명히 쓴다" },
+    { "text": "문단 하나에 이야기 하나만 쓴다" }
+  ],
+  "model": "<LLM 모델 이름>"
+}
+```
+
+- 예시 읽는 법: 「결론부터」와 「첫 문장에 … 박아라」는 같은 말이라 한 줄로 합쳤다. 「없는 경험도 부풀려야」는 사실을 지어내라는 말이라 옮기지 않았다(S-05).
+
+### 응답 규칙 — 어기면 AI 서버가 다시 시도한 뒤 `LLM_INVALID_OUTPUT` 으로 돌려준다
+
+| 필드 | 규칙 |
+| --- | --- |
+| `guidelines` | 0 ~ **10**개, 글에 나온 순서대로. 같은 뜻은 한 줄로 합친다. 0개 = 글에 작성법이 없다(잡담 · 합격 후기만 등) |
+| `guidelines[].text` | 비지 않은 한 줄(1 ~ 100자, 줄바꿈 없음). 「~한다」 꼴로 무엇을 어떻게 쓸지 — 문체 · 구성 · 강조 · 분량에 관한 것 |
+| `model` | 실제로 답한 LLM 이름. 선택 |
+
+옮기는 규칙(프롬프트 · 채점):
+
+- 붙여 넣은 글에 있는 말만 옮긴다. 글에 없는 일반 작성법을 더하지 않는다.
+- 사실을 지어내거나 부풀리라는 말(「없는 경험도 있는 것처럼」 · 「수치는 대충 넣어라」)은 옮기지 않는다. 「결과는 수치로 써라」처럼 쓰는 법을 말한 것은 옮긴다 — 수치가 없을 때는 초안이 반영하지 않는다(「POST /draft」).
+- 특정 사람 · 회사 · 합격자의 경험이나 예문을 옮기지 않는다 — 쓰는 법만.
+
+코드가 확인하는 것: 개수 · 빈 줄 · 길이 · 줄바꿈 — 어기면 다시 시도 → `LLM_INVALID_OUTPUT`. 글에 있는 말만 옮겼는지 · 지어내라는 말을 걸렀는지는 코드가 못 잰다 — 채점으로 잰다(`ai-scope.md`).
+
+### 오류
+
+| HTTP | `code` | 언제 |
+| --- | --- | --- |
+| 400 | `INVALID_REQUEST` | `text` 가 없거나 공백뿐 |
+| 413 | `TEXT_TOO_LONG` | `text` 가 20000자를 넘음 |
+| 502 | `LLM_ERROR` | LLM API 호출이 실패함 |
+| 502 | `LLM_INVALID_OUTPUT` | LLM 출력이 위 규칙을 벗어남(다시 시도한 뒤에도) |
+| 504 | `LLM_TIMEOUT` | 50초 안에 답하지 않음(`LLM_SYNC_TIMEOUT_SECONDS` — 입구 셋과 같다) |
+| 500 | `INTERNAL_ERROR` | 그 밖 |
+
+BE 는 어떤 오류든 502 `AI_FAILED`(`message` 에 위 `code`), 60초를 넘기면 504 `AI_TIMEOUT` 으로 FE 에 돌려준다(guideline-api).
 
 ## 입구 셋 — 공통 (S-28 · S-29 · S-30)
 

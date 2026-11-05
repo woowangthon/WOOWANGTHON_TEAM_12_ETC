@@ -40,7 +40,7 @@
 | --- | --- | --- |
 | `sourceStatus` 출처 상태 | `SOURCE_CONFIRMED` | 원문에서 확인 — 근거가 전부 원본에서 찾아졌다 |
 | | `USER_ENTERED` | 내가 입력 — 사용자가 고쳤거나 직접 넣었다. **BE 만** 붙인다 |
-| | `NEEDS_REVIEW` | 확인 필요 — 근거가 없거나, 원본에서 못 찾은 근거가 있거나, 아직 대조하지 않았다 |
+| | `NEEDS_REVIEW` | 확인 필요 — 근거가 없거나, 원본에서 못 찾은 근거가 있거나, 아직 대조하지 않았거나, 외부 AI 가 본문을 고쳐 사용자가 아직 확인하지 않았다(S-53) |
 | `actor` 수행 주체 | `ME` | 나 |
 | | `TEAM` | 팀(나 아닌 팀원 포함) |
 | | `UNKNOWN` | 알 수 없음 — 원본으로 판단할 수 없다 |
@@ -68,6 +68,11 @@
 | `evidenceType` 추천 근거 종류 (스프린트 2) | `CITATION` | 원본 발췌문(근거) |
 | | `SUPPLEMENT` | 보완 — 되묻기에 사용자가 한 답(「내가 입력」) |
 | | `EXPERIENCE` | 경험 본문 — 사용자가 직접 넣거나 고친(`sourceStatus: USER_ENTERED`) 경험일 때만(「내가 입력」). 근거 점검(S-45) · 답변 초안(S-27)에서 쓴다 — `/match` 추천엔 쓰지 않는다. `id` 는 경험 ID |
+| `mcpChangeType` 외부 AI 변경 종류 (S-54) | `ADD_SOURCE` | 자료 넣기 |
+| | `UPDATE_EXPERIENCE` | 경험 본문 고치기 |
+| `mcpChangeStatus` 외부 AI 변경 상태 (S-54) | `APPLIED` | 반영됨 — 사용자가 아직 정하지 않았다 |
+| | `CONFIRMED` | 맞아요 — 사용자가 확인했다 |
+| | `UNDONE` | 되돌림 |
 | `draftSentenceKind` 초안 문장 종류 (S-27) | `FACT` | 근거가 받치는 사실 문장 |
 | | `OPINION` | 연결 · 직무 관련성 · 포부 제안 — 「AI 제안 — 확인 필요」. 근거 `[]`, 초안당 최대 3개. 숫자 · 새 사실 · 감정 지어내기 · 칭찬 · 의미 단정 금지 |
 | `groundingStatus` 근거 점검 판정 (S-45) | `SOURCE` | 원문 — 원본에서 찾은 발췌문(근거)이 받친다. 보완이 같이 받쳐도 이것 |

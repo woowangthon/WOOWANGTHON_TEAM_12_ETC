@@ -537,7 +537,7 @@ BE 는 어떤 오류든 초안을 `FAILED`(`AI_FAILED`, `message` 에 위 `code`
 ## 입구 셋 — 공통 (S-28 · S-29 · S-30)
 
 - 부르는 곳: BE entrance-api 가 FE 요청을 받은 그 자리에서(동기 — 작업 없음). 결과를 BE 는 **저장하지 않고** FE 에 넘긴다.
-- 오류 표는 셋 다 같다 — 아래 「POST /parse-application」 끝. BE 는 어떤 오류든 FE 에 502 `AI_FAILED`(`message` 에 AI 쪽 `code`), 시간을 넘기면 504 `AI_TIMEOUT` 으로 돌려준다.
+- 오류 표는 셋 다 같다 — 아래 「POST /parse-application」 끝. BE 는 어떤 오류든 FE 에 502 `AI_FAILED`(`message` 에 AI 쪽 `code`), 시간을 넘기면 504 `AI_TIMEOUT` 으로 돌려준다. **예외는 422 `URL_BLOCKED` · `URL_UNREADABLE`**(`/parse-application` 링크 — S-46) — `code` · `message` 를 그대로 넘긴다.
 - 응답 규칙을 어기면 AI 서버가 한 번 다시 시도한 뒤 `LLM_INVALID_OUTPUT` 이다. 규칙에 맞게 잘라 내거나 고쳐서 돌려주지 않는다.
 
 ## POST /route — 홈 입력 가르기
@@ -626,17 +626,38 @@ BE 는 어떤 오류든 초안을 `FAILED`(`AI_FAILED`, `message` 에 위 `code`
 
 ## POST /parse-application — 문항 · 공고에서 지원처 · 종류 · 직무 · 문항 나누기
 
-- SPEC: `F-10` / `S-30`(`P1`) · 미결정 12(붙여 넣은 공고) · `S-42`
+- SPEC: `F-10` / `S-30`(`P1`) · `S-46`(링크, `P1` — ETC#126) · `S-42`
 
-요청
+요청 — `text` 와 `url` 중 **하나만**.
 
 ```json
 { "text": "[OO 백엔드 부트캠프 4기 모집]\n모집 분야: 백엔드(Spring)\n\n자기소개서 문항\n1. 기술적인 문제를 해결한 경험을 구체적으로 적어 주세요. (500자)\n2. 지원 동기와 수료 후 목표를 적어 주세요. (500자)" }
 ```
 
+```json
+{ "url": "https://example.com/recruit/1234" }
+```
+
 | 필드 | 값 |
 | --- | --- |
 | `text` | 붙여 넣은 문항 · 공고 글 그대로(BE 한도 20000자). 비지 않은 문자열 |
+| `url` | 공고 링크(S-46). BE 가 `http(s)://` · 2000자 이하만 넘긴다. AI 서버가 아래 「링크 받기」대로 받아 본문을 뽑은 뒤, 그 글을 `text` 로 받은 것과 **똑같이** 나눈다 — 아래 「적혀 있나」의 기준도 뽑은 글이다 |
+
+### 링크 받기 (S-46)
+
+사용자가 준 링크 하나를 **그 요청에서 한 번** 받는다. 받은 본문 · 결과를 저장 · 캐시하지 않고, 로그에는 링크 · 결과 코드만 남긴다(본문은 남기지 않는다). 받기는 **AI 서버**가 한다(파이썬 requests · bs4 — PM 의 공고 수집기 hq scout `net.py` 와 같은 방식, SPEC 미결정 12 · ETC#126).
+
+| 단계 | 규칙 | 어기면 |
+| --- | --- | --- |
+| 주소 | `http` · `https` 만. 호스트가 풀리는 IP 가 **모두 공개 주소**여야 한다 — 사설 · 루프백 · 링크 로컬 · 멀티캐스트 · 예약 대역(IPv6 포함)이면 받지 않는다(SSRF — AI 서버는 BE · DB 와 같은 내부망에 있다). 리다이렉트는 **3번까지**, 넘어갈 때마다 다시 확인 | 422 `URL_UNREADABLE` |
+| robots.txt | `<scheme>://<host>/robots.txt` 를 받아 **`*` 규칙**으로 그 경로를 판단한다(호스트마다 한 요청 안에서 한 번). 4xx 면 규칙 없음 — 받는다. 5xx · 시간 초과 · 못 받음이면 받지 않는다(조심하는 쪽) | 금지면 422 `URL_BLOCKED`, 못 받음이면 422 `URL_UNREADABLE` |
+| 받기 | 브라우저 모양 User-Agent(scout 와 같다 — 파이썬 기본 UA 를 막는 사이트가 있다) · `Accept-Language: ko-KR`. robots · 페이지 합쳐 **15초**, 본문 **2MB** 까지. 응답이 2xx 이고 `text/html` · `application/xhtml+xml` 이어야 한다(PDF · 이미지는 읽지 않는다). 글자 인코딩은 헤더 → `<meta charset>` → 추정 순 | 422 `URL_UNREADABLE` |
+| 본문 뽑기 | `script` · `style` · `noscript` · `nav` · `header` · `footer` · `form` 따위를 빼고 글자만. 사이트별 손질(예: 페이지에 실린 JSON 공고 본문)은 AI 담당이 시험 결과를 보고 더한다. 앞 **20000자**까지 쓴다(넘으면 자른다 — 오류 아님) | — |
+| 글이 있나 | 뽑은 글이 공백을 줄여 **200자 미만**이면 못 읽은 것이다(JS 로 그리는 페이지 · 포스터 이미지 공고) — 그 글로 LLM 을 부르지 않는다 | 422 `URL_UNREADABLE` |
+
+- 422 의 `message` 는 **사용자에게 그대로 보이는 한국어 한 줄**이다(BE 가 그대로 넘긴다 — entrance-api) — 예: 「이 사이트는 자동으로 읽는 것을 막아 두었어요」 · 「페이지를 받지 못했어요(응답 없음)」 · 「글이 거의 없는 페이지예요 — 화면을 그림이나 스크립트로 그리는 사이트일 수 있어요」. 내부 주소 · 스택 · 원문을 담지 않는다.
+- 시간: 받기 15초를 포함해 전체 50초(`LLM_SYNC_TIMEOUT_SECONDS`) 안 — 넘으면 `LLM_TIMEOUT` 그대로.
+- 시험: 사람인 · 잡코리아 · 원티드 · 링커리어 · SW마에스트로 · 학교 비교과 공지 · 회사 채용 페이지(그리팅 등) 링크로 **읽힌 수 · 못 읽은 이유**를 PR 과 `ai-scope.md` 에 남긴다(S-46).
 
 응답 200
 
@@ -661,7 +682,7 @@ BE 는 어떤 오류든 초안을 `FAILED`(`AI_FAILED`, `message` 에 위 `code`
 | `model` | 실제로 답한 LLM 이름. 선택 |
 
 - **적혀 있나** — 코드로 확인한다: 양쪽의 연속 공백(줄바꿈 포함)을 공백 하나로 줄인 뒤 요청 `text` 의 부분 문자열이면 적혀 있다.
-- `/parse-application` 400: `text` 가 비었음. 413 `TEXT_TOO_LONG`: 20000자를 넘음.
+- `/parse-application` 400: `text` 가 비었음 · `text` · `url` 이 둘 다 있거나 둘 다 없음 · `url` 이 `http(s)://` 가 아님. 413 `TEXT_TOO_LONG`: `text` 가 20000자를 넘음(링크에서 뽑은 글은 자르고 오류로 보지 않는다). 422: 위 「링크 받기」.
 
 ### 오류 — 입구 셋 공통
 
@@ -669,6 +690,8 @@ BE 는 어떤 오류든 초안을 `FAILED`(`AI_FAILED`, `message` 에 위 `code`
 | --- | --- | --- |
 | 400 | `INVALID_REQUEST` | 위 엔드포인트마다 적은 경우 |
 | 413 | `TEXT_TOO_LONG` | 위 엔드포인트마다 적은 경우 |
+| 422 | `URL_BLOCKED` | `/parse-application` `url` — robots.txt 가 막음 |
+| 422 | `URL_UNREADABLE` | `/parse-application` `url` — 위 「링크 받기」에서 못 읽음 |
 | 502 | `LLM_ERROR` | LLM API 호출이 실패함 |
 | 502 | `LLM_INVALID_OUTPUT` | LLM 출력이 응답 규칙을 벗어남(다시 시도한 뒤에도) |
 | 504 | `LLM_TIMEOUT` | 50초 안에 답하지 않음 |

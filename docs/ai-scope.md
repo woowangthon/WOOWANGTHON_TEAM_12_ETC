@@ -162,6 +162,9 @@
 | `test-account` | SAMPLE · 테스트 계정 | `BE src/main/java/.../seed/TestAccountSeeder.java` · `application.properties` | `TEST_ACCOUNT_PASSWORD` 가 있으면 심사용 계정 `test` 를 만들고 하루 분석 한도를 넉넉히(기본 200) 준다. 데이터는 미리 넣지 않는다 — 진짜 로그인 · 분석 흐름을 그대로 탄다 | 예 — 심사위원이 이 계정으로 들어온다 |
 | `dev-seed-activities` | SAMPLE | `BE src/main/java/.../seed/SampleSeeder.java` | `SEED_SAMPLE=true` 일 때 계약 예시(「바꿔요」 회고 · 알고리즘 스터디) 원본 · 활동 2 · 경험 5 · 근거를 테스트 계정에 손으로 넣는다 — AI 추출 결과가 아니다. 로컬 · 개발 서버(Access 뒤)에서만, 공개 전에 끄고 지운다 | 아니오 |
 | `source-analysis` | MOCK | `FE src/lib/mock/analysis.ts` · `src/lib/api/experience.ts` | API 주소가 비어 있는 목 모드에서만 탭 저장소에 작업을 두고 몇 초 뒤 정해진 결과(「— 목 결과」 활동 하나)로 끝낸다. 실제 API 모드에서는 BE `POST /api/sources` · `GET /api/jobs/{id}` · 재시도를 쓴다(FE#7) | 아니오 |
+| `entrance-route` | MOCK | `FE src/lib/api/entrance.ts` · `src/components/home/home-entrance.tsx` | API 주소가 없는 목 모드에서만 자료 · 지원 · 한 줄 질문 · 애매함 네 분류를 모의한다. 기본 홈은 애매함으로 사용자가 직접 고르고, 개발용 주소 `/?debug=entrance`에서만 목 분류 선택기와 AI 호출 없음을 표시한다. 실제 API 모드에서는 이 옵션도 무시한다. 실제 API 실패를 대신하지 않고, 저장은 기존 자료 · 지원 입력 흐름을 따른다(FE#86) | 아니오 |
+| `home-input-examples` | SAMPLE | `FE src/components/home/home-entrance.tsx` | 시안 6의 한 줄 질문·가상 부트캠프 문항·일상 기록 예시. 칩은 홈 입력칸만 채우며 결과나 저장을 만들지 않는다. 사용자가 보내기를 눌러야 기존 가르기·자료 입력 흐름이 실행된다(FE#86) | 아니오 |
+| `home-empty-applications` | MOCK | `FE src/components/home/use-home-overview.ts` | API 주소가 없는 홈에서 지원 목록만 빈 목록으로 두어 새 지원 입력으로 연결한다. 예시 지원·작성 상태를 지어내지 않는다. 실제 API의 조회 실패는 오류·다시 시도를 보이고 빈 목록으로 대신하지 않는다(FE#86) | 아니오 |
 | `mcp-connection` | MOCK | `FE src/lib/mock/mcp.ts` · `src/lib/api/mcp.ts` | API 주소가 없는 목 모드에서만 MCP 연결 조회·생성·해제를 모의한다. 화면에 목 모드를 표시하며 `.invalid` 임시 주소는 실제 Claude에서 사용할 수 없다. 탭 저장소에는 생성 시각만 남기고 주소는 저장하지 않는다. 실제 API 실패 대체용이 아니다(FE#57). 실제 로컬 BE API 연동·재발급·해제 및 토큰 무효화를 확인했다(2026-11-05, FE#57). 운영 claude.ai 연결은 BE#44 완료 후 검증 예정이다 | 아니오 |
 
 - `<id>` 는 kebab-case, 네 레포 통틀어 하나. 마커를 빼면 이 줄도 뺀다.

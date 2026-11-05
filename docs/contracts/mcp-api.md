@@ -286,7 +286,7 @@ FE ─DELETE /api/mcp/connection──────▶ BE  연결 끊기 → 그 
 { "changeId": 55, "sourceId": 12, "jobId": 34, "status": "ANALYZING" }
 ```
 
-- `POST /api/sources` 와 같은 코드로 저장하고 같은 하루 분석 한도를 쓴다. 다른 점은 BE 가 붙이는 것 둘이다 — 원본 `kind` 를 `MCP` 로 저장하고(`POST /api/sources` 는 이 값을 받지 않는다 · API 응답에 싣지 않는다), 이름을 `<client> 에서 보냄 — yyyy-MM-dd HH:mm`(한국 시간)으로 붙인다. 근거의 `sourceName` 으로 사용자가 직접 넣은 자료와 구분된다.
+- `POST /api/sources` 와 같은 코드로 저장하고 같은 하루 분석 한도를 쓴다. 같은 자료 알아보기(S-69)는 하지 않는다 — 해시만 남긴다. 다른 점은 BE 가 붙이는 것 둘이다 — 원본 `kind` 를 `MCP` 로 저장하고(`POST /api/sources` 는 이 값을 받지 않는다 · API 응답에 싣지 않는다), 이름을 `<client> 에서 보냄 — yyyy-MM-dd HH:mm`(한국 시간)으로 붙인다. 근거의 `sourceName` 으로 사용자가 직접 넣은 자료와 구분된다.
 - 분석은 뒤에서 돈다 — 끝나면 `search_experiences` 로 볼 수 있다. 아직 안 보이는 것을 실패로 말하지 않는다(도구 설명에 적는다). 실패는 「변경 기록」에 보인다.
 - 외부 AI 가 요약했는지는 BE 가 알 수 없다 — 근거 대조는 보낸 글에 대해서만 한다.
 
@@ -493,7 +493,7 @@ FE ─DELETE /api/mcp/connection──────▶ BE  연결 끊기 → 그 
 - **경험 고치기** — 본문을 `beforeContent`, 출처 상태를 `beforeSourceStatus` 로 돌린다. `removedExperiences` · `keptExperiences` 는 `0`.
 - **되묻기 답** — `DELETE /api/supplements/{id}` 와 같은 코드로 보완을 지운다. 그 되묻기에 다시 답할 수 있다. `removedExperiences` · `keptExperiences` 는 `0`.
 - **지원 만들기** — 그 지원과 문항 · 요구사항 · 추천 · 되묻기를 지운다. 쓴 분석 횟수는 돌아오지 않는다. `removedExperiences` · `keptExperiences` 는 `0`.
-- **자료 넣기** — 이 원본을 근거로 한 경험을 `DELETE /api/experiences/{id}` 와 같은 코드로 지운다. **사용자가 손댄 경험은 남긴다**: `sourceStatus` 가 `USER_ENTERED` · 보완이 있음 · 그 작업이 만든 활동 밖으로 옮겨짐 · 외부 AI 변경 기록이 달림. 그 작업이 만든 활동은 경험이 하나도 없고 계기 · 이어짐도 없으면 지운다. 원본은 남긴다(남긴 경험의 근거일 수 있다).
+- **자료 넣기** — 이 원본을 근거로 한 경험을 `DELETE /api/experiences/{id}` 와 같은 코드로 지운다. **사용자가 손댄 경험은 남긴다**: `sourceStatus` 가 `USER_ENTERED` · 보완이 있음 · 그 작업이 만든 활동 밖으로 옮겨짐 · 외부 AI 변경 기록이 달림 · 다른 원본의 근거도 있음(경험 합치기 S-70). 그 작업이 만든 활동은 경험이 하나도 없고 계기 · 이어짐도 없으면 지운다. 원본은 남긴다(남긴 경험의 근거일 수 있다).
 - 두 번 눌러도 한 번만 일어난다 — 두 번째는 409.
 
 오류: 404 `MCP_CHANGE_NOT_FOUND` 없거나 다른 사용자의 변경 · 409 `MCP_CHANGE_NOT_UNDOABLE` `undoable` 이 `false`
@@ -522,7 +522,7 @@ FE ─DELETE /api/mcp/connection──────▶ BE  연결 끊기 → 그 
 ## 이 계약에 없는 것
 
 - 외부 AI 의 경험 지우기 · 수행 주체 · 역량 고치기 · 초안 · 근거 점검 — 웹 · 차곡이에서만 한다(ADR-010 · ADR-011). 저장 없이 결과만 돌려주는 매칭도 만들지 않는다. 고친 글이 「내가 입력」에 섞이지 않게, 외부 AI 가 고친 본문은 사용자가 맞아요를 누르기 전까지 `NEEDS_REVIEW` 다
-- 같은 글을 두 번 넣기 막기 — ETC#114 와 같이 본다. 웹 고치기 · 차곡이 변경의 되돌리기 · 전체 버전 관리
+- 같은 글을 두 번 넣기 막기 — S-69 는 웹의 하나씩 넣기만 본다(`add_source` 는 입력에 `allowDuplicate` 가 없다). 웹 고치기 · 차곡이 변경의 되돌리기 · 전체 버전 관리
 - 원본 전문 읽기(`get_source`) — 근거에 `sourceName` · `quote` 가 실려 오므로 데모 7 엔 두지 않는다. 기획의 `get_evidence` 도 같은 이유로 `search_experiences` · `get_activity` 결과에 합쳤다
 - 차곡이(`CHAGOK`)의 지원 · 문항 · 추천 읽기 · 근거 점검 · 초안 도구 — 차곡이(S-31)가 필요할 때 더한다(S-45 · S-27 이 선 뒤)
 - 의미 검색(임베딩) — 앱 경험 찾기(S-58)도 낱말 맞추기로 시작했다. 뜻으로 묻기는 꺼내기(S-29 `/ask`)가 맡는다

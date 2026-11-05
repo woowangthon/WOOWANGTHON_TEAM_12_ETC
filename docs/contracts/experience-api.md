@@ -1,6 +1,6 @@
 # experience-api — FE → BE
 
-> 스프린트 1 「경험 관리」(SPEC R-01) · 스프린트 2 보완(SPEC R-03 — 「보완 `Supplement`」 · 보완 고치기 · 지우기). 활동 분류(SPEC S-57 `P1` — `category` · `categoryBy`). 같은 활동 제안(SPEC S-44 `P1` — `mergeSuggestion` · 따로 두기). 그때의 나 · 이어짐(SPEC R-05 F-13 `P1` — 활동 `note` · `ActivityLink` · 이어짐 제안 받기 · 정하기). 경험마다 쓰인 지원(SPEC R-05 F-14 `P1` — 활동 세부의 `usedIn`, S-38). 경험 찾기(SPEC S-58 `P1` — `GET /api/experiences`). 자료 여러 개 한 번에 · 활동에 자료 더하기(SPEC S-59 · S-60 `P2` — `POST /api/sources/batch` · `POST /api/sources` 의 `activityId` · 작업 `QUEUED` · `targetActivityId` · `targetMatched`). 폴더 · Notion ZIP · GitHub 가져오기(SPEC S-62 ~ S-64 `P2` — 새 API · 필드 없음, `name` 에 경로). 이름 규칙 · 값 목록 · 기간 · 오류 모양은 [README 「공통」](README.md#공통--모든-계약이-같이-쓰는-것).
+> 스프린트 1 「경험 관리」(SPEC R-01) · 스프린트 2 보완(SPEC R-03 — 「보완 `Supplement`」 · 보완 고치기 · 지우기). 활동 분류(SPEC S-57 `P1` — `category` · `categoryBy`). 같은 활동 제안(SPEC S-44 `P1` — `mergeSuggestion` · 따로 두기). 그때의 나 · 이어짐(SPEC R-05 F-13 `P1` — 활동 `note` · `ActivityLink` · 이어짐 제안 받기 · 정하기). 경험마다 쓰인 지원(SPEC R-05 F-14 `P1` — 활동 세부의 `usedIn`, S-38). 경험 찾기(SPEC S-58 `P1` — `GET /api/experiences`). 자료 여러 개 한 번에 · 활동에 자료 더하기(SPEC S-59 · S-60 `P2` — `POST /api/sources/batch` · `POST /api/sources` 의 `activityId` · 작업 `QUEUED` · `targetActivityId` · `targetMatched`). 폴더 · Notion ZIP · GitHub 가져오기(SPEC S-62 ~ S-64 `P2` — 새 API · 필드 없음, `name` 에 경로). 같은 자료 알아보기(SPEC S-69 `P2` — `allowDuplicate` · 409 `SOURCE_DUPLICATE`). 경험 합치기(SPEC S-70 `P2` — `POST /api/experiences/{keepId}/merge`). 이름 규칙 · 값 목록 · 기간 · 오류 모양은 [README 「공통」](README.md#공통--모든-계약이-같이-쓰는-것).
 > 예시는 가상의 팀 프로젝트 회고 하나(「바꿔요」 · 알고리즘 스터디)로 이어진다 — [`ai-api.md`](ai-api.md) 예시와 같은 자료다.
 
 ## 흐름
@@ -19,6 +19,10 @@ FE ─POST /api/sources/batch─────────────▶ BE  원�
                                           BE  작업을 차례로: 1번 ANALYZING, 나머지 QUEUED → 앞 작업이 끝나면 다음
 FE ─POST /api/sources { activityId }────▶ BE ─POST /extract { targetActivityId }──▶ AI
                                           BE  sameAsActivityId = 대상인 활동은 대상에 바로 붙인다
+
+같은 자료 알아보기 (S-69, P2)
+FE ─POST /api/sources─────────────────────────▶ BE  같은 글자의 원본이 있으면 409 SOURCE_DUPLICATE — 저장 · 분석 · 횟수 없음
+FE ─POST /api/sources { allowDuplicate: true }▶ BE  보통 자료 넣기 → 202 { jobId }
 
 그때의 나 · 이어짐 (S-34 · S-35, P1)
 FE ─PATCH /api/activities/{id} { note }──────────▶ BE  계기 한 줄 저장
@@ -132,7 +136,7 @@ FE ─PATCH /api/activity-links/{id} { status }────▶ BE  CONFIRMED · 
 - `mcpChange` — 외부 AI 를 거쳐 들어와 사용자가 아직 정하지 않은 보완(S-56 `P2`). `{ "changeId": 57, "client": "claude-ai" }`, 그 밖엔 `null`. 이 값이 있는 동안은 「내가 입력」이 아니다 — BE 는 AI 서버의 `/match` · `/ask` · `/draft` · `/ground-check` 요청과 근거 대조에서 뺀다. FE 는 「Claude 를 거친 답」과 맞아요 · 되돌리기를 보인다(`mcp-api.md` 「변경 기록」). 맞아요 · 웹에서 답 고치기 뒤엔 `null` 이 된다. **모든 `Supplement` 응답에 실린다** — 다른 예시엔 줄였다.
 - `mcpChange` 가 없는 보완은 「내가 입력」이다 — 따로 출처 칸이 없다. 보완이 생기거나 바뀌어도 **경험의 `content` · `citations` · `sourceStatus` 는 그대로**다(원문 사실과 사용자 말을 섞지 않는다 — SPEC 미결정 10). 경험 수정(`PATCH /api/experiences/{id}`)은 보완을 바꾸지 않는다.
 - `questionId` — 이 보완이 나온 지원 문항. 문항이 없어지면 `null`(외부 AI 가 만든 지원을 되돌릴 때 — S-55).
-- 경험을 지우면 보완도 지워지고, 경험을 옮기거나 활동을 합치면 보완은 경험을 따라간다.
+- 경험을 지우면 보완도 지워지고, 경험을 옮기거나 활동을 합치면 보완은 경험을 따라간다. 경험을 합치면 남길 경험으로 옮겨진다(S-70).
 
 이어짐 `ActivityLink` — `P1` (SPEC S-35)
 
@@ -161,7 +165,7 @@ FE ─PATCH /api/activity-links/{id} { status }────▶ BE  CONFIRMED · 
 ## POST /api/sources — 자료 넣기
 
 - 쓰는 곳: FE 자료 넣기
-- SPEC: `F-01` / `S-01` · `S-60`(`activityId`, `P2`)
+- SPEC: `F-01` / `S-01` · `S-60`(`activityId`, `P2`) · `S-69`(`allowDuplicate`, `P2`)
 
 파일도 같은 JSON 으로 보낸다 — **FE 가 브라우저에서 글자를 뽑아** `text` 에 담는다. BE 는 multipart 를 받지 않고 원본 파일을 받지도 남기지도 않는다(ETC#25 — 지금 계약 · 서버를 그대로 두는 쪽. 원본 보관 · OCR · 대량 처리가 필요해지면 서버 추출로 옮긴다).
 
@@ -201,6 +205,7 @@ PDF 를 넣을 때(S-39) — 1쪽은 1 ~ 2줄, 2쪽은 글자가 없어 빠지�
 | `text` | 원본 텍스트. 공백만 있으면 안 된다. 최대 길이는 아래 한도 |
 | `sections` | `.pdf` · `.pptx` 면 **필수**(1개 이상), 그 밖엔 `null`(빼도 된다). 원소 `{ kind, number, startLine, endLine }` — `kind` 는 `.pdf` 면 `PAGE`, `.pptx` 면 `SLIDE`(README 「값 목록」) · `number` 는 1부터 센 쪽 · 슬라이드 번호 · `startLine` ≤ `endLine` 은 위 「줄 세기」의 줄 번호이고 `text` 의 줄 수를 넘지 않는다. `number` · 줄 둘 다 오름차순이고 구간끼리 겹치지 않는다. BE 는 받은 그대로 원본에 남긴다 |
 | `activityId` | 활동 세부의 「자료 더하기」(S-60, `P2`)일 때 그 활동의 `id`, 그 밖엔 `null`(빼도 된다). 아래 「활동에 자료 더하기」 |
+| `allowDuplicate` | `true` 면 같은 자료인지 견주지 않고 보통처럼 넣는다 — 사용자가 「그래도 넣기」를 골랐을 때(S-69, `P2`). 그 밖엔 `false` · `null`(빼도 된다). 아래 「같은 자료 알아보기」 |
 
 응답 202 — 원본을 저장하고 분석 작업을 만든 뒤 바로 돌려준다. 분석은 뒤에서 돈다.
 
@@ -217,11 +222,12 @@ PDF 를 넣을 때(S-39) — 1쪽은 1 ~ 2줄, 2쪽은 글자가 없어 빠지�
 | 400 | `INVALID_SECTIONS` | `.pdf` · `.pptx` 인데 `sections` 가 없거나 비었음 · `kind` 가 확장자와 안 맞음 · 줄 번호가 `text` 를 벗어나거나 겹치거나 순서가 틀림 · `.md` · `.txt` · `TEXT` 인데 `sections` 가 비지 않음 |
 | 400 | `INVALID_REQUEST` | 필드가 없거나 `kind` 값이 틀림 |
 | 404 | `ACTIVITY_NOT_FOUND` | `activityId` 가 없는 활동(남의 활동 · 이미 합쳐진 활동 포함) — 원본을 저장하지 않는다 |
+| 409 | `SOURCE_DUPLICATE` | 같은 글자의 원본이 이미 있음(S-69, `P2`) — 원본을 저장하지 않고 횟수도 세지 않는다. 아래 「같은 자료 알아보기」 |
 | 413 | `TEXT_TOO_LONG` | `text` 가 한도를 넘음 |
 | 429 | `DAILY_LIMIT_EXCEEDED` | 오늘 분석 횟수를 다 씀 — 원본을 저장하지 않는다([`auth-api.md`](auth-api.md)) |
 
 - 한도: **`50000`자**(BE#5 — README · 회고 몇 개 분량, LLM 한 번에 들어가는 크기). BE 는 Java `String.length()`(UTF-16 단위)로 세므로 JS `text.length` 와 같은 숫자다 — FE 는 같은 숫자로 미리 막아도 된다. AI 서버 한도(코드 포인트 수 50000, `ai-api.md`)보다 크지 않다.
-- 같은 자료를 두 번 넣으면 새 원본 · 새 활동이 생긴다(BE#5 기본값). 자동으로 합치지 않는다(SPEC 미결정 3). 대신 분석 작업은 사용자의 기존 활동 목록을 `/extract` 에 같이 보내고, 같아 보이는 기존 활동이 있으면 새 활동에 `mergeSuggestion` 을 붙인다(S-44, `P1` — 위 「ActivitySummary」).
+- 같은 자료를 다시 넣으면 먼저 409 `SOURCE_DUPLICATE` 로 묻고(S-69, `P2`), 그래도 넣으면 새 원본 · 새 활동이 생긴다. 자동으로 합치지 않는다(SPEC 미결정 3). 대신 분석 작업은 사용자의 기존 활동 목록을 `/extract` 에 같이 보내고, 같아 보이는 기존 활동이 있으면 새 활동에 `mergeSuggestion` 을 붙인다(S-44, `P1` — 위 「ActivitySummary」).
 
 ### 활동에 자료 더하기 — `activityId` (S-60, `P2`)
 
@@ -232,6 +238,30 @@ PDF 를 넣을 때(S-39) — 1쪽은 1 ~ 2줄, 2쪽은 글자가 없어 빠지�
 3. 그 밖의 활동은 보통처럼 새 활동이 되고, `sameAsActivityId` 가 대상이 아닌 기존 활동이면 `mergeSuggestion` 이 붙는다(S-44).
 
 작업 상태(`GET /api/jobs/{jobId}`)의 `targetActivityId` · `targetMatched` 로 결과를 알린다. `activityIds` 에는 **새로 생긴** 활동만 싣는다(대상은 넣지 않는다). 분석 중에 대상이 지워지거나 다른 활동에 합쳐졌으면 대상 없이 보통 자료 넣기로 끝내고 `targetMatched: false` 다(붙일 곳을 다른 활동으로 바꾸지 않는다).
+
+### 같은 자료 알아보기 — `SOURCE_DUPLICATE` · `allowDuplicate` (S-69, `P2`)
+
+분석 **전에** 같은 자료인지 본다. AI 를 부르지 않는다. 같으면 원본을 저장하지 않고 분석 횟수도 쓰지 않으며, README 「오류 응답」 모양에 그 원본 `source` 를 더해 돌려준다.
+
+응답 409
+
+```json
+{
+  "error": {
+    "code": "SOURCE_DUPLICATE",
+    "message": "이미 넣은 자료입니다",
+    "source": { "id": 12, "name": "바꿔요-회고.md", "createdAt": "2026-11-03T14:05:00+09:00" }
+  }
+}
+```
+
+- **같다** = 같은 사용자의 원본 중 해시가 같다. `kind` · `name` · `sections` 는 보지 않는다 — 파일로 넣은 글을 붙여 넣어도 같은 자료다.
+- **해시** — BE 가 받은 `text` 로 계산한다: `\r\n` · `\r` 을 `\n` 으로 바꾸고 앞뒤 공백 · 줄바꿈을 뗀 뒤 UTF-8 로 SHA-256. 그 밖의 차이(가운데 공백 · 글자 하나)는 다른 자료다. 비교에만 쓴다 — 저장하는 `text` 는 받은 그대로이고 해시는 응답에 싣지 않는다.
+- **무엇과 견주나** — 남아 있는 원본 전부. 어느 길로 들어왔든(묶음 · 자료 더하기 · MCP · 차곡이) 저장할 때 해시를 남긴다. 분석이 실패했거나 경험을 다 지운 원본도 남아 있으면 같은 자료다 — 안내일 뿐이고 「그래도 넣기」로 넘어간다. 같은 원본이 여럿이면 **가장 최근에 넣은 것**을 `source` 에 싣는다.
+- **언제 견주나** — `POST /api/sources` 에 `activityId` 가 없을 때만. 자료 더하기(`activityId`) · `POST /api/sources/batch` · 차곡이 · MCP 의 `add_source` 는 견주지 않고 지금처럼 넣는다.
+- **순서** — 400 · 404 · 413 검사 뒤, 429 앞. 오늘 횟수를 다 썼어도 같은 자료면 409 가 먼저다.
+- **`allowDuplicate: true`** — 견주기만 건너뛴다. 나머지는 보통 자료 넣기와 같다: 분석 1회 · 새 원본 · 새 작업 · 새 활동(S-44 제안은 붙는다).
+- FE 는 409 를 오류가 아니라 안내로 보인다 — 「이미 넣은 자료예요」 · `source.name` · `source.createdAt` · 「그래도 넣기 / 그만」. 「그만」이면 입력을 지우지 않는다.
 
 ## POST /api/sources/batch — 자료 여러 개 한 번에 넣기 (`P2`)
 
@@ -279,6 +309,7 @@ PDF 를 넣을 때(S-39) — 1쪽은 1 ~ 2줄, 2쪽은 글자가 없어 빠지�
 - 분석 횟수는 **원소마다 1회**로, 요청을 받을 때 한꺼번에 센다(`QUEUED` 로 기다리는 것도 이미 셌다).
 - 한 작업이 실패해도 다음 작업은 이어 돈다. 실패한 작업의 다시 시도(`retry`)는 차례를 기다리지 않고 바로 돈다.
 - 창을 닫아도 BE 가 차례대로 이어 돌린다. 서버가 다시 켜져 끊긴 작업은 다른 분석 작업과 같이 `FAILED` 로 두고, 그 뒤 `QUEUED` 작업은 다시 차례대로 돈다.
+- 같은 자료 알아보기(S-69)는 하지 않는다 — 원소의 `allowDuplicate` 는 무시한다. 넣은 원본의 해시는 남아 다음 `POST /api/sources` 때 견준다.
 - 묶음 자체에는 ID 가 없다 — FE 는 `items` 의 `jobId` 들을 들고 각각 `GET /api/jobs/{jobId}` 로 본다.
 
 ## GET /api/jobs/{jobId} — 분석 작업 상태
@@ -503,7 +534,7 @@ FE 는 `jobId` 를 들고 있다가(새로고침 대비 주소 · 브라우저 �
 - 경험 104 처럼 AI 가 단 발췌문이 원본에 없으면 `matched: false` · `NEEDS_REVIEW` 다(S-04).
 - `category` · `categoryBy` · `mergeSuggestion` · `note` 도 `ActivitySummary` 와 같이 실린다(S-57 · S-44 · S-34 — 위 예시엔 줄였다).
 - `links` — 이 활동이 `from` 이든 `to` 든 걸린 이어짐(`ActivityLink`, S-35 `P1`). **`REJECTED` 는 빼고** `createdAt` 순. 없으면 `[]`. 모든 활동 세부 응답(합치기 응답 포함)에 실린다 — 위 예시엔 줄였다.
-- `experiences[].usedIn` — 이 경험이 **쓰인 지원**(S-38 `P1`). 활동 세부 모양의 응답(이 응답 · 합치기 응답)의 경험에만 있다 — 위 예시엔 줄였다. 아래 「쓰인 지원 `usedIn`」.
+- `experiences[].usedIn` — 이 경험이 **쓰인 지원**(S-38 `P1`). 활동 세부 모양의 응답(이 응답 · 활동 합치기 응답)의 경험에만 있다 — 위 예시엔 줄였다. 아래 「쓰인 지원 `usedIn`」.
 
 쓰인 지원 `usedIn` — `P1` (SPEC S-38)
 
@@ -537,8 +568,8 @@ FE 는 `jobId` 를 들고 있다가(새로고침 대비 주소 · 브라우저 �
 - 「쓰였다」 = 그 지원의 어느 문항 `recommendations` 에 이 경험이 **지금** 있다. 보완을 다시 쓴 지원(S-25)도 추천에 있으니 저절로 센다. 초안(S-27)에 고른 경험은 늘 추천 안의 것이라 따로 세지 않는다. 추천이 없는 문항(`ANALYZING` · `FAILED`)은 세지 않는다.
 - 배열 하나 = 지원 하나. **개수가 「지원서 N곳에 쓰임」의 N** 이다. 지원은 최근에 넣은 것부터(`Application.createdAt` 내림차순), `questions` 는 그 지원에서 이 경험이 추천된 문항만 지원서 순서로. 없으면 `[]` — FE 는 아무것도 보이지 않는다(재촉하지 않는다).
 - `organization` · `applicationStatus` · `submittedMonth` — 그 지원의 지금 값(`question-api.md` 「지원 `Application`」). 상태는 사용자가 붙인 꼬리표다 — 합격률처럼 모아 보이지 않는다.
-- 경험을 옮기거나 활동을 합쳐도 따라간다(추천이 경험 ID 를 가리킨다).
-- 그 밖의 응답의 `Experience`(추천 · 초안 · MCP · 경험 수정 · 추가 · 옮기기 응답 등)엔 싣지 않는다 — FE 는 활동 세부를 다시 읽어 갱신한다.
+- 경험을 옮기거나 활동을 합쳐도 따라간다(추천이 경험 ID 를 가리킨다). 경험을 합치면 남길 경험에 모인다(S-70).
+- 그 밖의 응답의 `Experience`(추천 · 초안 · MCP · 경험 수정 · 추가 · 옮기기 · 경험 합치기 응답 등)엔 싣지 않는다 — FE 는 활동 세부를 다시 읽어 갱신한다.
 
 예: 활동 8 「알고리즘 스터디」에 계기를 남기고 이어짐을 제안받은 뒤의 세부(경험은 줄임)
 
@@ -817,6 +848,78 @@ FE 는 `jobId` 를 들고 있다가(새로고침 대비 주소 · 브라우저 �
 
 오류: 400 `INVALID_REQUEST` `toActivityId` 없음 · 404 `EXPERIENCE_NOT_FOUND` · 404 `ACTIVITY_NOT_FOUND` 옮길 활동이 없음
 
+## POST /api/experiences/{keepId}/merge — 경험 합치기 (`P2`)
+
+- 쓰는 곳: FE 활동 세부의 「하나로 합치기」
+- SPEC: `F-04` / `S-70`
+
+주소의 `keepId` 가 **남길 경험**이다. `fromExperienceId` 의 근거 · 보완을 남길 경험으로 옮기고, 그 경험을 가리키던 것을 남길 경험으로 바꾼 뒤 `fromExperienceId` 경험을 지운다 — 한 번에(중간에 실패하면 아무것도 바뀌지 않는다). AI 를 부르지 않는다. 되돌리는 API 는 없다(활동 합치기와 같다) — FE 는 합치기 전에 알린다.
+
+예: 회고에서 나온 경험 101 과 README 에서 나온 경험 105 가 같은 일을 말해, 105 를 101 에 합친다.
+
+요청 — `POST /api/experiences/101/merge`
+
+```json
+{ "fromExperienceId": 105 }
+```
+
+응답 200 — 합친 `Experience`. 남길 경험의 값은 그대로이고 `citations` · `supplements` 만 늘어난다.
+
+```json
+{
+  "id": 101,
+  "activityId": 7,
+  "content": "채팅 메시지가 늦게 도착하는 문제를 폴링에서 WebSocket 으로 바꿔 해결했다",
+  "competencies": ["PROBLEM_SOLVING", "IMPLEMENTATION"],
+  "competenciesBy": "AI",
+  "actor": "ME",
+  "sourceStatus": "SOURCE_CONFIRMED",
+  "citations": [
+    {
+      "id": 201,
+      "sourceId": 12,
+      "sourceName": "바꿔요-회고.md",
+      "quote": "채팅 메시지가 늦게 도착하는 문제가 있었다. 내가 폴링을 WebSocket 으로 바꿔 해결했다.",
+      "matched": true,
+      "location": { "startLine": 5, "endLine": 5 }
+    },
+    {
+      "id": 205,
+      "sourceId": 13,
+      "sourceName": "README.md",
+      "quote": "채팅은 3초 폴링을 걷어 내고 WebSocket 으로 옮겼다.",
+      "matched": true,
+      "location": { "startLine": 12, "endLine": 12 }
+    }
+  ],
+  "supplements": []
+}
+```
+
+오류
+
+| HTTP | `code` | 언제 |
+| --- | --- | --- |
+| 400 | `INVALID_REQUEST` | `fromExperienceId` 없음 · 남길 경험과 같음 · 두 경험의 활동이 다름(먼저 옮긴다 — 위 「경험 옮기기」) |
+| 404 | `EXPERIENCE_NOT_FOUND` | 둘 중 하나가 없음(남의 경험 · 이미 합쳐진 경험 포함) |
+
+- **남길 경험의 값은 그대로** — `content` · `competencies` · `competenciesBy` · `actor` · `sourceStatus` · `origin` · `mcpChange`. 지울 경험의 값을 섞지 않는다.
+- **근거 · 보완은 하나도 잃지 않는다** — `id` · 내용 그대로 남길 경험의 것이 된다(추천 · 초안의 `evidence` 가 이 `id` 를 가리키므로 새로 만들지 않는다). 순서는 지금 규칙 그대로 만든 순서(`id`)다. 같은 내용의 근거가 둘이어도 줄이지 않는다. 원본은 그대로다.
+- **가리키던 것은 남길 경험으로 바꾼다** — 끊으면 쓰인 지원 · 확정 답변의 연결이 사라진다. 같은 트랜잭션에서 아래를 전부.
+
+| 무엇 | BE 자리 |
+| --- | --- |
+| 지원 추천 · 요구사항 | `question_recommendation.experience_id` · `question_requirement.experience_ids` |
+| 되묻기 | `clarification.experience_id` |
+| 초안에 고른 경험 · 빠진 사실 | `draft_experience.experience_id` · `draft_omitted.experience_id` |
+| 초안 · 근거 점검의 문장 근거(`type` 이 `EXPERIENCE`) | `draft_sentence_evidence.ref_id` · `grounding_sentence_evidence.ref_id` |
+| 확정 답변의 새 경험 후보 | `new_fact_candidate.experience_id` |
+
+- **둘이 같이 있으면 하나로** — 한 문항의 추천에 두 경험이 다 있으면 앞 순위 추천 하나만 남긴다(그 `reason` · `emphasis` · `gaps` · `evidence` 그대로, 뒤 추천은 지운다). 요구사항의 `experience_ids` · 초안에 고른 경험 · 한 문장의 근거도 앞의 것 하나로 줄인다. 되묻기는 줄이지 않는다.
+- `usedIn`(S-38): 추천을 따라 남길 경험에 모인다. 응답엔 싣지 않는다 — FE 는 활동 세부를 다시 읽어 갱신한다.
+- `mcpChange`(S-53): 지울 경험에 달린 정하지 않은 변경은 경험을 지웠을 때와 같다(`CHANGED_AFTER` — `mcp-api.md` 「변경 기록」). 보완에 달린 것은 보완을 따라간다.
+- 합치는 사이 분석 중이던 매칭 · 초안 · 근거 점검이 끝나 지울 경험을 돌려주면, 지운 경험과 같이 조회할 때 뺀다.
+
 ## POST /api/activities/{activityId}/merge — 활동 합치기 (`P1`)
 
 - 쓰는 곳: FE 타임라인 · 활동 세부의 합치기
@@ -1012,6 +1115,8 @@ AI 에 싣는 것: 활동마다 `id` · 이름 · 기간 · 계기(`note`, 후�
 
 - 원본 목록 · 원본 다시 보기 — 근거에 `sourceName` · `quote` 가 실려 오므로 스프린트 1 엔 따로 두지 않는다
 - 자료 빼기(원본을 지우면 그 원본에서만 나온 경험을 어떻게 하나) — 백로그
+- 바뀐 부분만 다시 분석 · 다른 사용자의 같은 자료 알아보기 · 묶음 · 자료 더하기 · 차곡이 · MCP 에서 같은 자료 알아보기(S-69 범위 제외, ETC#114 큰 판)
+- 경험 셋 이상을 한 번에 합치기 · 다른 활동의 경험끼리 합치기 · 합치기 되돌리기 · AI 가 겹치는 경험 찾기(S-70 범위 제외)
 - 묶음으로 「자료 더하기」(`sources[].activityId`) · 묶음 전체의 ID · 묶음 그만두기 — 자료 더하기는 하나씩, 묶음은 작업마다 본다(S-59 · S-60)
 - 이어짐을 사용자가 직접 긋기 · 고치기 · 지우기 · 정한 것 되돌리기(S-35 범위 제외) · 타임라인 목록(`GET /api/activities`)에 이어짐 싣기 — 보이는 곳은 활동 세부다
 - 계기를 여러 개 · 목록으로 — 활동마다 한 줄 하나다. 미결정 14 (나)(확정 답변의 동기 → 생각 · 계기)가 시작되면 배열로 바꾸는 계약 PR 을 낸다

@@ -20,6 +20,9 @@ FE ─PATCH /api/questions/{id}───────▶ BE  문항 유형 고치
 FE ─POST /api/questions/{id}/grounding-check ▶ BE  내가 쓴 답 근거 점검 시작(S-45) → 202
                                        BE ─POST /ground-check──▶ AI  (답 + 사용자 경험 전부 + 보완)
 FE ─GET /api/questions/{id}/grounding-check (폴링) ▶ BE  ANALYZING → COMPLETED(문장마다 판정) / FAILED
+FE ─POST /api/questions/{id}/draft──▶ BE  고른 경험 1 ~ 3개로 답변 초안 시작(S-27) → 202
+                                       BE ─POST /draft──▶ AI  (문항 + 고른 경험만 + 보완)
+FE ─GET /api/questions/{id} (폴링)───▶ BE  draft: ANALYZING → COMPLETED(문장마다 근거 · 쓰지 않은 것) / FAILED
 ```
 
 - **지원**(SPEC R-03 용어 · 2026-11-03 PM) = 지원처 하나 + 문항 여러 개. 문항은 늘 어느 지원에 딸린다(`applicationId`). 추천은 지금처럼 **문항마다 따로** 돈다 — AI 는 문항 사이를 같이 보지 않는다(SPEC 미결정 15). 한 지원 안에서 같은 경험이 여러 문항에 추천됐는지는 FE 가 문항들의 `recommendations` 로 계산해 표시한다(S-21).
@@ -241,6 +244,8 @@ FE ─GET /api/questions/{id}/grounding-check (폴링) ▶ BE  ANALYZING → COM
 
 `ANALYZING` · `FAILED` 면 `requirements` · `recommendations` · `clarifications` 는 `[]`. `FAILED` 의 `error.code` 는 `experience-api.md` 「GET /api/jobs」 실패 이유와 같은 값(`AI_TIMEOUT` · `AI_UNAVAILABLE` · `AI_FAILED` · `INTERNAL_ERROR`) — 정해진 결과로 대신 채우지 않는다(대회 규칙 2).
 
+`draft` — 이 문항의 답변 초안(아래 「답변 초안」 `Draft`). 아직 만들지 않았으면 `null`. 초안을 만드는 중엔 이 응답을 폴링한다.
+
 응답 200 — 문항 A, 되묻기 하나에 답한 뒤
 
 ```json
@@ -285,6 +290,7 @@ FE ─GET /api/questions/{id}/grounding-check (폴링) ▶ BE  ANALYZING → COM
     { "id": 61, "experienceId": 101, "question": "폴링을 WebSocket 으로 바꿀 때 직접 고친 부분은 어디였나요?", "supplementId": 301 },
     { "id": 62, "experienceId": 101, "question": "바꾼 뒤 메시지가 제때 오는지 어떻게 확인했나요?", "supplementId": null }
   ],
+  "draft": null,
   "createdAt": "2026-11-04T10:00:00+09:00",
   "updatedAt": "2026-11-04T10:00:24+09:00"
 }
@@ -341,6 +347,7 @@ FE ─GET /api/questions/{id}/grounding-check (폴링) ▶ BE  ANALYZING → COM
   "clarifications": [
     { "id": 63, "experienceId": 102, "question": "매주 회고에서 직접 맡은 일이 있었다면 무엇이었나요?", "supplementId": null }
   ],
+  "draft": null,
   "createdAt": "2026-11-04T10:20:00+09:00",
   "updatedAt": "2026-11-04T10:20:19+09:00"
 }
@@ -548,10 +555,81 @@ FE ─GET /api/questions/{id}/grounding-check (폴링) ▶ BE  ANALYZING → COM
 
 ---
 
+## 답변 초안 (S-27 · `P1`)
+
+추천 결과에서 사용자가 고른 경험(1 ~ 3개)으로 그 문항의 답변 초안을 만든다. 범용 LLM 의 「자소서 써 줘」와 다른 점은 **문장마다 어느 근거(원문 발췌) · 보완(내가 입력)에서 왔는지 붙는다**는 것이고, 받치는 것이 없는 문장은 쓰지 않는다(SPEC S-27 · S-05). 받칠 게 없어 쓰지 않은 것은 `omitted` 로 따로 돌려준다. 최종 문장은 사람이 고친다 — 사용자는 텍스트로 복사해 자기 글로 고쳐 쓴다(SPEC §0). BE → AI 는 [`ai-api.md`](ai-api.md) 「POST /draft」.
+
+- **문항마다 최신 하나**만 둔다 — 다시 만들면 바뀐다(예전 초안을 비교해 보여 주지 않는다). 근거 점검과 같다.
+- 초안은 문항 응답(`GET /api/questions/{questionId}`)의 `draft` 로 온다 — 따로 `GET` 이 없다. 추천이 끝난(`COMPLETED`) 문항에서만 만든다(고를 경험이 추천에서 나온다).
+
+답변 초안 `Draft` — 문항 A, 경험 101 을 골라 만든 것(보완 301 이 생긴 뒤)
+
+```json
+{
+  "questionId": 41,
+  "status": "COMPLETED",
+  "error": null,
+  "experienceIds": [101],
+  "sentences": [
+    {
+      "text": "「바꿔요」 프로젝트에서 채팅 메시지가 늦게 도착하는 문제가 있었고, 제가 폴링을 WebSocket 으로 바꿔 해결했습니다.",
+      "evidence": [{ "type": "CITATION", "id": 201, "experienceId": 101, "activityId": 7, "text": "채팅 메시지가 늦게 도착하는 문제가 있었다. 내가 폴링을 WebSocket 으로 바꿔 해결했다." }]
+    },
+    {
+      "text": "서버에 STOMP 엔드포인트를 만들고, 앱의 3초 폴링 코드를 구독 방식으로 바꿨습니다.",
+      "evidence": [{ "type": "SUPPLEMENT", "id": 301, "experienceId": 101, "activityId": 7, "text": "서버에 STOMP 엔드포인트를 만들고, 앱의 3초 폴링 코드를 구독 방식으로 바꿨다" }]
+    }
+  ],
+  "omitted": ["바꾼 뒤 메시지가 제때 오는지 확인한 방법", "Java · Spring 을 쓴 경험", "이 경험에서 배운 점 · 느낀 점"],
+  "createdAt": "2026-11-04T10:10:00+09:00",
+  "updatedAt": "2026-11-04T10:10:21+09:00"
+}
+```
+
+- `status` · `error` — 작업 상태(README 「값 목록」). `ANALYZING` · `FAILED` 면 `sentences` · `omitted` 는 `[]`. `FAILED` 의 `error.code` 는 문항과 같은 값(`AI_TIMEOUT` · `AI_UNAVAILABLE` · `AI_FAILED` · `INTERNAL_ERROR`) — 정해진 문장으로 채우지 않는다(대회 규칙 2). 서버가 재시작돼 끊긴 초안도 `FAILED` 로 정리한다(추천과 같다).
+- `experienceIds` — 사용자가 고른 경험, 보낸 순서대로. 실패했을 때 「다시 만들기」는 이 값으로 같은 `POST` 를 부른다. 그새 지워진 경험은 빠진다.
+- `sentences` — 초안 문장, **글의 순서대로**. 한 문장에 줄바꿈이 없다. FE 는 차례로 이어 보이고, 「텍스트로 복사」는 근거 표시 없이 `text` 만 이어 붙인다. 0개일 수 있다 — 고른 경험에 받칠 근거 · 보완 · 본문이 하나도 없을 때(그때는 `omitted` 만 있다).
+- `sentences[].evidence` — 그 문장을 받치는 것. 근거 점검(`GroundingCheck`)의 `evidence` 와 **같은 모양**이다 — FE 가 같은 표시를 쓴다. `type` 은 `evidenceType`(`CITATION` 원문 · `SUPPLEMENT` · `EXPERIENCE` 내가 입력), `id` 는 그 근거 · 보완 · 경험의 ID. BE 가 `experienceId` · `activityId` · `text`(발췌문 `quote` · 보완 `answer` · 경험 `content` — **지금 상태로**)를 붙인다. 만들 때는 문장마다 **1개 이상**이다. 그새 지워진 근거 · 보완 · 경험은 빠지므로 0개가 될 수 있다 — 문장은 만들었을 때 그대로 둔다(다시 만들면 새로 쓴다). 보완을 고쳤으면(S-24) `text` 는 고친 답이고 문장은 그대로다.
+- `omitted` — 문항에 필요한데 고른 경험의 근거 · 보완에 없어 **쓰지 않은 것**, 짧은 구절 0 ~ 5개. AI 해석이다. 사용자가 직접 쓰거나 되묻기에 답할 거리다. 화면에서 「자료에 없어 쓰지 않았어요」처럼 — 부족한 사람처럼 읽히지 않게(SPEC S-19).
+- 예시 읽는 법: 첫 문장은 회고 발췌 201 이 받친다(원문 — 101 이 `ME` 라 「제가」로 쓸 수 있다). 둘째는 되묻기 61 에 답한 보완 301 만 받친다(내가 입력) — 「3초」의 3 이 301 에 있어 숫자 확인을 지난다. 되묻기 62(확인한 방법)는 건너뛰어 받칠 게 없으니 쓰지 않고 `omitted` 로 간다. 「Java · Spring」은 문항 A 요구사항에서 `NOT_FOUND` 였던 것, 「배운 점 · 느낀 점」은 자료에 없어 지어내지 않은 것이다. `TEAM` 경험 102 를 같이 골랐다면 「팀은 매주 금요일 스프린트 회고를 했습니다」로 쓰고 「제가」로 바꾸지 않는다.
+
+## POST /api/questions/{questionId}/draft — 답변 초안 만들기
+
+- 쓰는 곳: FE 추천 결과의 「초안 만들기」 · 실패한 초안의 「다시 만들기」
+- SPEC: `F-09` / `S-27` — 우선순위 `P1`
+
+요청 — `POST /api/questions/41/draft`
+
+```json
+{ "experienceIds": [101] }
+```
+
+| 필드 | 값 |
+| --- | --- |
+| `experienceIds` | 그 문항 `recommendations` 의 경험 ID **1 ~ 3개**, 중복 없음. AI 에 이 순서로 싣는다 |
+
+응답 202 — `Draft`, `status: "ANALYZING"` · `sentences: []` · `omitted: []`. 그 문항의 예전 초안(완료든 실패든)을 이것으로 바꾼다. 실패한 초안을 다시 만들 때도 이 호출이다(따로 `retry` 가 없다).
+
+- BE 는 **고른 경험만** 지금 상태로 AI 에 보낸다 — 본문 · 역량 · 수행 주체 · 출처 상태 · 활동 이름 · 기간 · **원본에서 찾은 근거만**(`matched: true`) · 보완 전부. 원본에서 못 찾은 발췌는 「원문」으로 칠하지 않게 싣지 않는다(근거 점검과 같다). 추천의 `reason` · `emphasis` · `gaps` 는 싣지 않는다.
+- 분석 1회로 센다([`auth-api.md`](auth-api.md) `dailyAnalysis`).
+
+오류
+
+| HTTP | `code` | 언제 |
+| --- | --- | --- |
+| 400 | `INVALID_REQUEST` | `experienceIds` 가 없음 · 0개 · 4개 이상 · 중복 · 그 문항 `recommendations` 에 없는 경험(그새 지워진 경험 포함) |
+| 404 | `QUESTION_NOT_FOUND` | 없는 문항 |
+| 409 | `QUESTION_NOT_COMPLETED` | 문항의 추천이 `COMPLETED` 가 아님(`ANALYZING` · `FAILED`) |
+| 409 | `DRAFT_IN_PROGRESS` | 그 문항의 초안이 아직 `ANALYZING` — 예전 것을 바꾸지 않는다 |
+| 429 | `DAILY_LIMIT_EXCEEDED` | 오늘 분석 횟수를 다 씀 — 예전 초안을 바꾸지 않는다 |
+
+---
+
 ## 이 계약에 없는 것
 
 - 지원 · 문항 지우기, 문항 텍스트 · 지원처 이름 고치기 — 없다(종류 · 직무 · 문항 유형만 `PATCH`). 넣기 전엔 FE 에서 자유롭게 고치고, 넣은 뒤 잘못 넣었으면 그 지원에 새로 더한다(SPEC S-18)
 - 「자주 나오는 문항」 목록(S-26) — FE 에 둔다. API 없음. 「내가 넣었던 문항」(S-40)은 `GET /api/questions` 를 FE 가 묶어 보인다 — 새 API 없음
 - 예전 답변 다시 보기(S-43) — 확정 답변(ETC#67)이 생긴 뒤 계약을 더한다
-- 답변 초안(SPEC S-27 · ETC#26) · 공고 링크에서 본문 가져오기(SPEC 미결정 12)
+- 공고 링크에서 본문 가져오기(SPEC 미결정 12)
+- 답변 초안을 화면에서 고쳐 저장하기 · 확정 답변 · 근거 없는 문장을 새 경험으로(ETC#67), 작성 지침 · 구성 틀(ETC#68), 예전 초안 이력 · 비교, 문항 여러 개를 한 번에 초안으로, 글자 수 맞추기 — 없다. 초안은 문항마다 최신 하나다(S-27)
 - 근거 점검의 예전 결과 모아 보기 · 문장을 고쳐 주기 — 없다. 점검은 문항마다 최신 하나, 글은 사람이 고친다(S-45). 근거 없는 문장을 새 경험 후보로 올리기는 확정 답변(ETC#67)에서

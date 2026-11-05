@@ -1,6 +1,6 @@
 # ai-api — BE → AI
 
-> 스프린트 1 「경험 관리」(SPEC F-02 — `POST /extract`) · 스프린트 2 「문항 매칭」(SPEC R-03 — `POST /match`) · 근거 점검(SPEC S-45 — `POST /ground-check`, `P1`) · 답변 초안(SPEC S-27 — `POST /draft`, `P1`) · 스프린트 3 「입구 하나」(SPEC F-10 — `POST /route` · `POST /ask` · `POST /parse-application`) · 이어짐 제안(SPEC S-35 — `POST /link-suggestions`, `P1`). 이름 규칙 · 값 목록 · 기간 · 오류 모양은 [README 「공통」](README.md#공통--모든-계약이-같이-쓰는-것).
+> 스프린트 1 「경험 관리」(SPEC F-02 — `POST /extract`) · 스프린트 2 「문항 매칭」(SPEC R-03 — `POST /match`) · 근거 점검(SPEC S-45 — `POST /ground-check`, `P1`) · 답변 초안(SPEC S-27 — `POST /draft`, `P1`) · 스프린트 3 「입구 하나」(SPEC F-10 — `POST /route` · `POST /ask` · `POST /parse-application`) · 이어짐 제안(SPEC S-35 — `POST /link-suggestions`, `P1`) · 차곡이 도구 루프(SPEC S-31 — `POST /agent`, `P1`). 이름 규칙 · 값 목록 · 기간 · 오류 모양은 [README 「공통」](README.md#공통--모든-계약이-같이-쓰는-것).
 > AI 서버는 DB 를 만지지 않고 상태가 없다 — 받은 텍스트로 JSON 만 돌려준다([ADR-003](../decisions/ADR-003-stack-and-ai-boundary.md)). 저장 · ID · 사용자 구분은 BE.
 
 - 부르는 곳: BE 만, 내부망으로([ADR-004](../decisions/ADR-004-deploy.md)). 인증 없음.
@@ -785,6 +785,56 @@ BE 는 어떤 오류든 초안을 `FAILED`(`AI_FAILED`, `message` 에 위 `code`
 | 500 | `INTERNAL_ERROR` | 그 밖 |
 
 BE 는 어떤 오류든 FE 에 502 `AI_FAILED`(`message` 에 위 `code`), 60초를 넘기면 504 `AI_TIMEOUT` 으로 돌려주고 아무것도 저장하지 않는다 — 입구 셋과 같다.
+
+## POST /agent — 차곡이 도구 루프 (S-31 · `P1`)
+
+- 부르는 곳: BE 차곡이 일(`chagok-api.md` `POST /api/chagok/runs` 뒤)
+- SPEC: `F-10` / `S-31` · [ADR-008](../decisions/ADR-008-mcp-tools-in-be.md) — AI 서버는 BE MCP 의 **클라이언트**다. 도구를 따로 정의하지 않는다
+
+AI 서버는 받은 `mcpUrl` 로 MCP 에 붙어(`initialize` → `tools/list`) 도구 목록을 LLM 함수 호출에 넘기고, 읽기 도구는 `tools/call` 로 직접 부른다. 진행은 **한 줄에 이벤트 하나**(NDJSON)로 흘려 보낸다. 라이브러리(공급자 함수 호출 · MCP 파이썬 SDK · LangGraph)는 AI 담당이 고르고 `ai-scope.md` 에 더한다.
+
+요청
+
+```json
+{
+  "text": "WebSocket 경험으로 OO 부트캠프 지원 만들어 줘",
+  "context": {
+    "question": { "id": 41, "text": "기술적인 문제를 해결한 경험을 구체적으로 적어 주세요.", "organization": "OO 백엔드 부트캠프" }
+  },
+  "mcpUrl": "http://backend:8080/mcp/k3Jx…(이 일의 CHAGOK 토큰)",
+  "maxToolCalls": 8
+}
+```
+
+| 필드 | 값 |
+| --- | --- |
+| `text` | 사용자 부탁 그대로(50000자 이하). 자료를 붙여 넣은 부탁이면 `add_source` 의 `text` 는 이 안의 글을 **그대로** 잘라 쓴다 — 요약 · 고쳐 쓰지 않는다 |
+| `context.question` | 지원 화면에서 열었을 때 그 문항 — 아니면 `context: { "question": null }` |
+| `mcpUrl` | 이 일에만 쓰는 MCP 주소. **내부망 주소**(BE 설정 `MCP_INTERNAL_BASE_URL`) + CHAGOK 토큰. 일이 끝나면 401 이 된다. 로그에 남기지 않는다 |
+| `maxToolCalls` | 도구를 부를 수 있는 최대 횟수(BE 설정, 기본 8). 넘으면 `error` `TOO_MANY_STEPS` |
+
+응답 200 — `Content-Type: application/x-ndjson`. 줄마다 아래 이벤트 하나. **마지막 줄은 늘 `done` · `confirm` · `error` 중 하나**다.
+
+```
+{"type":"tool_call","id":"c1","tool":"search_experiences","arguments":{"query":"WebSocket"},"label":"「WebSocket」으로 경험 찾는 중"}
+{"type":"tool_result","id":"c1","ok":true,"summary":"경험 1개를 찾았어요","result":{"total":1,"experiences":[…]}}
+{"type":"message","text":"「바꿔요」의 WebSocket 경험이 기술 문제 해결 문항에 맞아요."}
+{"type":"confirm","tool":"create_application","arguments":{"organization":"OO 백엔드 부트캠프","organizationType":"BOOTCAMP","jobRole":"BACKEND","postingUrl":null,"questions":[{"text":"기술적인 문제를 해결한 경험을 구체적으로 적어 주세요."}]},"label":"「OO 백엔드 부트캠프」 지원을 문항 1개로 만들까요?"}
+```
+
+| `type` | 필드 · 규칙 |
+| --- | --- |
+| `tool_call` | `id`(이 응답 안에서 고유) · `tool` · `arguments` · `label`(무엇을 하는지 한국어 한 줄, 60자 이하). **읽기 도구만**(`annotations.readOnlyHint: true`) — 부르기 **전에** 보낸다 |
+| `tool_result` | `id`(짝인 `tool_call`) · `ok` · `summary`(한 줄) · `result`(MCP `structuredContent` 그대로) · `error`(`ok` 가 `false` 면 도구 오류 `{ code, message }`, 아니면 `null`). 도구 오류는 일을 끝내지 않는다 — LLM 이 읽고 다시 부를 수 있다 |
+| `message` | `text` 300자 이하. **도구 결과에 있는 것만** 말한다 — 없는 경험 · 수치를 지어내지 않고, `actor` · `sourceStatus` 를 바꿔 말하지 않는다(`mcp-api.md` 「읽는 규칙」과 같다). 경험 내용을 길게 옮기지 않는다(FE 가 `result` 로 카드를 그린다) |
+| `confirm` | 쓰기 도구(`readOnlyHint: false`)를 쓰고 싶을 때 — **부르지 않고** 이걸 보내고 끝낸다. `tool` · `arguments`(그 도구의 `inputSchema` 에 맞게) · `label`(무엇을 할지 한 줄). 한 응답에 하나 |
+| `done` | 쓰기 없이 끝났다(찾아 보여 주기만 한 부탁) |
+| `error` | `code` · `message` — `LLM_ERROR` · `LLM_TIMEOUT` · `TOO_MANY_STEPS` · `MCP_UNAVAILABLE`(MCP 에 닿지 못함 · 401) · `INTERNAL_ERROR`. 정해진 답으로 채우지 않는다 |
+
+- 스트림을 열기 전에 실패하면(요청 모양이 틀림) 다른 엔드포인트처럼 400 `INVALID_REQUEST` + 오류 JSON 이다.
+- 시간: 일 전체를 **110초** 안에 끝내거나 `error` `LLM_TIMEOUT`(`AGENT_TIMEOUT_SECONDS`). BE 는 120초(`CHAGOK_TIMEOUT_SECONDS`)에서 끊는다. 비동기라 Cloudflare 100초와 상관없다.
+- BE 가 스트림을 끊으면(사용자가 그만둠) 그 자리에서 멈춘다.
+- **채점**: 시험 부탁(「○○ 경험 찾아 줘」 · 「이걸로 지원 만들어 줘」 · 맞는 경험이 없는 부탁)마다 — 쓰기를 `confirm` 없이 부르지 않음 · 마지막 이벤트 규칙 · `message` 에 도구 결과 밖 사실이 없음. AI 레포가 `ai-scope.md` §4 에 적는다.
 
 ## GET /health — 살아 있나
 

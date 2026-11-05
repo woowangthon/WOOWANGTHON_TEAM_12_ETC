@@ -453,13 +453,19 @@ BE 는 어떤 오류든 점검을 `FAILED`(`AI_FAILED`, `message` 에 위 `code`
 
 사용자가 고른 경험(1 ~ 3개)으로 그 문항의 답변 초안을 **문장 배열**로 쓴다. 사실 문장(`FACT`)마다 받치는 근거 · 보완을 붙이고, 받칠 게 없는 사실은 쓰지 않고 `omitted` 로 돌려준다. 연결 · 직무 관련성 · 포부는 `OPINION` 으로 구분해 제안한다. 지어낸 ID · 문장 속 숫자는 **코드가** 막는다 — 숫자 대조는 `/ground-check` 와 같은 코드를 쓴다.
 
-요청 — question-api 「답변 초안」 예시(문항 A + 경험 101). 경험은 `/match` 와 같은 모양이고 **고른 경험만** 싣는다.
+요청 — question-api 「답변 초안」 예시(문항 A + 경험 101). 경험은 `/match` 와 같은 모양이고 **고른 경험만** 싣는다. 문항 A 의 매칭 결과(요구사항 · 추천 101 의 이유 · 강조점 · 부족한 점)와 지원의 직무를 함께 싣는다(ETC#141).
 
 ```json
 {
   "question": {
     "organization": "OO 백엔드 부트캠프",
-    "text": "기술적인 문제를 해결한 경험을 구체적으로 적어 주세요."
+    "text": "기술적인 문제를 해결한 경험을 구체적으로 적어 주세요.",
+    "jobRole": "BACKEND",
+    "requirements": [
+      { "text": "기술 문제의 원인을 찾아 해결한 경험", "status": "SUPPORTED" },
+      { "text": "해결한 뒤 결과를 확인한 방법", "status": "NOT_FOUND" },
+      { "text": "Java · Spring 사용 경험", "status": "NOT_FOUND" }
+    ]
   },
   "experiences": [
     {
@@ -471,7 +477,10 @@ BE 는 어떤 오류든 점검을 `FAILED`(`AI_FAILED`, `message` 에 위 `code`
       "actor": "ME",
       "sourceStatus": "SOURCE_CONFIRMED",
       "citations": [{ "id": 201, "quote": "채팅 메시지가 늦게 도착하는 문제가 있었다. 내가 폴링을 WebSocket 으로 바꿔 해결했다." }],
-      "supplements": [{ "id": 301, "question": "폴링을 WebSocket 으로 바꿀 때 직접 고친 부분은 어디였나요?", "answer": "서버에 STOMP 엔드포인트를 만들고, 앱의 3초 폴링 코드를 구독 방식으로 바꿨다" }]
+      "supplements": [{ "id": 301, "question": "폴링을 WebSocket 으로 바꿀 때 직접 고친 부분은 어디였나요?", "answer": "서버에 STOMP 엔드포인트를 만들고, 앱의 3초 폴링 코드를 구독 방식으로 바꿨다" }],
+      "reason": "채팅 지연이라는 기술 문제를 직접 해결한 사례라 문항과 맞는다",
+      "emphasis": "폴링의 한계를 보고 WebSocket 으로 바꾼 판단",
+      "gaps": ["직접 고친 범위가 자료에 없다", "고친 뒤 확인한 방법이 자료에 없다"]
     }
   ]
 }
@@ -480,10 +489,21 @@ BE 는 어떤 오류든 점검을 `FAILED`(`AI_FAILED`, `message` 에 위 `code`
 | 필드 | 값 |
 | --- | --- |
 | `question.organization` · `question.text` | `/match` 와 같다 |
+| `question.jobRole` | 선택. 그 문항이 속한 지원의 직무 — README 「값 목록」 `jobRole` 값 하나(S-42). 지원에 직무가 없으면(동아리 · 비교과 등) **싣지 않는다**(`null` 도 같게 읽는다) |
+| `question.requirements` | 선택. 그 문항의 매칭 요구사항 `{ text, status }` 배열 — question-api `Requirement` 에서 `experienceIds` 를 뺀 것, 저장된 순서 그대로. 없거나 `[]` 면 문항만 보고 쓴다 |
 | `experiences` | 사용자가 고른 경험 **1 ~ 3개**, 고른 순서대로 — `/match` 요청과 같은 모양. `id` 중복 없음 |
 | `experiences[].citations` | **원본에서 찾은 근거만**(`matched: true`) `{ id, quote }` — `/ground-check` 와 같다. 확인 못 한 근거는 싣지 않는다 |
 | `experiences[].supplements` | 보완 `{ id, question, answer }` 전부. 사용자가 직접 말한 사실이다(「내가 입력」) |
 | `experiences[].sourceStatus` | `USER_ENTERED` 인 경험만 본문(`content`)이 근거(`EXPERIENCE`)가 될 수 있다 — `/ground-check` 와 같다 |
+| `experiences[].reason` · `emphasis` · `gaps` | 선택. 그 문항의 추천에서 **이 경험의** 이유 · 강조점(문자열) · 부족한 점(문자열 배열) — question-api `Recommendation` 그대로. 없으면 싣지 않는다 |
+
+**매칭 결과 · 직무는 AI 해석이라 근거가 아니다**(ETC#141). 무엇을 앞세우고 무엇을 빈칸으로 볼지 정하는 **단서**로만 쓴다.
+
+- 선택 칸이 하나도 없으면 지금과 똑같이 동작한다 — BE 가 아직 싣지 않아도 깨지지 않는다. 있는 것만 쓴다(경험마다 있고 없고가 달라도 된다).
+- `evidence` 로 붙일 수 없다 — ID 가 없고, `type` 에도 없다. 숫자 대조의 「받치는 글」에도 넣지 않는다 — 강조점 · 이유에만 있는 숫자는 `FACT` 에 쓸 수 없다.
+- 강조점은 **근거로 받칠 수 있는 만큼만** 앞세운다 — 문장 순서 · 비중을 정할 뿐 사실을 더하지 않는다. 강조점에 쓸 사실이 근거 · 보완 · 본문에 없으면 쓰지 않고 `omitted` 로. 예시의 「폴링의 한계를 보고 … 판단」은 근거 201 이 「바꿔 해결했다」까지만 받치므로 「한계를 판단했다」를 사실 문장으로 만들지 않는다 — 근거 규칙이 우선이다(SPEC 미결정 16 과 같은 순서).
+- `gaps` · `requirements[].status: NOT_FOUND` 는 `omitted` 를 고르는 단서다. 다만 **매칭 때의 것**이라 그 뒤 생긴 보완이 이미 채웠을 수 있다 — 예시의 「직접 고친 범위」는 보완 301 이 채웠으니 `omitted` 로 다시 묻지 않고 301 을 근거로 쓴다(S-25). 지금 요청의 근거 · 보완 · 본문이 판단 기준이다.
+- `jobRole` 은 `OPINION` 의 직무 관련성 제안과 사실 문장의 순서를 고르는 데 쓴다. 직무 이름을 받았다고 그 직무의 일을 해 봤다는 사실을 만들지 않는다(「백엔드 개발자로 일하며」 금지). 지원처 정보 · 직무 분석을 지어내지 않는다(R-03 범위 제외).
 
 응답 200
 
@@ -503,7 +523,7 @@ BE 는 어떤 오류든 점검을 `FAILED`(`AI_FAILED`, `message` 에 위 `code`
 }
 ```
 
-- 예시 읽는 법: 「직접 고친 부분」은 보완 301 이 받치니 그 문장의 근거는 301 이다. 「확인한 방법」 · 느낀 점은 근거 · 보완에 없어 쓰지 않고 `omitted` 로 간다 — 「빨라졌습니다」 「뿌듯했습니다」를 지어 붙이지 않는다. `TEAM` 경험 102(「팀은 매주 금요일 스프린트 회고를 했다」)를 같이 골랐다면 「팀은 매주 금요일 스프린트 회고를 했습니다」로 쓰고 「제가」로 바꾸지 않는다. BE 는 `evidence` 에 `experienceId` · `activityId` · `text` 를 붙여 저장한다(question-api `Draft`).
+- 예시 읽는 법: 「직접 고친 부분」은 보완 301 이 받치니 그 문장의 근거는 301 이다 — 매칭 때 `gaps` 에 있던 것이지만 지금은 보완이 있다. 「확인한 방법」 · 「Java · Spring」은 요구사항 `NOT_FOUND` 였고 지금도 받칠 게 없다. 이 둘과 느낀 점은 쓰지 않고 `omitted` 로 간다 — 「빨라졌습니다」 「뿌듯했습니다」를 지어 붙이지 않는다. 직무 `BACKEND` 는 생각 문장(포부)의 방향만 정했다 — 백엔드 일을 해 봤다는 사실로 쓰지 않는다. `TEAM` 경험 102(「팀은 매주 금요일 스프린트 회고를 했다」)를 같이 골랐다면 「팀은 매주 금요일 스프린트 회고를 했습니다」로 쓰고 「제가」로 바꾸지 않는다. BE 는 `evidence` 에 `experienceId` · `activityId` · `text` 를 붙여 저장한다(question-api `Draft`).
 
 ### 응답 규칙 — 어기면 AI 서버가 다시 시도한 뒤 `LLM_INVALID_OUTPUT` 으로 돌려준다
 
@@ -535,14 +555,14 @@ BE 는 어떤 오류든 점검을 `FAILED`(`AI_FAILED`, `message` 에 위 `code`
 
 - 개수 · 값 목록 · 지어낸 `id` · `EXPERIENCE` 가 `USER_ENTERED` 가 아닌 경험을 가리킴 · 근거 0개인 `FACT` · 근거가 붙은 `OPINION` · `OPINION` 3개 초과 · 받칠 것이 있는데 문장 0개.
 - `omitted` 객체의 필수 필드 · 타입 · 공백뿐인 `text`/질문 · 요청 밖 `experienceId` · 질문과 경험의 `null` 짝. 이 검증은 `/draft` 에 적용한다. 문자열 배열인 예전 응답을 객체로 추측해 고치지 않는다.
-- **숫자 대조**: `OPINION` 에 숫자가 하나라도 있으면 위반(활동 이름 · 기간에 있더라도 금지). `FACT` 는 문장 속 숫자가 그 문장 `evidence` 의 글(발췌문 · 보완 답 · 경험 본문)과 그 경험의 활동 이름 · 기간에 하나라도 없으면 위반 — 기준은 `/ground-check` 「숫자 대조」와 같다(NFKC · 공백 무시). 한글 수사(「세 번」) · 「내가 한 일」로 바꿔 쓰기 · 근거에 없는 결과는 코드가 다 못 잡는다 — 채점으로 잰다(AI#26 · `ai-scope.md`). AI#48 은 사실을 `OPINION` 으로 빼는 수 · 감정 지어냄 · 지원 동기 문항의 전후 품질도 잰다.
+- **숫자 대조**: `OPINION` 에 숫자가 하나라도 있으면 위반(활동 이름 · 기간에 있더라도 금지). `FACT` 는 문장 속 숫자가 그 문장 `evidence` 의 글(발췌문 · 보완 답 · 경험 본문)과 그 경험의 활동 이름 · 기간에 하나라도 없으면 위반 — 요청의 `reason` · `emphasis` · `gaps` · `requirements` 는 이 글에 넣지 않는다(ETC#141) — 기준은 `/ground-check` 「숫자 대조」와 같다(NFKC · 공백 무시). 한글 수사(「세 번」) · 「내가 한 일」로 바꿔 쓰기 · 근거에 없는 결과는 코드가 다 못 잡는다 — 채점으로 잰다(AI#26 · `ai-scope.md`). AI#48 은 사실을 `OPINION` 으로 빼는 수 · 감정 지어냄 · 지원 동기 문항의 전후 품질도 잰다.
 
 ### 오류
 
 | HTTP | `code` | 언제 |
 | --- | --- | --- |
-| 400 | `INVALID_REQUEST` | `question.text` 가 없거나 비었음 · `experiences` 가 없음 · 0개 · 4개 이상 · 경험 `id` 중복 |
-| 413 | `TEXT_TOO_LONG` | 문항 텍스트와 경험 글을 합친 글자 수가 **100000** 을 넘음(`/match` 와 같은 `MAX_MATCH_CHARS`) |
+| 400 | `INVALID_REQUEST` | `question.text` 가 없거나 비었음 · `experiences` 가 없음 · 0개 · 4개 이상 · 경험 `id` 중복 · 선택 칸이 있는데 모양이 틀림(`jobRole` 이 목록 밖 값 · `requirements[].status` 가 `requirementStatus` 밖 값 · `gaps` 가 문자열 배열이 아님 등) |
+| 413 | `TEXT_TOO_LONG` | 문항 텍스트와 경험 글(선택 칸의 요구사항 · 이유 · 강조점 · 부족한 점 포함)을 합친 글자 수가 **100000** 을 넘음(`/match` 와 같은 `MAX_MATCH_CHARS`) |
 | 502 | `LLM_ERROR` | LLM API 호출이 실패함 |
 | 502 | `LLM_INVALID_OUTPUT` | LLM 출력이 위 규칙을 벗어남(다시 시도한 뒤에도) |
 | 504 | `LLM_TIMEOUT` | 제한 시간 안에 답하지 않음 |

@@ -1,6 +1,6 @@
 # experience-api — FE → BE
 
-> 스프린트 1 「경험 관리」(SPEC R-01) · 스프린트 2 보완(SPEC R-03 — 「보완 `Supplement`」 · 보완 고치기 · 지우기). 같은 활동 제안(SPEC S-44 `P1` — `mergeSuggestion` · 따로 두기). 그때의 나 · 이어짐(SPEC R-05 F-13 `P1` — 활동 `note` · `ActivityLink` · 이어짐 제안 받기 · 정하기). 경험마다 쓰인 지원(SPEC R-05 F-14 `P1` — 활동 세부의 `usedIn`, S-38). 이름 규칙 · 값 목록 · 기간 · 오류 모양은 [README 「공통」](README.md#공통--모든-계약이-같이-쓰는-것).
+> 스프린트 1 「경험 관리」(SPEC R-01) · 스프린트 2 보완(SPEC R-03 — 「보완 `Supplement`」 · 보완 고치기 · 지우기). 활동 분류(SPEC S-57 `P1` — `category` · `categoryBy`). 같은 활동 제안(SPEC S-44 `P1` — `mergeSuggestion` · 따로 두기). 그때의 나 · 이어짐(SPEC R-05 F-13 `P1` — 활동 `note` · `ActivityLink` · 이어짐 제안 받기 · 정하기). 경험마다 쓰인 지원(SPEC R-05 F-14 `P1` — 활동 세부의 `usedIn`, S-38). 이름 규칙 · 값 목록 · 기간 · 오류 모양은 [README 「공통」](README.md#공통--모든-계약이-같이-쓰는-것).
 > 예시는 가상의 팀 프로젝트 회고 하나(「바꿔요」 · 알고리즘 스터디)로 이어진다 — [`ai-api.md`](ai-api.md) 예시와 같은 자료다.
 
 ## 흐름
@@ -33,11 +33,15 @@ FE ─PATCH /api/activity-links/{id} { status }────▶ BE  CONFIRMED · 
   "name": "바꿔요 — 캠퍼스 중고거래 앱",
   "period": { "start": "2025-03", "end": "2025-06", "ongoing": false },
   "experienceCount": 4,
+  "category": "PROJECT",
+  "categoryBy": "AI",
   "mergeSuggestion": null,
   "note": null
 }
 ```
 
+- `category` — 활동 분류(SPEC S-57, `P1`). README 「값 목록」 `activityCategory`, 미분류면 `null`. 분석이 `/extract` 응답(`ai-api.md`)으로 **새 활동에** 붙이고, 사용자가 `PATCH /api/activities/{id}` 로 고르거나 비운다. 기존 활동은 다시 분석하지 않아 `null` 로 남는다. **모든 `ActivitySummary` · 활동 세부 응답에 실린다** — 이 파일의 다른 예시엔 줄였다. 정리용이라 매칭 · 초안 · 근거 점검 요청에 싣지 않는다.
+- `categoryBy` — 지금 `category` 를 누가 붙였나(README 「값 목록」 `categoryBy` — `AI` · `USER`). `category` 가 `null` 이면 `null`. **BE 만** 붙인다: 분석이 붙이면 `AI`, `PATCH` 에서 `category` 가 실제로 바뀌면 `USER`(같은 값을 보내면 그대로). FE 는 `AI` 일 때 「AI 해석」으로 보인다.
 - `note` — 그때의 나: 이 활동의 계기 · 그때 든 생각 **한 줄**(SPEC S-34, `P1`). 없으면 `null`. 사용자만 쓴다(`PATCH /api/activities/{id}`) — AI 가 만들거나 고치지 않으므로 늘 「내가 입력」이고 출처 칸이 따로 없다. 경험이 아니다 — 경험 · 근거 · 보완과 섞지 않고, `/match` · `/ground-check` · `/ask` 요청에 싣지 않는다(추천 · 점검 근거로 쓰지 않는다). 쓰는 AI 호출은 이어짐 제안(`/link-suggestions`) 하나다. **모든 `ActivitySummary` · 활동 세부 응답에 실린다** — 이 파일의 다른 예시엔 줄였다.
 - `mergeSuggestion` — 「기존 활동 X 와 같아 보여요」 AI 제안(SPEC S-44, `P1`). 없으면 `null`. 있으면 같아 보이는 **기존** 활동의 `{ "activityId", "name", "period" }` — `name` · `period` 는 지금 그 활동의 값이다(BE 가 응답 때 채운다). **모든 `ActivitySummary` · 활동 세부 응답에 실린다** — 이 파일의 다른 예시엔 줄였다(전부 `null`).
   - 만드는 곳: 분석 작업이 `/extract` 응답의 `sameAsActivityId`(`ai-api.md`)로 **새 활동에** 붙인다. 그 밖에서는 생기지 않는다(직접 고치거나 옮겨도 새로 생기지 않는다).
@@ -403,7 +407,7 @@ FE 는 `jobId` 를 들고 있다가(새로고침 대비 주소 · 브라우저 �
 ```
 
 - 경험 104 처럼 AI 가 단 발췌문이 원본에 없으면 `matched: false` · `NEEDS_REVIEW` 다(S-04).
-- `mergeSuggestion` · `note` 도 `ActivitySummary` 와 같이 실린다(S-44 · S-34 — 위 예시엔 줄였다).
+- `category` · `categoryBy` · `mergeSuggestion` · `note` 도 `ActivitySummary` 와 같이 실린다(S-57 · S-44 · S-34 — 위 예시엔 줄였다).
 - `links` — 이 활동이 `from` 이든 `to` 든 걸린 이어짐(`ActivityLink`, S-35 `P1`). **`REJECTED` 는 빼고** `createdAt` 순. 없으면 `[]`. 모든 활동 세부 응답(합치기 응답 포함)에 실린다 — 위 예시엔 줄였다.
 - `experiences[].usedIn` — 이 경험이 **쓰인 지원**(S-38 `P1`). 활동 세부 모양의 응답(이 응답 · 합치기 응답)의 경험에만 있다 — 위 예시엔 줄였다. 아래 「쓰인 지원 `usedIn`」.
 
@@ -474,7 +478,7 @@ FE 는 `jobId` 를 들고 있다가(새로고침 대비 주소 · 브라우저 �
 ## PATCH /api/activities/{activityId} — 활동 수정
 
 - 쓰는 곳: FE 활동 세부에서 바로 고치기
-- SPEC: `F-04` / `S-10`
+- SPEC: `F-04` / `S-10` · `F-03` / `S-57`(분류)
 
 보낸 필드만 바꾼다. `period` 는 세 칸을 통째로 보낸다.
 
@@ -491,6 +495,7 @@ FE 는 `jobId` 를 들고 있다가(새로고침 대비 주소 · 브라우저 �
 | --- | --- |
 | `name` | 비지 않은 문자열 |
 | `period` | README 「기간」 — 세 칸 통째로 |
+| `category` | 활동 분류(S-57, `P1`) — README 「값 목록」 `activityCategory` 또는 `null`(비우기). 비우면 `categoryBy` 도 `null` |
 | `note` | 그때의 나(S-34, `P1`) — 문자열 또는 `null`. 앞뒤 공백을 걷은 뒤 **최대 200자**(Java `String.length()`, JS `length` 와 같다) · **줄바꿈(`\n` · `\r`) 없음**. `null` 이나 걷은 뒤 빈 문자열이면 계기를 지운다(`note: null`). **빼면 그대로** — `null` 을 보낸 것과 다르다(BE 는 필드가 왔는지를 가린다) |
 
 계기만 남길 때 — `PATCH /api/activities/8`
@@ -516,7 +521,7 @@ FE 는 `jobId` 를 들고 있다가(새로고침 대비 주소 · 브라우저 �
 
 | HTTP | `code` | 언제 |
 | --- | --- | --- |
-| 400 | `INVALID_REQUEST` | `name` 이 비었음 · 날짜 형식이 README 「기간」과 다름 · `note` 가 200자를 넘거나 줄바꿈이 있음 · `note` 가 문자열 · `null` 이 아님 |
+| 400 | `INVALID_REQUEST` | `name` 이 비었음 · 날짜 형식이 README 「기간」과 다름 · `note` 가 200자를 넘거나 줄바꿈이 있음 · `note` 가 문자열 · `null` 이 아님 · `category` 가 목록에 없음 |
 | 400 | `INVALID_PERIOD` | `start` 가 `end` 보다 늦음 · `ongoing: true` 인데 `end` 가 있음 |
 | 404 | `ACTIVITY_NOT_FOUND` | 없는 활동 |
 
@@ -716,6 +721,7 @@ FE 는 `jobId` 를 들고 있다가(새로고침 대비 주소 · 브라우저 �
 
 - `mergeSuggestion`(S-44): `fromActivityId` 활동이 사라지므로 그 제안도 사라진다. 사라진 활동을 가리키던 다른 활동의 제안은 `null` 이 된다. 남길 활동의 제안은 그대로다(같은 트랜잭션에서).
 - S-44 의 「붙이기」도 이 요청이다 — 남길 활동 = `mergeSuggestion.activityId`(기존), `fromActivityId` = 제안이 붙은 새 활동. 다른 방향(새 활동을 남기기)으로 합쳐도 막지 않는다.
+- `category`(S-57): 남길 활동의 분류가 그대로 남는다. 남길 활동이 미분류고 `fromActivityId` 에 분류가 있으면 `category` · `categoryBy` 를 같이 옮겨 온다.
 - `note`(S-34): 남길 활동의 계기가 그대로 남는다. 남길 활동에 계기가 없고 `fromActivityId` 에 있으면 그것을 옮겨 온다(계기를 잃지 않게). 둘을 이어 붙이지 않는다.
 - `links`(S-35): `fromActivityId` 에 걸린 이어짐은 남길 활동으로 옮긴다(같은 트랜잭션에서). 옮긴 뒤 자기 자신을 가리키면(`from` = `to`) 지운다. 같은 쌍이 둘이 되면 하나만 남긴다 — `REJECTED` 가 있으면 그것(다시 제안하지 않게), 없으면 `CONFIRMED`, 그다음 먼저 생긴 것.
 
@@ -852,3 +858,4 @@ AI 에 싣는 것: 활동마다 `id` · 이름 · 기간 · 계기(`note`, 후�
 - 계기를 여러 개 · 목록으로 — 활동마다 한 줄 하나다. 미결정 14 (나)(확정 답변의 동기 → 생각 · 계기)가 시작되면 배열로 바꾸는 계약 PR 을 낸다
 - 뒤 활동의 계기에서 앞 활동을 찾는 반대 방향 제안 — 계기가 있는 활동 → 뒤 활동만
 - 계기 · 이어짐을 MCP(`get_activity`) · Markdown 내보내기(S-33)에 싣기
+- 분류로 거르는 쿼리 — `GET /api/activities` 가 활동 전부를 주므로 FE 가 받은 목록에서 거른다(S-57). 분류를 더하기 · 이름 바꾸기 · MCP · 내보내기에 싣기

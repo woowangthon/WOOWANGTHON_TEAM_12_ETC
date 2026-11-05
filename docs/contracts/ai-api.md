@@ -38,6 +38,7 @@
       "name": "바꿔요 — 캠퍼스 중고거래 앱",
       "period": { "start": "2025-03", "end": "2025-06", "ongoing": false },
       "sameAsActivityId": null,
+      "category": "PROJECT",
       "experiences": [
         {
           "content": "채팅 메시지가 늦게 도착하는 문제를 폴링에서 WebSocket 으로 바꿔 해결했다",
@@ -122,8 +123,8 @@
 ```json
 {
   "activities": [
-    { "name": "캡스톤 「바꿔요」", "period": { "start": "2025", "end": "2025", "ongoing": false }, "sameAsActivityId": 7, "experiences": [] },
-    { "name": "알고리즘 스터디", "period": { "start": "2024-09", "end": null, "ongoing": true }, "sameAsActivityId": 8, "experiences": [
+    { "name": "캡스톤 「바꿔요」", "period": { "start": "2025", "end": "2025", "ongoing": false }, "sameAsActivityId": 7, "category": "PROJECT", "experiences": [] },
+    { "name": "알고리즘 스터디", "period": { "start": "2024-09", "end": null, "ongoing": true }, "sameAsActivityId": 8, "category": "STUDY", "experiences": [
       { "content": "매주 풀 문제를 고른다", "competencies": ["OPERATION"], "actor": "ME", "sourceStatus": "SOURCE_CONFIRMED", "citations": [{ "quote": "문제 선정을 맡는다", "matched": true, "location": { "startLine": 5, "endLine": 5 } }] }
     ] }
   ],
@@ -141,6 +142,7 @@
 | `activities[].name` | 비지 않은 문자열 |
 | `activities[].period` | README 「기간」 규칙. 원본에 없는 날짜를 지어내지 않는다 — 모르면 `null` |
 | `activities[].sameAsActivityId` | 같은 활동으로 보이는 기존 활동 — 요청 `existingActivities` 의 `id` 하나 또는 `null`(S-44). 늘 싣는다(`existingActivities` 가 `[]` 면 전부 `null`). **목록 밖 `id` 는 규칙 위반**이다 — 몰래 `null` 로 바꿔 「같은 활동 없음」처럼 보이게 하지 않는다. 같은 활동인지 확실하지 않으면 `null`. 서로 다른 새 활동 둘이 같은 `id` 를 가리켜도 된다. AI 해석이다 — BE · FE 는 제안으로만 쓰고 저절로 합치지 않는다 |
+| `activities[].category` | 활동 분류(S-57) — README 「값 목록」 `activityCategory` 값 하나 또는 `null`. 늘 싣는다. 활동 이름 · 내용으로 가장 가까운 하나를 고르고, 가늠이 안 되면 `null` — 억지로 고르지 않는다. 목록 밖 값은 규칙 위반이다. 원문에서 확인한 사실이 아니라 AI 해석이다 |
 | `activities[].experiences` | 배열(0개 가능). 원본에 활동 이름 · 기간만 있고 한 일이 없으면(이력서 항목 · MOC 링크 목록) `[]` 로 활동만 돌려준다(SPEC S-03) — 경험을 지어내 채우지 않는다 |
 | `experiences[].content` | 비지 않은 문자열. 원본에 없는 수치 · 역할 · 결과를 넣지 않는다(S-05) |
 | `experiences[].competencies` | 배열 **1 ~ 3개**. README 「값 목록」의 역량 값만 · 중복 없음 · 가장 잘 맞는 것부터. 원문에서 확인한 사실이 아니라 AI 해석이다(SPEC 미결정 2) |

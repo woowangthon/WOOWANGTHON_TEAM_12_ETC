@@ -58,7 +58,7 @@
 | `recent` | 최근 **24시간** 안에 끝난 일, 끝난 시각이 최근인 것부터 **최대 20개**. 없으면 `[]`. 그만둔 일(`CANCELED`)은 싣지 않는다 |
 | `key` | 일 하나를 가리키는 문자열 `<kind>:<id>`. 같은 일을 다시 시도하면 **같은 `key`** 다(`finishedAt` 이 바뀐다). 화면에서 항목을 구분하는 데 쓴다 |
 | `kind` | `SOURCE_ANALYSIS` 자료 분석 · `MATCH` 추천 · `GROUNDING_CHECK` 근거 점검 · `DRAFT` 답변 초안 · `CHAGOK` 차곡이 일 |
-| `status` | `inProgress`: `ANALYZING` · `RUNNING` · `WAITING_CONFIRM`. `recent`: `COMPLETED` · `FAILED` · `DONE`(차곡이). 각 계약의 값 그대로다 |
+| `status` | `inProgress`: `QUEUED`(자료 분석 차례 기다림 — experience-api S-59) · `ANALYZING` · `RUNNING` · `WAITING_CONFIRM`. `recent`: `COMPLETED` · `FAILED` · `DONE`(차곡이). 각 계약의 값 그대로다 |
 | `label` | 사용자가 알아볼 한 줄 — 자료는 자료 이름, 문항 작업은 지원처 + 문항 앞부분, 차곡이는 부탁 앞부분. 최대 100자, 넘으면 BE 가 자른다 |
 | `startedAt` · `finishedAt` | ISO 8601. 진행 중이면 `finishedAt` 은 `null` |
 | `errorCode` | `FAILED` 일 때 그 일의 오류 코드, 아니면 `null` |

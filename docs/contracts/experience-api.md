@@ -1,6 +1,6 @@
 # experience-api — FE → BE
 
-> 스프린트 1 「경험 관리」(SPEC R-01) · 스프린트 2 보완(SPEC R-03 — 「보완 `Supplement`」 · 보완 고치기 · 지우기). 활동 분류(SPEC S-57 `P1` — `category` · `categoryBy`). 같은 활동 제안(SPEC S-44 `P1` — `mergeSuggestion` · 따로 두기). 그때의 나 · 이어짐(SPEC R-05 F-13 `P1` — 활동 `note` · `ActivityLink` · 이어짐 제안 받기 · 정하기). 경험마다 쓰인 지원(SPEC R-05 F-14 `P1` — 활동 세부의 `usedIn`, S-38). 경험 찾기(SPEC S-58 `P1` — `GET /api/experiences`). 이름 규칙 · 값 목록 · 기간 · 오류 모양은 [README 「공통」](README.md#공통--모든-계약이-같이-쓰는-것).
+> 스프린트 1 「경험 관리」(SPEC R-01) · 스프린트 2 보완(SPEC R-03 — 「보완 `Supplement`」 · 보완 고치기 · 지우기). 활동 분류(SPEC S-57 `P1` — `category` · `categoryBy`). 같은 활동 제안(SPEC S-44 `P1` — `mergeSuggestion` · 따로 두기). 그때의 나 · 이어짐(SPEC R-05 F-13 `P1` — 활동 `note` · `ActivityLink` · 이어짐 제안 받기 · 정하기). 경험마다 쓰인 지원(SPEC R-05 F-14 `P1` — 활동 세부의 `usedIn`, S-38). 경험 찾기(SPEC S-58 `P1` — `GET /api/experiences`). 자료 여러 개 한 번에 · 활동에 자료 더하기(SPEC S-59 · S-60 `P2` — `POST /api/sources/batch` · `POST /api/sources` 의 `activityId` · 작업 `QUEUED` · `targetActivityId` · `targetMatched`). 이름 규칙 · 값 목록 · 기간 · 오류 모양은 [README 「공통」](README.md#공통--모든-계약이-같이-쓰는-것).
 > 예시는 가상의 팀 프로젝트 회고 하나(「바꿔요」 · 알고리즘 스터디)로 이어진다 — [`ai-api.md`](ai-api.md) 예시와 같은 자료다.
 
 ## 흐름
@@ -13,6 +13,12 @@ FE ─GET /api/activities─────────▶ BE  타임라인
 FE ─GET /api/activities/{id}────▶ BE  세부(경험 · 근거)
 FE ─GET /api/experiences?query=…▶ BE  경험 찾기 · 거르기(S-58 — MCP search_experiences 와 같은 검색)
 FE ─PATCH · POST · DELETE …─────▶ BE  고치기 · 더하기 · 지우기 · 옮기기 · 합치기
+
+자료 여러 개 한 번에 · 활동에 자료 더하기 (S-59 · S-60, P2)
+FE ─POST /api/sources/batch─────────────▶ BE  원본 N개 · 작업 N개 → 202 { items }
+                                          BE  작업을 차례로: 1번 ANALYZING, 나머지 QUEUED → 앞 작업이 끝나면 다음
+FE ─POST /api/sources { activityId }────▶ BE ─POST /extract { targetActivityId }──▶ AI
+                                          BE  sameAsActivityId = 대상인 활동은 대상에 바로 붙인다
 
 그때의 나 · 이어짐 (S-34 · S-35, P1)
 FE ─PATCH /api/activities/{id} { note }──────────▶ BE  계기 한 줄 저장
@@ -155,7 +161,7 @@ FE ─PATCH /api/activity-links/{id} { status }────▶ BE  CONFIRMED · 
 ## POST /api/sources — 자료 넣기
 
 - 쓰는 곳: FE 자료 넣기
-- SPEC: `F-01` / `S-01`
+- SPEC: `F-01` / `S-01` · `S-60`(`activityId`, `P2`)
 
 파일도 같은 JSON 으로 보낸다 — **FE 가 브라우저에서 글자를 뽑아** `text` 에 담는다. BE 는 multipart 를 받지 않고 원본 파일을 받지도 남기지도 않는다(ETC#25 — 지금 계약 · 서버를 그대로 두는 쪽. 원본 보관 · OCR · 대량 처리가 필요해지면 서버 추출로 옮긴다).
 
@@ -194,6 +200,7 @@ PDF 를 넣을 때(S-39) — 1쪽은 1 ~ 2줄, 2쪽은 글자가 없어 빠지�
 | `name` | `FILE` 이면 파일 이름(필수, `.md` · `.txt` · `.pdf` · `.pptx` — 대소문자 무시). `TEXT` 면 `null` — BE 가 「붙여넣은 텍스트 2026-11-03 14:05」처럼 이름을 붙인다 |
 | `text` | 원본 텍스트. 공백만 있으면 안 된다. 최대 길이는 아래 한도 |
 | `sections` | `.pdf` · `.pptx` 면 **필수**(1개 이상), 그 밖엔 `null`(빼도 된다). 원소 `{ kind, number, startLine, endLine }` — `kind` 는 `.pdf` 면 `PAGE`, `.pptx` 면 `SLIDE`(README 「값 목록」) · `number` 는 1부터 센 쪽 · 슬라이드 번호 · `startLine` ≤ `endLine` 은 위 「줄 세기」의 줄 번호이고 `text` 의 줄 수를 넘지 않는다. `number` · 줄 둘 다 오름차순이고 구간끼리 겹치지 않는다. BE 는 받은 그대로 원본에 남긴다 |
+| `activityId` | 활동 세부의 「자료 더하기」(S-60, `P2`)일 때 그 활동의 `id`, 그 밖엔 `null`(빼도 된다). 아래 「활동에 자료 더하기」 |
 
 응답 202 — 원본을 저장하고 분석 작업을 만든 뒤 바로 돌려준다. 분석은 뒤에서 돈다.
 
@@ -209,16 +216,75 @@ PDF 를 넣을 때(S-39) — 1쪽은 1 ~ 2줄, 2쪽은 글자가 없어 빠지�
 | 400 | `UNSUPPORTED_FILE_TYPE` | `FILE` 인데 이름이 `.md` · `.txt` · `.pdf` · `.pptx` 가 아님 |
 | 400 | `INVALID_SECTIONS` | `.pdf` · `.pptx` 인데 `sections` 가 없거나 비었음 · `kind` 가 확장자와 안 맞음 · 줄 번호가 `text` 를 벗어나거나 겹치거나 순서가 틀림 · `.md` · `.txt` · `TEXT` 인데 `sections` 가 비지 않음 |
 | 400 | `INVALID_REQUEST` | 필드가 없거나 `kind` 값이 틀림 |
+| 404 | `ACTIVITY_NOT_FOUND` | `activityId` 가 없는 활동(남의 활동 · 이미 합쳐진 활동 포함) — 원본을 저장하지 않는다 |
 | 413 | `TEXT_TOO_LONG` | `text` 가 한도를 넘음 |
 | 429 | `DAILY_LIMIT_EXCEEDED` | 오늘 분석 횟수를 다 씀 — 원본을 저장하지 않는다([`auth-api.md`](auth-api.md)) |
 
 - 한도: **`50000`자**(BE#5 — README · 회고 몇 개 분량, LLM 한 번에 들어가는 크기). BE 는 Java `String.length()`(UTF-16 단위)로 세므로 JS `text.length` 와 같은 숫자다 — FE 는 같은 숫자로 미리 막아도 된다. AI 서버 한도(코드 포인트 수 50000, `ai-api.md`)보다 크지 않다.
 - 같은 자료를 두 번 넣으면 새 원본 · 새 활동이 생긴다(BE#5 기본값). 자동으로 합치지 않는다(SPEC 미결정 3). 대신 분석 작업은 사용자의 기존 활동 목록을 `/extract` 에 같이 보내고, 같아 보이는 기존 활동이 있으면 새 활동에 `mergeSuggestion` 을 붙인다(S-44, `P1` — 위 「ActivitySummary」).
 
+### 활동에 자료 더하기 — `activityId` (S-60, `P2`)
+
+사용자가 활동 세부에서 그 활동의 자료를 넣었다. 분석 1회 · 상태 · 다시 시도는 보통 자료 넣기와 같고, 다른 점은 셋이다.
+
+1. BE 는 `/extract` 에 `targetActivityId: <activityId>` 를 같이 보낸다(`ai-api.md`). 대상 활동은 `existingActivities` 에 **반드시** 싣는다 — 300개 한도로 잘리는 활동이어도 대상은 넣는다.
+2. 응답에서 `sameAsActivityId` 가 대상인 활동은 **새 활동을 만들지 않고** 그 경험 · 근거를 대상 활동에 바로 붙인다 — 결과는 「활동 합치기」(아래 `POST /api/activities/{activityId}/merge`, 남길 활동 = 대상)와 같다: 대상의 이름 · 기간 · 분류 · 계기는 그대로, 붙는 경험은 대상의 경험 뒤에 AI 가 돌려준 순서로. 대상이 미분류면 붙는 활동의 `category` 를 `categoryBy: "AI"` 로 가져온다(합치기와 같은 규칙). `mergeSuggestion` 은 만들지 않는다. 대상을 가리키는 활동이 둘 이상이면 전부 붙인다.
+3. 그 밖의 활동은 보통처럼 새 활동이 되고, `sameAsActivityId` 가 대상이 아닌 기존 활동이면 `mergeSuggestion` 이 붙는다(S-44).
+
+작업 상태(`GET /api/jobs/{jobId}`)의 `targetActivityId` · `targetMatched` 로 결과를 알린다. `activityIds` 에는 **새로 생긴** 활동만 싣는다(대상은 넣지 않는다). 분석 중에 대상이 지워지거나 다른 활동에 합쳐졌으면 대상 없이 보통 자료 넣기로 끝내고 `targetMatched: false` 다(붙일 곳을 다른 활동으로 바꾸지 않는다).
+
+## POST /api/sources/batch — 자료 여러 개 한 번에 넣기 (`P2`)
+
+- 쓰는 곳: FE 자료 넣기에서 파일을 여러 개 골랐을 때
+- SPEC: `F-01` / `S-59`
+
+`POST /api/sources` 를 여러 번 부른 것과 같은 원본 · 작업을 한 번에 만든다. 다른 점은 **차례로 돈다**는 것 — 앞 작업이 끝나야(`COMPLETED` · `FAILED`) 다음 작업이 `QUEUED` → `ANALYZING` 이 된다. 그래서 다음 작업이 `/extract` 에 보내는 기존 활동 목록에 앞 파일로 생긴 활동이 들어가고, S-44 제안의 대상이 된다. 기존 활동 목록은 작업이 **시작할 때** 만든다.
+
+요청 — 회고와 README 를 같이 넣는다
+
+```json
+{
+  "sources": [
+    { "kind": "FILE", "name": "바꿔요-회고.md", "text": "# 바꿔요 — 캠퍼스 중고거래 앱 회고 (2025년 1학기 캡스톤)\n…", "sections": null },
+    { "kind": "FILE", "name": "README.md", "text": "# 바꿔요\n캠퍼스 중고거래 앱 …", "sections": null }
+  ]
+}
+```
+
+| 필드 | 값 |
+| --- | --- |
+| `sources` | **1 ~ 10개**. 원소는 `POST /api/sources` 요청과 같은 모양 · 같은 규칙(`kind` · `name` · `text` · `sections`). `activityId` 는 받지 않는다 — 실려 오면 400 `INVALID_REQUEST`. 이 순서대로 돈다 |
+
+응답 202 — 원본 · 작업을 전부 만든 뒤 바로 돌려준다. `items` 는 요청 순서 그대로다.
+
+```json
+{
+  "items": [
+    { "sourceId": 12, "jobId": 34, "status": "ANALYZING" },
+    { "sourceId": 13, "jobId": 35, "status": "QUEUED" }
+  ]
+}
+```
+
+오류 — **하나라도 틀리면 하나도 넣지 않는다**(원본 · 작업을 만들지 않고 횟수도 세지 않는다). FE 는 못 넣는 파일을 미리 걸러 보내고(S-59), 이 오류는 마지막 막이다.
+
+| HTTP | `code` | 언제 |
+| --- | --- | --- |
+| 400 | `INVALID_REQUEST` | `sources` 가 없거나 0개 · 10개 넘음 · 원소에 `activityId` 가 있음 · 원소 필드가 없거나 `kind` 값이 틀림 |
+| 400 | `EMPTY_TEXT` · `UNSUPPORTED_FILE_TYPE` · `INVALID_SECTIONS` | 원소 하나가 `POST /api/sources` 의 같은 규칙을 어김 |
+| 413 | `TEXT_TOO_LONG` | 원소 하나의 `text` 가 50000자를 넘음(한도는 파일마다 — 합이 아니다) |
+| 429 | `DAILY_LIMIT_EXCEEDED` | 오늘 남은 분석 횟수가 `sources` 개수보다 적음 — 하나도 넣지 않는다([`auth-api.md`](auth-api.md)) |
+
+- 원소 오류면 `message` 에 몇째 원소(1부터)인지와 파일 이름을 담는다 — 예: `"2번째 자료(README.md): 텍스트가 50000자를 넘습니다"`.
+- 분석 횟수는 **원소마다 1회**로, 요청을 받을 때 한꺼번에 센다(`QUEUED` 로 기다리는 것도 이미 셌다).
+- 한 작업이 실패해도 다음 작업은 이어 돈다. 실패한 작업의 다시 시도(`retry`)는 차례를 기다리지 않고 바로 돈다.
+- 창을 닫아도 BE 가 차례대로 이어 돌린다. 서버가 다시 켜져 끊긴 작업은 다른 분석 작업과 같이 `FAILED` 로 두고, 그 뒤 `QUEUED` 작업은 다시 차례대로 돈다.
+- 묶음 자체에는 ID 가 없다 — FE 는 `items` 의 `jobId` 들을 들고 각각 `GET /api/jobs/{jobId}` 로 본다.
+
 ## GET /api/jobs/{jobId} — 분석 작업 상태
 
 - 쓰는 곳: FE 자료 넣기 뒤 분석 상태
-- SPEC: `F-01` / `S-02`
+- SPEC: `F-01` / `S-02` · `S-59`(`QUEUED`, `P2`) · `S-60`(`targetActivityId` · `targetMatched`, `P2`)
 
 FE 는 `jobId` 를 들고 있다가(새로고침 대비 주소 · 브라우저 저장소 등은 FE 가 정한다) 끝날 때까지 부른다. 상태는 BE 가 저장하므로 새로고침해도 이어진다.
 
@@ -230,6 +296,8 @@ FE 는 `jobId` 를 들고 있다가(새로고침 대비 주소 · 브라우저 �
   "sourceId": 12,
   "status": "ANALYZING",
   "activityIds": [],
+  "targetActivityId": null,
+  "targetMatched": null,
   "error": null,
   "createdAt": "2026-11-03T14:05:00+09:00",
   "updatedAt": "2026-11-03T14:05:00+09:00"
@@ -244,13 +312,33 @@ FE 는 `jobId` 를 들고 있다가(새로고침 대비 주소 · 브라우저 �
   "sourceId": 12,
   "status": "COMPLETED",
   "activityIds": [7, 8],
+  "targetActivityId": null,
+  "targetMatched": null,
   "error": null,
   "createdAt": "2026-11-03T14:05:00+09:00",
   "updatedAt": "2026-11-03T14:05:21+09:00"
 }
 ```
 
-- `activityIds` — 이 작업으로 생긴 활동. 완료인데 `[]` 면 자료에서 활동을 찾지 못한 것이다 — 실패가 아니다(「자료에서 확인 안 됨」은 「경험 없음」이 아니다, SPEC §0). 화면에서 어떻게 알릴지는 FE 가 정한다.
+- `activityIds` — 이 작업으로 생긴 활동. 완료인데 `[]` 면 자료에서 활동을 찾지 못한 것이다 — 실패가 아니다(「자료에서 확인 안 됨」은 「경험 없음」이 아니다, SPEC §0). 화면에서 어떻게 알릴지는 FE 가 정한다. 「자료 더하기」(S-60)면 대상 활동에 붙은 것은 넣지 않는다 — 새로 생긴 활동만.
+- `targetActivityId` — 「자료 더하기」(S-60, `P2`)로 넣었으면 그 활동 `id`, 아니면 `null`. 대상이 지워져도 넣을 때의 값 그대로다.
+- `targetMatched` — 「자료 더하기」 결과. `COMPLETED` 이고 `targetActivityId` 가 있을 때만 `true` · `false`, 그 밖엔 `null`. `true` 면 자료 속 활동이 대상에 붙었다(경험이 0개인 활동이 붙었어도 `true`). `false` 면 대상과 같은 활동을 못 찾았거나 분석 중에 대상이 사라졌다 — FE 는 「이 자료에서 이 활동 내용을 찾지 못했어요」를 보이고, `activityIds` 의 새 활동으로 안내한다.
+
+응답 200 — 차례를 기다림(S-59 묶음의 2번째 이후, `P2`). 앞 작업이 끝나면 `ANALYZING` 이 된다. `updatedAt` 은 만든 시각 그대로다.
+
+```json
+{
+  "jobId": 35,
+  "sourceId": 13,
+  "status": "QUEUED",
+  "activityIds": [],
+  "targetActivityId": null,
+  "targetMatched": null,
+  "error": null,
+  "createdAt": "2026-11-03T14:05:00+09:00",
+  "updatedAt": "2026-11-03T14:05:00+09:00"
+}
+```
 
 응답 200 — 실패
 
@@ -260,6 +348,8 @@ FE 는 `jobId` 를 들고 있다가(새로고침 대비 주소 · 브라우저 �
   "sourceId": 12,
   "status": "FAILED",
   "activityIds": [],
+  "targetActivityId": null,
+  "targetMatched": null,
   "error": { "code": "AI_TIMEOUT", "message": "AI 서버가 120초 안에 답하지 않았습니다" },
   "createdAt": "2026-11-03T14:05:00+09:00",
   "updatedAt": "2026-11-03T14:07:00+09:00"
@@ -286,7 +376,10 @@ FE 는 `jobId` 를 들고 있다가(새로고침 대비 주소 · 브라우저 �
 
 응답 202 — `GET /api/jobs/{jobId}` 와 같은 모양, `status: "ANALYZING"` · `error: null`.
 
-오류: 404 `JOB_NOT_FOUND` · 409 `JOB_NOT_FAILED` 실패 상태가 아닌 작업 · 429 `DAILY_LIMIT_EXCEEDED` 오늘 분석 횟수를 다 씀(다시 시도도 한 번으로 센다)
+오류: 404 `JOB_NOT_FOUND` · 409 `JOB_NOT_FAILED` 실패 상태가 아닌 작업(`QUEUED` 포함) · 429 `DAILY_LIMIT_EXCEEDED` 오늘 분석 횟수를 다 씀(다시 시도도 한 번으로 센다)
+
+- 묶음(S-59)의 작업이어도 차례를 기다리지 않고 바로 돈다.
+- 「자료 더하기」(S-60) 작업이면 같은 `targetActivityId` 로 다시 돈다. 대상이 그새 사라졌으면 대상 없이 돌고 `targetMatched: false`.
 
 ## GET /api/activities — 타임라인용 활동 목록
 
@@ -918,6 +1011,8 @@ AI 에 싣는 것: 활동마다 `id` · 이름 · 기간 · 계기(`note`, 후�
 ## 이 계약에 없는 것
 
 - 원본 목록 · 원본 다시 보기 — 근거에 `sourceName` · `quote` 가 실려 오므로 스프린트 1 엔 따로 두지 않는다
+- 자료 빼기(원본을 지우면 그 원본에서만 나온 경험을 어떻게 하나) — 백로그
+- 묶음으로 「자료 더하기」(`sources[].activityId`) · 묶음 전체의 ID · 묶음 그만두기 — 자료 더하기는 하나씩, 묶음은 작업마다 본다(S-59 · S-60)
 - 이어짐을 사용자가 직접 긋기 · 고치기 · 지우기 · 정한 것 되돌리기(S-35 범위 제외) · 타임라인 목록(`GET /api/activities`)에 이어짐 싣기 — 보이는 곳은 활동 세부다
 - 계기를 여러 개 · 목록으로 — 활동마다 한 줄 하나다. 미결정 14 (나)(확정 답변의 동기 → 생각 · 계기)가 시작되면 배열로 바꾸는 계약 PR 을 낸다
 - 뒤 활동의 계기에서 앞 활동을 찾는 반대 방향 제안 — 계기가 있는 활동 → 뒤 활동만

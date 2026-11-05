@@ -18,6 +18,7 @@
 | [`question-api.md`](question-api.md) | FE → BE | 지원(문항 여러 개) · 지원 문항 · 추천 · 되묻기에 답하기 (스프린트 2) · 근거 점검 (S-45) · 답변 초안 (S-27) · 지원 상태 · 낸 달 (S-36 · S-37) |
 | [`entrance-api.md`](entrance-api.md) | FE → BE | 홈 입력 가르기 · 한 줄 질문 꺼내기 · 지원처 · 문항 나누기 — 저장 없는 동기 호출 (스프린트 3 — S-28 ~ S-30) |
 | [`chagok-api.md`](chagok-api.md) | FE → BE | 차곡이 도구 루프 — 일 시작 · 단계 읽기(폴링) · 확인하고 실행 · 그만두기 (S-31) |
+| [`work-api.md`](work-api.md) | FE → BE | 진행 중인 일 · 막 끝난 일을 한 번에 읽기 (S-47) |
 | [`ai-api.md`](ai-api.md) | BE → AI | 추출 `/extract` (스프린트 1) · 매칭 `/match` (스프린트 2) · 근거 점검 `/ground-check` (S-45) · 답변 초안 `/draft` (S-27) · 입구 `/route` · `/ask` · `/parse-application` (스프린트 3) · 이어짐 제안 `/link-suggestions` (S-35) · 차곡이 도구 루프 `/agent` (S-31) |
 | [`mcp-api.md`](mcp-api.md) | 외부 AI(MCP) · 차곡이(AI) · FE → BE | 연결 주소 만들기 · 끊기, MCP 읽기 도구 `search_experiences` · `list_activities` · `get_activity` (스프린트 3 — S-32) · 토큰 범위 READ / CHAGOK · 차곡이 쓰기 도구 `create_application` · `add_source` (S-31) |
 

@@ -234,6 +234,7 @@
 | `home-empty-applications` | MOCK | `FE src/components/home/use-home-overview.ts` | API 주소가 없는 홈에서 지원 목록만 빈 목록으로 두어 새 지원 입력으로 연결한다. 예시 지원·작성 상태를 지어내지 않는다. 실제 API의 조회 실패는 오류·다시 시도를 보이고 빈 목록으로 대신하지 않는다(FE#86) | 아니오 |
 | `mcp-connection` | MOCK | `FE src/lib/mock/mcp.ts` · `src/lib/api/mcp.ts` | API 주소가 없는 목 모드에서만 MCP 연결 조회·생성·해제를 모의한다. 화면에 목 모드를 표시하며 `.invalid` 임시 주소는 실제 Claude에서 사용할 수 없다. 탭 저장소에는 생성 시각만 남기고 주소는 저장하지 않는다. 실제 API 실패 대체용이 아니다(FE#57). 실제 로컬 BE API 연동·재발급·해제 및 토큰 무효화를 확인했다(2026-11-05, FE#57). 운영 claude.ai 연결은 BE#44 완료 후 검증 예정이다 | 아니오 |
 | `application-parse` | MOCK | `FE src/lib/mock/application-parse.ts` · `src/lib/api/entrance.ts` · `src/components/questions/application-form.tsx` | API 주소가 없는 목 모드에서만 지원 나누기(S-30)를 모의한다. 고정 예시 없이 넣은 글의 번호 달린 줄 · [대괄호] 이름 · 낱말만 규칙으로 읽어 글에 없는 문항을 만들지 않는다. AI 호출은 없고 저장도 하지 않는다. 칸 꼬리표는 「목 규칙으로 채움」, 화면에 목 모드임을 표시한다. 실제 API 실패 대체용이 아니다(FE#87) | 아니오 |
+| `entrance-ask` | MOCK | `FE src/lib/mock/ask.ts` · `src/lib/api/entrance.ts` · `src/components/home/home-entrance.tsx` | API 주소가 없는 목 모드의 개발용 주소(`/?debug=entrance`, 분류 「한 줄 질문」)에서만 꺼내기 답(S-29)을 고정 예시로 돌려준다 — 「경험 카드 있음」(목 활동의 경험 2개 · 그 경험에 이미 있는 발췌문) / 「0개」를 고른다. 질문을 읽지 않고 AI 호출 · 한도 차감 · 저장이 없다. 이유 문장과 답 머리에 「목 예시 — AI 판단이 아니에요」를 보인다. 실제 API 실패 대체용이 아니다(FE#88) | 아니오 |
 
 - `<id>` 는 kebab-case, 네 레포 통틀어 하나. 마커를 빼면 이 줄도 뺀다.
 - 테스트 계정 비밀번호는 여기 적지 않는다 — README 와 제출 폼에만.

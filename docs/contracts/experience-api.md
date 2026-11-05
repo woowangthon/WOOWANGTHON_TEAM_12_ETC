@@ -1,6 +1,6 @@
 # experience-api — FE → BE
 
-> 스프린트 1 「경험 관리」(SPEC R-01) · 스프린트 2 보완(SPEC R-03 — 「보완 `Supplement`」 · 보완 고치기 · 지우기). 같은 활동 제안(SPEC S-44 `P1` — `mergeSuggestion` · 따로 두기). 이름 규칙 · 값 목록 · 기간 · 오류 모양은 [README 「공통」](README.md#공통--모든-계약이-같이-쓰는-것).
+> 스프린트 1 「경험 관리」(SPEC R-01) · 스프린트 2 보완(SPEC R-03 — 「보완 `Supplement`」 · 보완 고치기 · 지우기). 같은 활동 제안(SPEC S-44 `P1` — `mergeSuggestion` · 따로 두기). 그때의 나 · 이어짐(SPEC R-05 F-13 `P1` — 활동 `note` · `ActivityLink` · 이어짐 제안 받기 · 정하기). 이름 규칙 · 값 목록 · 기간 · 오류 모양은 [README 「공통」](README.md#공통--모든-계약이-같이-쓰는-것).
 > 예시는 가상의 팀 프로젝트 회고 하나(「바꿔요」 · 알고리즘 스터디)로 이어진다 — [`ai-api.md`](ai-api.md) 예시와 같은 자료다.
 
 ## 흐름
@@ -12,6 +12,12 @@ FE ─GET /api/jobs/{id} (폴링)───▶ BE  ANALYZING → COMPLETED / FAIL
 FE ─GET /api/activities─────────▶ BE  타임라인
 FE ─GET /api/activities/{id}────▶ BE  세부(경험 · 근거)
 FE ─PATCH · POST · DELETE …─────▶ BE  고치기 · 더하기 · 지우기 · 옮기기 · 합치기
+
+그때의 나 · 이어짐 (S-34 · S-35, P1)
+FE ─PATCH /api/activities/{id} { note }──────────▶ BE  계기 한 줄 저장
+FE ─POST /api/activities/{id}/link-suggestions───▶ BE ─POST /link-suggestions──▶ AI  (동기)
+                                                    BE  SUGGESTED 로 저장 → 200 { links }
+FE ─PATCH /api/activity-links/{id} { status }────▶ BE  CONFIRMED · REJECTED
 ```
 
 - 기본 주소: `/api` 아래. 로그인한 사용자의 것만 보이고 고칠 수 있다 — 쿠키 · 401 은 [`auth-api.md`](auth-api.md).
@@ -27,10 +33,12 @@ FE ─PATCH · POST · DELETE …─────▶ BE  고치기 · 더하기 �
   "name": "바꿔요 — 캠퍼스 중고거래 앱",
   "period": { "start": "2025-03", "end": "2025-06", "ongoing": false },
   "experienceCount": 4,
-  "mergeSuggestion": null
+  "mergeSuggestion": null,
+  "note": null
 }
 ```
 
+- `note` — 그때의 나: 이 활동의 계기 · 그때 든 생각 **한 줄**(SPEC S-34, `P1`). 없으면 `null`. 사용자만 쓴다(`PATCH /api/activities/{id}`) — AI 가 만들거나 고치지 않으므로 늘 「내가 입력」이고 출처 칸이 따로 없다. 경험이 아니다 — 경험 · 근거 · 보완과 섞지 않고, `/match` · `/ground-check` · `/ask` 요청에 싣지 않는다(추천 · 점검 근거로 쓰지 않는다). 쓰는 AI 호출은 이어짐 제안(`/link-suggestions`) 하나다. **모든 `ActivitySummary` · 활동 세부 응답에 실린다** — 이 파일의 다른 예시엔 줄였다.
 - `mergeSuggestion` — 「기존 활동 X 와 같아 보여요」 AI 제안(SPEC S-44, `P1`). 없으면 `null`. 있으면 같아 보이는 **기존** 활동의 `{ "activityId", "name", "period" }` — `name` · `period` 는 지금 그 활동의 값이다(BE 가 응답 때 채운다). **모든 `ActivitySummary` · 활동 세부 응답에 실린다** — 이 파일의 다른 예시엔 줄였다(전부 `null`).
   - 만드는 곳: 분석 작업이 `/extract` 응답의 `sameAsActivityId`(`ai-api.md`)로 **새 활동에** 붙인다. 그 밖에서는 생기지 않는다(직접 고치거나 옮겨도 새로 생기지 않는다).
   - 「붙이기」 = `POST /api/activities/{mergeSuggestion.activityId}/merge` `{ "fromActivityId": <제안이 붙은 새 활동> }` — 기존 활동이 남는다(아래 「활동 합치기」). 「따로 두기」 = `DELETE /api/activities/{activityId}/merge-suggestion`.
@@ -109,6 +117,28 @@ FE ─PATCH · POST · DELETE …─────▶ BE  고치기 · 더하기 �
 - 보완은 늘 「내가 입력」이다 — 따로 출처 칸이 없다. 보완이 생기거나 바뀌어도 **경험의 `content` · `citations` · `sourceStatus` 는 그대로**다(원문 사실과 사용자 말을 섞지 않는다 — SPEC 미결정 10). 경험 수정(`PATCH /api/experiences/{id}`)은 보완을 바꾸지 않는다.
 - `questionId` — 이 보완이 나온 지원 문항. 문항이 없어지면 `null`(스프린트 2 엔 문항 지우기가 없다).
 - 경험을 지우면 보완도 지워지고, 경험을 옮기거나 활동을 합치면 보완은 경험을 따라간다.
+
+이어짐 `ActivityLink` — `P1` (SPEC S-35)
+
+```json
+{
+  "id": 501,
+  "fromActivityId": 8,
+  "fromActivityName": "알고리즘 스터디",
+  "toActivityId": 7,
+  "toActivityName": "바꿔요 — 캠퍼스 중고거래 앱",
+  "reason": "계기에 적은 「직접 서비스를 만들어 보고 싶어졌다」와 뒤에 시작한 「바꿔요」 앱 만들기가 닿아 보여요",
+  "status": "SUGGESTED",
+  "createdAt": "2026-11-06T10:00:00+09:00"
+}
+```
+
+- 「`from` 활동의 계기가 `to` 활동으로 이어졌나」 한 쌍. `from` 은 계기(`note`)가 있는 활동, `to` 는 그보다 뒤에 시작한 활동이다(아래 「이어짐 제안 받기」의 후보 규칙).
+- `fromActivityName` · `toActivityName` — 지금 그 활동의 이름(BE 가 응답 때 채운다 — 이름을 고치면 따라 바뀐다). 활동 세부는 어느 쪽에서 열어도 상대 활동 이름을 보일 수 있게 둘 다 싣는다.
+- `reason` — 왜 이어져 보이나 한 줄. **AI 해석**이다 — `CONFIRMED` 가 된 뒤에도 AI 가 쓴 글이다(사용자가 확인한 건 「이어졌다」는 것이지 이 문장이 아니다). 고칠 수 없다.
+- `status` — README 「값 목록」 `linkStatus`. `SUGGESTED`(AI 제안 — FE 는 「AI 제안」 · 질문 「이 마음이 다음 활동으로 이어졌나요?」 · 「맞아요 / 아니에요」로 보인다) → 사용자가 정하면 `CONFIRMED` 또는 `REJECTED`. 정한 뒤엔 바꿀 수 없다(아래 「이어짐 정하기」).
+- 같은 쌍(`fromActivityId` · `toActivityId`)의 이어짐은 상태와 상관없이 **하나뿐**이다 — `REJECTED` 도 지우지 않고 남겨 다시 제안하지 않는 데 쓴다.
+- 활동 세부(`GET /api/activities/{id}`)의 `links` 에 실린다. 그 밖의 응답(타임라인 · MCP · 내보내기)엔 없다.
 
 ---
 
@@ -368,7 +398,35 @@ FE 는 `jobId` 를 들고 있다가(새로고침 대비 주소 · 브라우저 �
 ```
 
 - 경험 104 처럼 AI 가 단 발췌문이 원본에 없으면 `matched: false` · `NEEDS_REVIEW` 다(S-04).
-- `mergeSuggestion` 도 `ActivitySummary` 와 같이 실린다(S-44 — 위 예시엔 줄였다).
+- `mergeSuggestion` · `note` 도 `ActivitySummary` 와 같이 실린다(S-44 · S-34 — 위 예시엔 줄였다).
+- `links` — 이 활동이 `from` 이든 `to` 든 걸린 이어짐(`ActivityLink`, S-35 `P1`). **`REJECTED` 는 빼고** `createdAt` 순. 없으면 `[]`. 모든 활동 세부 응답(합치기 응답 포함)에 실린다 — 위 예시엔 줄였다.
+
+예: 활동 8 「알고리즘 스터디」에 계기를 남기고 이어짐을 제안받은 뒤의 세부(경험은 줄임)
+
+```json
+{
+  "id": 8,
+  "name": "알고리즘 스터디",
+  "period": { "start": "2024-09", "end": null, "ongoing": true },
+  "mergeSuggestion": null,
+  "note": "문제만 풀다 보니 직접 서비스를 만들어 보고 싶어졌다",
+  "experiences": [ … ],
+  "links": [
+    {
+      "id": 501,
+      "fromActivityId": 8,
+      "fromActivityName": "알고리즘 스터디",
+      "toActivityId": 7,
+      "toActivityName": "바꿔요 — 캠퍼스 중고거래 앱",
+      "reason": "계기에 적은 「직접 서비스를 만들어 보고 싶어졌다」와 뒤에 시작한 「바꿔요」 앱 만들기가 닿아 보여요",
+      "status": "SUGGESTED",
+      "createdAt": "2026-11-06T10:00:00+09:00"
+    }
+  ]
+}
+```
+
+활동 7 의 세부에도 같은 이어짐 501 이 실린다(`to` 쪽).
 
 오류: 404 `ACTIVITY_NOT_FOUND` 없는 활동(합쳐져 사라진 활동 포함)
 
@@ -388,6 +446,20 @@ FE 는 `jobId` 를 들고 있다가(새로고침 대비 주소 · 브라우저 �
 }
 ```
 
+| 필드 | 값 |
+| --- | --- |
+| `name` | 비지 않은 문자열 |
+| `period` | README 「기간」 — 세 칸 통째로 |
+| `note` | 그때의 나(S-34, `P1`) — 문자열 또는 `null`. 앞뒤 공백을 걷은 뒤 **최대 200자**(Java `String.length()`, JS `length` 와 같다) · **줄바꿈(`\n` · `\r`) 없음**. `null` 이나 걷은 뒤 빈 문자열이면 계기를 지운다(`note: null`). **빼면 그대로** — `null` 을 보낸 것과 다르다(BE 는 필드가 왔는지를 가린다) |
+
+계기만 남길 때 — `PATCH /api/activities/8`
+
+```json
+{ "note": "문제만 풀다 보니 직접 서비스를 만들어 보고 싶어졌다" }
+```
+
+- 계기를 고치거나 지워도 이미 있는 이어짐(`links`)은 그대로다. 계기를 지운 활동에서는 새 제안을 받을 수 없다(409 `NOTE_REQUIRED`).
+
 응답 200 — 바뀐 `ActivitySummary`
 
 ```json
@@ -403,7 +475,7 @@ FE 는 `jobId` 를 들고 있다가(새로고침 대비 주소 · 브라우저 �
 
 | HTTP | `code` | 언제 |
 | --- | --- | --- |
-| 400 | `INVALID_REQUEST` | `name` 이 비었음 · 날짜 형식이 README 「기간」과 다름 |
+| 400 | `INVALID_REQUEST` | `name` 이 비었음 · 날짜 형식이 README 「기간」과 다름 · `note` 가 200자를 넘거나 줄바꿈이 있음 · `note` 가 문자열 · `null` 이 아님 |
 | 400 | `INVALID_PERIOD` | `start` 가 `end` 보다 늦음 · `ongoing: true` 인데 `end` 가 있음 |
 | 404 | `ACTIVITY_NOT_FOUND` | 없는 활동 |
 
@@ -603,6 +675,8 @@ FE 는 `jobId` 를 들고 있다가(새로고침 대비 주소 · 브라우저 �
 
 - `mergeSuggestion`(S-44): `fromActivityId` 활동이 사라지므로 그 제안도 사라진다. 사라진 활동을 가리키던 다른 활동의 제안은 `null` 이 된다. 남길 활동의 제안은 그대로다(같은 트랜잭션에서).
 - S-44 의 「붙이기」도 이 요청이다 — 남길 활동 = `mergeSuggestion.activityId`(기존), `fromActivityId` = 제안이 붙은 새 활동. 다른 방향(새 활동을 남기기)으로 합쳐도 막지 않는다.
+- `note`(S-34): 남길 활동의 계기가 그대로 남는다. 남길 활동에 계기가 없고 `fromActivityId` 에 있으면 그것을 옮겨 온다(계기를 잃지 않게). 둘을 이어 붙이지 않는다.
+- `links`(S-35): `fromActivityId` 에 걸린 이어짐은 남길 활동으로 옮긴다(같은 트랜잭션에서). 옮긴 뒤 자기 자신을 가리키면(`from` = `to`) 지운다. 같은 쌍이 둘이 되면 하나만 남긴다 — `REJECTED` 가 있으면 그것(다시 제안하지 않게), 없으면 `CONFIRMED`, 그다음 먼저 생긴 것.
 
 ## DELETE /api/activities/{activityId}/merge-suggestion — 같은 활동 제안 따로 두기 (`P1`)
 
@@ -614,6 +688,89 @@ FE 는 `jobId` 를 들고 있다가(새로고침 대비 주소 · 브라우저 �
 응답 204 — 본문 없음. 제안이 이미 없어도 204(두 번 눌러도 같다).
 
 오류: 404 `ACTIVITY_NOT_FOUND`
+
+---
+
+## POST /api/activities/{activityId}/link-suggestions — 이어짐 제안 받기 (`P1`)
+
+- 쓰는 곳: FE 활동 세부(계기가 있는 활동)의 「이어진 활동 찾아보기」
+- SPEC: `F-13` / `S-35`
+
+사용자가 누를 때만 부른다(자동 · 백그라운드 없음). BE 가 후보를 고르고 AI(`ai-api.md` 「POST /link-suggestions」)에 물어, 받은 제안을 `SUGGESTED` 이어짐으로 저장한 뒤 **새로 생긴 것만** 돌려준다. **동기** 호출이다 — 작업 · 폴링 없음(입력이 활동 20개 이하라 짧다). 요청 본문 없음.
+
+후보 고르기 — BE 가 한다(AI 는 받은 후보 안에서만 고른다)
+
+1. 이 활동(`from`)의 `period.start` 가 `null` 이면 후보는 없다.
+2. 그 사용자의 다른 활동 중 `period.start` 가 `from` 의 `start` 와 **같거나 뒤**인 것(README 「기간」 — 문자열 비교). `start` 가 `null` 인 활동은 뺀다.
+3. `from` 과 이미 이어짐이 있는 쌍은 **상태와 상관없이** 뺀다(이 활동이 `from` 이든 `to` 든) — `REJECTED` 를 다시 제안하지 않고, `SUGGESTED` · `CONFIRMED` 를 겹쳐 만들지 않는다.
+4. `start` 가 `from` 에 가까운 순(같으면 `id` 순)으로 **최대 20개**.
+
+AI 에 싣는 것: 활동마다 `id` · 이름 · 기간 · 계기(`note`, 후보는 없으면 `null`) · 경험 본문(`content`)만. 근거 발췌문 · 보완은 싣지 않는다.
+
+응답 200 — 새로 생긴 이어짐(`ActivityLink`, 전부 `SUGGESTED`) 0 ~ 3개, AI 가 준 순서
+
+```json
+{
+  "links": [
+    {
+      "id": 501,
+      "fromActivityId": 8,
+      "fromActivityName": "알고리즘 스터디",
+      "toActivityId": 7,
+      "toActivityName": "바꿔요 — 캠퍼스 중고거래 앱",
+      "reason": "계기에 적은 「직접 서비스를 만들어 보고 싶어졌다」와 뒤에 시작한 「바꿔요」 앱 만들기가 닿아 보여요",
+      "status": "SUGGESTED",
+      "createdAt": "2026-11-06T10:00:00+09:00"
+    }
+  ]
+}
+```
+
+- **후보가 0개**면 AI 를 부르지 않고 200 `{ "links": [] }` — 분석 횟수도 세지 않는다. AI 가 이어진 활동을 못 찾아도 200 `[]` 다(실패가 아니다 — 날짜 순서만으로 억지로 잇지 않는다, S-35). FE 는 「이어져 보이는 활동을 찾지 못했어요」처럼 보인다.
+- AI 응답을 저장하기 전에 BE 가 다시 확인한다: `toActivityId` 가 보낸 후보 안에 있나 · 중복 없나 · 3개 이하인가. 어기면 **아무것도 저장하지 않고** 502 `AI_FAILED`. 그새 같은 쌍이 생겼으면(두 번 눌렀을 때) 그 제안만 건너뛴다.
+- 다시 누르면 다시 AI 를 부른다(분석 1회). 이미 있는 쌍은 후보에서 빠지므로 같은 제안이 겹치지 않는다.
+
+오류
+
+| HTTP | `code` | 언제 |
+| --- | --- | --- |
+| 404 | `ACTIVITY_NOT_FOUND` | 없는 활동 |
+| 409 | `NOTE_REQUIRED` | 이 활동에 계기(`note`)가 없음 — 계기가 이어짐의 출발점이다 |
+| 429 | `DAILY_LIMIT_EXCEEDED` | 오늘 분석 횟수를 다 씀 — AI 를 부를 때 1회로 센다([`auth-api.md`](auth-api.md)). 후보가 0개면 세지 않는다 |
+| 502 | `AI_FAILED` | AI 서버가 오류를 돌려줌(`message` 에 AI 쪽 `code`) · 연결하지 못함 · 응답이 위 확인을 어김 |
+| 504 | `AI_TIMEOUT` | `AI_SYNC_TIMEOUT_SECONDS`(기본 60초) 안에 답이 없음 — entrance-api 와 같다 |
+
+- 실패하면 아무것도 저장하지 않는다. FE 는 오류와 「다시 시도」를 보인다 — 정해진 이어짐으로 대신 채우지 않는다(대회 규칙 2). 실패도 분석 1회로 센다(auth-api — 이미 LLM 을 불렀을 수 있다).
+
+## PATCH /api/activity-links/{linkId} — 이어짐 정하기 (`P1`)
+
+- 쓰는 곳: FE 활동 세부의 이어짐 제안 「맞아요 / 아니에요」
+- SPEC: `F-13` / `S-35`
+
+`SUGGESTED` 이어짐을 사용자가 정한다. 「from 활동 세부」 · 「to 활동 세부」 어느 쪽에서 눌러도 같다.
+
+요청
+
+```json
+{ "status": "CONFIRMED" }
+```
+
+| 필드 | 값 |
+| --- | --- |
+| `status` | `CONFIRMED`(맞아요) · `REJECTED`(아니에요). `SUGGESTED` 로 되돌릴 수 없다 |
+
+응답 200 — 바뀐 `ActivityLink`. `REJECTED` 도 돌려준다(FE 는 화면에서 뺀다 — 다음 세부 응답의 `links` 엔 없다).
+
+- 이미 같은 상태면 아무것도 바꾸지 않고 200(두 번 눌러도 같다).
+- 이미 정한 이어짐을 **다른** 상태로 바꾸면 409 — `CONFIRMED` 되돌리기 · 「아니에요」 취소는 이 계약에 없다(범위 제외).
+
+오류
+
+| HTTP | `code` | 언제 |
+| --- | --- | --- |
+| 400 | `INVALID_REQUEST` | `status` 가 없거나 `CONFIRMED` · `REJECTED` 가 아님 |
+| 404 | `LINK_NOT_FOUND` | 없는 이어짐(다른 사용자의 것 · 합치기로 지워진 것 포함) |
+| 409 | `LINK_ALREADY_DECIDED` | 이미 `CONFIRMED` · `REJECTED` 인데 다른 상태를 보냄 |
 
 ---
 
@@ -650,3 +807,7 @@ FE 는 `jobId` 를 들고 있다가(새로고침 대비 주소 · 브라우저 �
 ## 이 계약에 없는 것
 
 - 원본 목록 · 원본 다시 보기 — 근거에 `sourceName` · `quote` 가 실려 오므로 스프린트 1 엔 따로 두지 않는다
+- 이어짐을 사용자가 직접 긋기 · 고치기 · 지우기 · 정한 것 되돌리기(S-35 범위 제외) · 타임라인 목록(`GET /api/activities`)에 이어짐 싣기 — 보이는 곳은 활동 세부다
+- 계기를 여러 개 · 목록으로 — 활동마다 한 줄 하나다. 미결정 14 (나)(확정 답변의 동기 → 생각 · 계기)가 시작되면 배열로 바꾸는 계약 PR 을 낸다
+- 뒤 활동의 계기에서 앞 활동을 찾는 반대 방향 제안 — 계기가 있는 활동 → 뒤 활동만
+- 계기 · 이어짐을 MCP(`get_activity`) · Markdown 내보내기(S-33)에 싣기

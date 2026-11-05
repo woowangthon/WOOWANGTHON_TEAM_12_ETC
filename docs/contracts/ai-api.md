@@ -1,12 +1,12 @@
 # ai-api — BE → AI
 
-> 스프린트 1 「경험 관리」(SPEC F-02 — `POST /extract`) · 스프린트 2 「문항 매칭」(SPEC R-03 — `POST /match`) · 근거 점검(SPEC S-45 — `POST /ground-check`, `P1`) · 스프린트 3 「입구 하나」(SPEC F-10 — `POST /route` · `POST /ask` · `POST /parse-application`). 이름 규칙 · 값 목록 · 기간 · 오류 모양은 [README 「공통」](README.md#공통--모든-계약이-같이-쓰는-것).
+> 스프린트 1 「경험 관리」(SPEC F-02 — `POST /extract`) · 스프린트 2 「문항 매칭」(SPEC R-03 — `POST /match`) · 근거 점검(SPEC S-45 — `POST /ground-check`, `P1`) · 스프린트 3 「입구 하나」(SPEC F-10 — `POST /route` · `POST /ask` · `POST /parse-application`) · 이어짐 제안(SPEC S-35 — `POST /link-suggestions`, `P1`). 이름 규칙 · 값 목록 · 기간 · 오류 모양은 [README 「공통」](README.md#공통--모든-계약이-같이-쓰는-것).
 > AI 서버는 DB 를 만지지 않고 상태가 없다 — 받은 텍스트로 JSON 만 돌려준다([ADR-003](../decisions/ADR-003-stack-and-ai-boundary.md)). 저장 · ID · 사용자 구분은 BE.
 
 - 부르는 곳: BE 만, 내부망으로([ADR-004](../decisions/ADR-004-deploy.md)). 인증 없음.
 - 주소: `http://<AI 서버>:<포트>` — 값은 BE 설정(compose 서비스 이름).
 - 시간: 한 번 부르는 데 수십 초 걸릴 수 있다. BE 는 제한 시간(BE `AI_TIMEOUT_SECONDS`, 기본 120초)을 넘으면 끊고 작업을 `FAILED`(`AI_TIMEOUT`)로 둔다. AI 서버는 BE 의 작업 상태를 모른다. AI 서버는 LLM 폴백 · 다시 시도까지 합쳐 100초 안에 답하거나 `LLM_TIMEOUT` 으로 돌려준다(`LLM_TIMEOUT_SECONDS`). `/extract` · `/match` · `/ground-check` 모두 같다.
-- 입구 셋(`/route` · `/ask` · `/parse-application`)은 사용자가 화면에서 기다리는 **동기** 호출이다(entrance-api) — BE 는 60초(`AI_SYNC_TIMEOUT_SECONDS`)에서 끊고, AI 서버는 폴백 · 다시 시도까지 합쳐 **50초** 안에 답하거나 `LLM_TIMEOUT` 이다(`LLM_SYNC_TIMEOUT_SECONDS`).
+- 입구 셋(`/route` · `/ask` · `/parse-application`)과 이어짐 제안(`/link-suggestions`)은 사용자가 화면에서 기다리는 **동기** 호출이다(entrance-api · experience-api) — BE 는 60초(`AI_SYNC_TIMEOUT_SECONDS`)에서 끊고, AI 서버는 폴백 · 다시 시도까지 합쳐 **50초** 안에 답하거나 `LLM_TIMEOUT` 이다(`LLM_SYNC_TIMEOUT_SECONDS`).
 
 ## POST /extract — 활동 · 경험 · 근거 추출
 
@@ -585,6 +585,95 @@ BE 는 어떤 오류든 점검을 `FAILED`(`AI_FAILED`, `message` 에 위 `code`
 | 502 | `LLM_INVALID_OUTPUT` | LLM 출력이 응답 규칙을 벗어남(다시 시도한 뒤에도) |
 | 504 | `LLM_TIMEOUT` | 50초 안에 답하지 않음 |
 | 500 | `INTERNAL_ERROR` | 그 밖 |
+
+## POST /link-suggestions — 활동 사이 이어짐 제안
+
+- 부르는 곳: BE experience-api `POST /api/activities/{id}/link-suggestions` 가 받은 그 자리에서(동기 — 작업 없음). 결과는 BE 가 `SUGGESTED` 이어짐으로 저장한다
+- SPEC: `F-13` / `S-35` — 우선순위 `P1`
+
+계기(`note`)가 있는 활동 하나(`from`)와 그보다 뒤에 시작한 활동 후보(`candidates`)를 받아, 계기가 이어져 **보이는** 후보를 0 ~ 3개 고르고 이유를 한 줄씩 단다. 후보는 BE 가 이미 골랐다(날짜 순서 · 이미 있는 쌍 · 최대 20개 — experience-api 「이어짐 제안 받기」). AI 는 후보 밖을 고르지 않는다.
+
+요청 — experience-api 예시. 알고리즘 스터디(8)에 계기가 있고, 뒤에 시작한 활동은 바꿔요(7) 하나다.
+
+```json
+{
+  "from": {
+    "id": 8,
+    "name": "알고리즘 스터디",
+    "period": { "start": "2024-09", "end": null, "ongoing": true },
+    "note": "문제만 풀다 보니 직접 서비스를 만들어 보고 싶어졌다",
+    "experiences": [
+      { "id": 105, "content": "매주 풀 문제를 고른다" }
+    ]
+  },
+  "candidates": [
+    {
+      "id": 7,
+      "name": "바꿔요 — 캠퍼스 중고거래 앱",
+      "period": { "start": "2025-03", "end": "2025-06", "ongoing": false },
+      "note": null,
+      "experiences": [
+        { "id": 101, "content": "채팅 메시지가 늦게 도착하는 문제를 폴링에서 WebSocket 으로 바꿔 해결했다" },
+        { "id": 102, "content": "매주 금요일 스프린트 회고를 했다" },
+        { "id": 103, "content": "서비스를 AWS 에 배포했다" },
+        { "id": 104, "content": "백엔드 API 설계를 맡았다" }
+      ]
+    }
+  ]
+}
+```
+
+| 필드 | 값 |
+| --- | --- |
+| `from` | 계기가 있는 활동 `{ id, name, period, note, experiences }` |
+| `from.note` | 계기 한 줄(experience-api `note` — 최대 200자, 줄바꿈 없음). **비지 않은 문자열** — 이어짐의 출발점이다 |
+| `candidates` | 후보 활동 — `from` 과 같은 모양, **1 ~ 20개**. `note` 는 `null` 일 수 있다. `id` 중복 없음 · `from.id` 가 없다 |
+| `*.experiences` | 그 활동의 경험 `{ id, content }` 만(0개면 `[]`). 근거 발췌문 · 보완 · 역량 · 수행 주체는 싣지 않는다 — 활동이 무엇이었는지 아는 데만 쓴다 |
+
+응답 200
+
+```json
+{
+  "suggestions": [
+    {
+      "toActivityId": 7,
+      "reason": "계기에 적은 「직접 서비스를 만들어 보고 싶어졌다」와 뒤에 시작한 「바꿔요」 앱 만들기가 닿아 보여요"
+    }
+  ],
+  "model": "<LLM 모델 이름>"
+}
+```
+
+### 응답 규칙 — 어기면 AI 서버가 다시 시도한 뒤 `LLM_INVALID_OUTPUT` 으로 돌려준다
+
+| 필드 | 규칙 |
+| --- | --- |
+| `suggestions` | 배열 **0 ~ 3개**, 더 이어져 보이는 것부터. 이어져 보이는 후보가 없으면 `[]` — 정상이다. 억지로 채우지 않는다 |
+| `suggestions[].toActivityId` | **요청 `candidates` 의** `id` · 제안끼리 중복 없음 |
+| `suggestions[].reason` | 비지 않은 한 줄(최대 200자, 줄바꿈 없음). AI 해석 — 아래 「이유 쓰기」 |
+| `model` | 실제로 답한 LLM 이름. 선택 |
+
+이유 쓰기(프롬프트 · 채점):
+
+- **있는 말에 기댄다** — `from` 의 계기 · 두 활동의 이름 · 경험 본문에 **있는 말**을 짚는다. 없는 동기 · 감정 · 결과를 지어내지 않는다(S-05).
+- **날짜 순서만을 이유로 쓰지 않는다** — 「바로 다음에 시작했어요」처럼 시간 순서뿐인 이유는 안 된다. 계기와 닿는 말이 후보에 없으면 고르지 않는다(S-35 「날짜 순서만으로 단정하지 않는다」).
+- **인과를 단정하지 않는다** — 「~때문에」 「~로 이어졌다」 「~해서 시작했다」 대신 「닿아 보여요」 「이어져 보여요」 같은 추측형. 이어졌는지는 사용자가 정한다(SPEC §0 「의미를 단정하지 않는다」).
+- 칭찬 · 평가(「성장이 돋보여요」)를 하지 않는다.
+
+- 코드가 확인하는 것: 개수 · **`toActivityId` 가 `candidates` 에 있는지** · 중복 · 빈 `reason` · 길이 · 줄바꿈. 이유의 내용(있는 말인가 · 날짜뿐인가 · 단정인가)은 코드로 다 막을 수 없어 채점으로 잰다(AI#27 · `ai-scope.md`) — 단정 표현은 채점 항목이다.
+
+### 오류
+
+| HTTP | `code` | 언제 |
+| --- | --- | --- |
+| 400 | `INVALID_REQUEST` | `from` · `from.note` 가 없거나 비었음 · `candidates` 가 없거나 0개 · 21개 이상 · 활동 `id` 중복 · `from.id` 가 `candidates` 에 있음 |
+| 413 | `TEXT_TOO_LONG` | 계기 · 이름 · 경험 `content` 를 합친 글자 수(코드 포인트)가 **100000** 을 넘음(`/match` 와 같은 `MAX_MATCH_CHARS`) |
+| 502 | `LLM_ERROR` | LLM API 호출이 실패함 |
+| 502 | `LLM_INVALID_OUTPUT` | LLM 출력이 위 규칙을 벗어남(다시 시도한 뒤에도). 규칙에 맞게 잘라 내거나 고쳐서 돌려주지 않는다 |
+| 504 | `LLM_TIMEOUT` | 50초 안에 답하지 않음(`LLM_SYNC_TIMEOUT_SECONDS` — 입구 셋과 같다) |
+| 500 | `INTERNAL_ERROR` | 그 밖 |
+
+BE 는 어떤 오류든 FE 에 502 `AI_FAILED`(`message` 에 위 `code`), 60초를 넘기면 504 `AI_TIMEOUT` 으로 돌려주고 아무것도 저장하지 않는다 — 입구 셋과 같다.
 
 ## GET /health — 살아 있나
 

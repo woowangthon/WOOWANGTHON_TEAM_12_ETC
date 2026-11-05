@@ -30,6 +30,7 @@
 | 외부 기술 | Testcontainers (BE 테스트) | 연동만 |
 | 외부 기술 | Next.js 16 · React 19 · TypeScript 5 (FE) | `create-next-app` 기본 설정 · 연동만 |
 | 외부 기술 | Tailwind CSS 4 (FE) | 설정 · 연동만 |
+| 외부 기술 | pdf.js(`pdfjs-dist`) · JSZip (FE — PDF · PPTX 글자 뽑기, S-39) | 연동만. 브라우저에서 PDF 쪽 · PPTX 슬라이드의 글자 층만 읽는다(OCR · AI 안 씀 — 스캔 PDF 는 넣지 않고 붙여넣기로 안내). 쪽 · 슬라이드 순서와 줄 번호(`sections`)를 맞추는 코드는 직접 구현 — FE `src/lib/source-file/`, 단위 테스트 · 코드로 만든 시험 PDF · PPTX 로 확인. 실제 이력서 · 발표 자료로는 아직 안 봤다(FE#79) |
 | 외부 기술 | shadcn/ui (button · sheet · dialog) · Radix UI (FE) | 부품 코드를 레포에 복사해 DESIGN.md 대로 색 · 크기를 고쳐 씀 |
 | 외부 기술 | Vercel (FE 배포 · PR 미리보기) | GitHub 연동 설정만 |
 | 외부 기술 | Docker · Docker Compose · Oracle Cloud(OCI) 서버 · Cloudflare Tunnel · Access (BE · AI · DB 배포) | 이미지 · Compose 구성 · 설정만. 공개 전엔 Access 로 팀원만 통과 |

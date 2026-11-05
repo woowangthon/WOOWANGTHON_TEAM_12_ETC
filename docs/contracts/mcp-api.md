@@ -189,14 +189,14 @@ FE ─DELETE /api/mcp/connection──────▶ BE  연결 끊기 → 그 
 }
 ```
 
-- 경험 하나는 `experience-api.md` 의 `Experience` 에서 `activityId` 대신 `activity`(`ActivitySummary` 에서 `experienceCount` · `mergeSuggestion` 을 뺀 것)를 싣는다. 근거 · 보완은 **빠짐없이** 싣는다 — 데모 7 의 「웹에서 쌓고 보완한 경험이 그대로 나온다」.
+- 경험 하나는 `experience-api.md` 의 `Experience` 에서 `activityId` 대신 `activity`(`ActivitySummary` 에서 `experienceCount` · `mergeSuggestion` · `note` 를 뺀 것)를 싣는다. 근거 · 보완은 **빠짐없이** 싣는다 — 데모 7 의 「웹에서 쌓고 보완한 경험이 그대로 나온다」.
 - `total` — `limit` 을 적용하기 전 맞은 개수. 맞은 게 없으면 `{ "total": 0, "experiences": [] }`(오류가 아니다).
 
 #### `list_activities` — 활동 목록
 
 입력 `{}` (없음)
 
-응답 — `GET /api/activities` 와 같다(`{ "activities": [ActivitySummary…] }`, 같은 순서). 단 `mergeSuggestion`(S-44 — 화면에서 사용자가 정할 AI 제안)은 MCP 어디에도 싣지 않는다.
+응답 — `GET /api/activities` 와 같다(`{ "activities": [ActivitySummary…] }`, 같은 순서). 단 `mergeSuggestion`(S-44 — 화면에서 사용자가 정할 AI 제안) · `note`(S-34 — 그때의 나, BE#46 범위 제외)는 MCP 어디에도 싣지 않는다.
 
 #### `get_activity` — 활동 하나 보기
 

@@ -181,6 +181,7 @@ FE ─DELETE /api/mcp/connection──────▶ BE  연결 끊기 → 그 
 
 - 조건은 모두 그리고(AND)로 묶는다. 아무것도 안 주면 사용자의 경험 전부(최대 `limit`).
 - 순서: 맞은 낱말 수가 많은 것 → 활동 `period.start` 최근 것(`null` 은 뒤) → 경험 `id`.
+- 앱 경험 찾기(`experience-api.md` 「GET /api/experiences」 · S-58)와 같은 코드다 — 규칙 · 순서를 바꾸면 둘이 같이 바뀐다.
 - 낱말 맞추기다(의미 검색 아님) — AI 를 쓰지 않는다. 외부 AI 가 낱말을 바꿔 여러 번 부르거나, 조건 없이 불러 전부 읽고 고르면 된다(도구 설명에 이렇게 적는다).
 
 응답
@@ -524,4 +525,5 @@ FE ─DELETE /api/mcp/connection──────▶ BE  연결 끊기 → 그 
 - 같은 글을 두 번 넣기 막기 — ETC#114 와 같이 본다. 웹 고치기 · 차곡이 변경의 되돌리기 · 전체 버전 관리
 - 원본 전문 읽기(`get_source`) — 근거에 `sourceName` · `quote` 가 실려 오므로 데모 7 엔 두지 않는다. 기획의 `get_evidence` 도 같은 이유로 `search_experiences` · `get_activity` 결과에 합쳤다
 - 차곡이(`CHAGOK`)의 지원 · 문항 · 추천 읽기 · 근거 점검 · 초안 도구 — 차곡이(S-31)가 필요할 때 더한다(S-45 · S-27 이 선 뒤)
-- 의미 검색(임베딩) — 앱 검색(ETC#32)과 같이 본다
+- 의미 검색(임베딩) — 앱 경험 찾기(S-58)도 낱말 맞추기로 시작했다. 뜻으로 묻기는 꺼내기(S-29 `/ask`)가 맡는다
+- `search_experiences` 입력에 출처 상태 · 활동 분류 — 앱 경험 찾기(`experience-api.md` 「GET /api/experiences」)에만 있다(분류는 MCP 에 싣지 않는다 — S-57)

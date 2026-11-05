@@ -24,6 +24,8 @@ FE ─GET /api/questions/{id}/grounding-check (폴링) ▶ BE  ANALYZING → COM
 FE ─POST /api/questions/{id}/draft──▶ BE  고른 경험 1 ~ 3개로 답변 초안 시작(S-27) → 202
                                        BE ─POST /draft──▶ AI  (문항 + 고른 경험만 + 보완)
 FE ─GET /api/questions/{id} (폴링)───▶ BE  draft: ANALYZING → COMPLETED(문장마다 근거 · 쓰지 않은 것) / FAILED
+FE ─POST /api/clarifications/{id}/answer ▶ BE  초안 omitted의 clarificationId로 답 → 그 경험의 보완
+FE ─POST /api/questions/{id}/draft──▶ BE  사용자가 다시 만들기를 누르면 최신 보완으로 재생성
 ```
 
 - **지원**(SPEC R-03 용어 · 2026-11-03 PM) = 지원처 하나 + 문항 여러 개. 문항은 늘 어느 지원에 딸린다(`applicationId`). 추천은 지금처럼 **문항마다 따로** 돈다 — AI 는 문항 사이를 같이 보지 않는다(SPEC 미결정 15). 한 지원 안에서 같은 경험이 여러 문항에 추천됐는지는 FE 가 문항들의 `recommendations` 로 계산해 표시한다(S-21).
@@ -449,8 +451,8 @@ FE ─GET /api/questions/{id} (폴링)───▶ BE  draft: ANALYZING → COMP
 
 ## POST /api/clarifications/{clarificationId}/answer — 되묻기에 답하기
 
-- 쓰는 곳: FE 추천 결과의 되묻기
-- SPEC: `F-07` / `S-23`
+- 쓰는 곳: FE 추천 결과의 되묻기 · 초안의 빠진 사실에 답하기
+- SPEC: `F-07` / `S-23` · `F-09` / `S-27`
 
 답을 그 경험의 **보완**으로 저장한다. 경험의 `content` · `citations` · `sourceStatus` 는 바꾸지 않는다(SPEC 미결정 10). 보완은 늘 「내가 입력」이다.
 
@@ -474,6 +476,8 @@ FE ─GET /api/questions/{id} (폴링)───▶ BE  draft: ANALYZING → COMP
 ```
 
 - 보완의 `question` 은 되묻기 질문을 그대로 옮긴 것이다.
+- 초안에서도 같은 경로를 쓴다 — `Draft.omitted[].clarificationId` 로 호출하고 요청은 `{ "answer" }` 그대로다. 경험 · 질문 · 문항 ID 는 BE 가 저장한 되묻기에서 읽는다(FE 가 보낸 값으로 바꾸지 않는다). 소유자 확인은 추천 되묻기와 같다.
+- 초안에서 답해도 `Supplement.questionId` 는 그 지원 문항 ID 이다. 답 저장은 AI 를 부르지 않으며 분석 횟수를 쓰지 않는다. 추천 · 초안은 자동으로 다시 만들지 않는다.
 
 오류
 
@@ -481,7 +485,7 @@ FE ─GET /api/questions/{id} (폴링)───▶ BE  draft: ANALYZING → COMP
 | --- | --- | --- |
 | 400 | `EMPTY_ANSWER` | `answer` 가 비었거나 공백뿐 |
 | 400 | `INVALID_REQUEST` | `answer` 가 없음 · 2000자를 넘음 |
-| 404 | `CLARIFICATION_NOT_FOUND` | 없는 되묻기 |
+| 404 | `CLARIFICATION_NOT_FOUND` | 없는 되묻기 · 다시 만들기로 교체된 초안의 되묻기 |
 | 404 | `EXPERIENCE_NOT_FOUND` | 묻던 경험이 그새 지워짐 |
 | 409 | `CLARIFICATION_ALREADY_ANSWERED` | 이미 답함 — 고치기는 `PATCH /api/supplements/{id}`(S-24, `P1`) |
 
@@ -611,7 +615,11 @@ FE ─GET /api/questions/{id} (폴링)───▶ BE  draft: ANALYZING → COMP
       "evidence": [{ "type": "SUPPLEMENT", "id": 301, "experienceId": 101, "activityId": 7, "text": "서버에 STOMP 엔드포인트를 만들고, 앱의 3초 폴링 코드를 구독 방식으로 바꿨다" }]
     }
   ],
-  "omitted": ["바꾼 뒤 메시지가 제때 오는지 확인한 방법", "Java · Spring 을 쓴 경험", "이 경험에서 배운 점 · 느낀 점"],
+  "omitted": [
+    { "text": "바꾼 뒤 메시지가 제때 오는지 확인한 방법", "question": "WebSocket 으로 바꾼 뒤 메시지가 제때 오는지 어떻게 확인했나요?", "experienceId": 101, "clarificationId": 64, "supplementId": null },
+    { "text": "Java · Spring 을 쓴 경험", "question": null, "experienceId": null, "clarificationId": null, "supplementId": null },
+    { "text": "이 경험에서 배운 점 · 느낀 점", "question": "채팅 방식을 바꾸며 배운 점이나 느낀 점이 있나요?", "experienceId": 101, "clarificationId": 65, "supplementId": null }
+  ],
   "createdAt": "2026-11-04T10:10:00+09:00",
   "updatedAt": "2026-11-04T10:10:21+09:00"
 }
@@ -621,12 +629,24 @@ FE ─GET /api/questions/{id} (폴링)───▶ BE  draft: ANALYZING → COMP
 - `experienceIds` — 사용자가 고른 경험, 보낸 순서대로. 실패했을 때 「다시 만들기」는 이 값으로 같은 `POST` 를 부른다. 그새 지워진 경험은 빠진다.
 - `sentences` — 초안 문장, **글의 순서대로**. 한 문장에 줄바꿈이 없다. FE 는 차례로 이어 보이고, 「텍스트로 복사」는 근거 표시 없이 `text` 만 이어 붙인다. 0개일 수 있다 — 고른 경험에 받칠 근거 · 보완 · 본문이 하나도 없을 때(그때는 `omitted` 만 있다).
 - `sentences[].evidence` — 그 문장을 받치는 것. 근거 점검(`GroundingCheck`)의 `evidence` 와 **같은 모양**이다 — FE 가 같은 표시를 쓴다. `type` 은 `evidenceType`(`CITATION` 원문 · `SUPPLEMENT` · `EXPERIENCE` 내가 입력), `id` 는 그 근거 · 보완 · 경험의 ID. BE 가 `experienceId` · `activityId` · `text`(발췌문 `quote` · 보완 `answer` · 경험 `content` — **지금 상태로**)를 붙인다. 만들 때는 문장마다 **1개 이상**이다. 그새 지워진 근거 · 보완 · 경험은 빠지므로 0개가 될 수 있다 — 문장은 만들었을 때 그대로 둔다(다시 만들면 새로 쓴다). 보완을 고쳤으면(S-24) `text` 는 고친 답이고 문장은 그대로다.
-- `omitted` — 문항에 필요한데 고른 경험의 근거 · 보완에 없어 **쓰지 않은 것**, 짧은 구절 0 ~ 5개. AI 해석이다. 사용자가 직접 쓰거나 되묻기에 답할 거리다. 화면에서 「자료에 없어 쓰지 않았어요」처럼 — 부족한 사람처럼 읽히지 않게(SPEC S-19).
+- `omitted` — 문항에 필요한데 고른 경험의 근거 · 보완 · 직접 입력한 본문에 없어 **쓰지 않은 것**, 객체 0 ~ 5개. AI 해석이다. 화면에서 「자료에 없어 쓰지 않았어요」처럼 — 부족한 사람처럼 읽히지 않게(SPEC S-19). 추천의 `clarifications` 최대 3개와 별개이고 그 배열에 섞지 않는다.
+- `omitted[].text` · `question` · `experienceId` — AI `/draft` 응답 그대로. 경험에 연결된 것은 `experienceIds` 안의 경험 ID 와 구체적인 질문이 함께 있다. 연결되지 않은 빈칸은 둘 다 `null` 이며 FE 는 답 저장 칸을 붙이지 않고 사용자가 직접 쓸 거리로 보인다.
+- `omitted[].clarificationId` — BE 가 초안 완료 시 질문마다 새로 붙여 저장하는 되묻기 ID. 추천 되묻기와 같은 ID 공간을 쓰되 초안에 속한 것으로 구분한다. 경험이 `null` 이면 이 값도 `null` 이고 되묻기를 만들지 않는다. 새로고침해도 같은 ID 다. FE 는 배열 순번 · 문구 · 추천 되묻기 ID 로 대신 답하지 않는다.
+- `omitted[].supplementId` — 아직 답하지 않았으면 `null`, 답했으면 만든 보완 ID. BE 가 현재 연결을 조회해 응답하므로 새로고침해도 답한 상태가 유지된다. 답은 활동 세부의 보완에서 확인 · 수정한다(S-24). 보완을 지우면 `null` 로 돌아가 다시 답할 수 있다. 경험을 지우면 해당 `omitted` 항목은 응답에서 빠진다.
+- 필드 5개는 모두 응답한다. 경험에 붙지 않는 빈칸은 `text` 만 문자열이고 나머지 네 필드는 `null` 이다. 건너뛰기는 요청하지 않는 것 — 보완이 생기지 않고 초안의 표시 · 복사를 막지 않는다.
 - 예시 읽는 법: 첫 문장은 회고 발췌 201 이 받친다(원문 — 101 이 `ME` 라 「제가」로 쓸 수 있다). 둘째는 되묻기 61 에 답한 보완 301 만 받친다(내가 입력) — 「3초」의 3 이 301 에 있어 숫자 확인을 지난다. 되묻기 62(확인한 방법)는 건너뛰어 받칠 게 없으니 쓰지 않고 `omitted` 로 간다. 「Java · Spring」은 문항 A 요구사항에서 `NOT_FOUND` 였던 것, 「배운 점 · 느낀 점」은 자료에 없어 지어내지 않은 것이다. `TEAM` 경험 102 를 같이 골랐다면 「팀은 매주 금요일 스프린트 회고를 했습니다」로 쓰고 「제가」로 바꾸지 않는다.
+
+### 빠진 사실에 답하기 · 저장된 초안 전환
+
+1. 위 예시에서 FE 는 `POST /api/clarifications/64/answer` 에 `{ "answer": "두 기기로 메시지를 보내고 양쪽 화면에 도착하는지 확인했다" }` 를 보낸다. 기존 답 저장과 같은 201 응답으로 경험 101 의 보완(예: 302)이 생긴다. 질문은 저장된 `omitted.question`, `questionId` 는 41 이다.
+2. `GET /api/questions/41` 의 같은 항목은 `clarificationId: 64` · `supplementId: 302` 로 온다. 문장 · 빠진 사실의 문구는 아직 바뀌지 않는다. 같은 ID 에 다시 답하면 409 `CLARIFICATION_ALREADY_ANSWERED` — 새 보완을 중복 생성하지 않는다.
+3. 사용자가 다시 만들기를 누르면 아래 `POST /api/questions/41/draft` 에 `{ "experienceIds": [101] }` 을 보낸다. AI 요청의 경험 101 `supplements` 에 302 를 포함한다. 성공한 초안은 해당 답을 근거로 쓸 수 있고, 이미 답한 사실은 다시 묻지 않는다.
+
+문자열 배열에서 객체 배열로 **AI · BE · FE 를 함께 전환**한다(ETC#139). 옛 문자열을 보고 경험이나 질문을 추측하지 않는다. BE 에 저장된 옛 형식 초안은 `draft: null` 로 반환해 사용자가 다시 만들게 한다 — 추천 · 기존 보완은 유지하고 자동 재생성 · 자동 과금은 하지 않는다. 새로 만든 초안부터 이 계약을 적용하며 혼합 배열은 반환하지 않는다. 서비스 구현은 AI#47 · BE#71 · FE#103 에서 함께 맞춘다.
 
 ## POST /api/questions/{questionId}/draft — 답변 초안 만들기
 
-- 쓰는 곳: FE 추천 결과의 「초안 만들기」 · 실패한 초안의 「다시 만들기」
+- 쓰는 곳: FE 추천 결과의 「초안 만들기」 · 완료한 초안(보완에 답한 뒤 포함)과 실패한 초안의 「다시 만들기」
 - SPEC: `F-09` / `S-27` — 우선순위 `P1`
 
 요청 — `POST /api/questions/41/draft`
@@ -643,6 +663,10 @@ FE ─GET /api/questions/{id} (폴링)───▶ BE  draft: ANALYZING → COMP
 
 - BE 는 **고른 경험만** 지금 상태로 AI 에 보낸다 — 본문 · 역량 · 수행 주체 · 출처 상태 · 활동 이름 · 기간 · **원본에서 찾은 근거만**(`matched: true`) · 보완 전부. 원본에서 못 찾은 발췌는 「원문」으로 칠하지 않게 싣지 않는다(근거 점검과 같다). 추천의 `reason` · `emphasis` · `gaps` 는 싣지 않는다.
 - 분석 1회로 센다([`auth-api.md`](auth-api.md) `dailyAnalysis`).
+
+- 보완에 답한 뒤에도 **사용자가 다시 만들기를 누를 때만** 호출한다. FE 는 답 저장의 성공을 확인한 뒤 같은 `experienceIds` 로 요청하고, BE 는 그때 저장된 보완 전부를 싣는다. 답 저장 실패 시 오류 · 다시 시도를 보이고 저장된 것처럼 표시하지 않는다.
+- 다시 만들기를 받아 예전 초안을 교체할 때 그 초안의 `clarificationId` 는 무효가 된다(이후 답 저장은 404 `CLARIFICATION_NOT_FOUND`). 이미 쌓인 보완은 지우지 않는다. 새 초안에는 새 ID 를 붙이며, 추천의 `clarifications` 는 바꾸지 않는다. 답 저장과 교체가 겹쳐도 무효인 ID 로 보완이 생기지 않게 BE 가 원자적으로 처리한다.
+- 요청을 거절한 경우(400 · 404 · 409 · 429)는 예전 초안과 그 되묻기를 유지한다. 받아서 교체한 뒤 AI 호출이 실패하면 기존 규칙대로 `FAILED` 와 다시 만들기를 보인다.
 
 오류
 

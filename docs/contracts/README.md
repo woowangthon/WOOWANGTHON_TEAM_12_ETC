@@ -66,10 +66,12 @@
 | | `PARTIAL` | 일부 — 일부만 받친다 |
 | | `NOT_FOUND` | 자료에서 확인 안 됨 — 「경험 없음」이 아니다(SPEC §0) |
 | `evidenceType` 추천 근거 종류 (스프린트 2) | `CITATION` | 원본 발췌문(근거) |
-| | `SUPPLEMENT` | 보완 — 되묻기에 사용자가 한 답(「내가 입력」) |
+| | `SUPPLEMENT` | 보완 — 되묻기에 사용자가 한 답(「내가 입력」). 외부 AI 를 거쳐 아직 확인 전인 보완(`mcpChange` 있음)은 근거가 되지 않는다(S-56) |
 | | `EXPERIENCE` | 경험 본문 — 사용자가 직접 넣거나 고친(`sourceStatus: USER_ENTERED`) 경험일 때만(「내가 입력」). 근거 점검(S-45) · 답변 초안(S-27)에서 쓴다 — `/match` 추천엔 쓰지 않는다. `id` 는 경험 ID |
 | `mcpChangeType` 외부 AI 변경 종류 (S-54) | `ADD_SOURCE` | 자료 넣기 |
 | | `UPDATE_EXPERIENCE` | 경험 본문 고치기 |
+| | `CREATE_APPLICATION` | 지원 만들기 |
+| | `ANSWER_CLARIFICATION` | 되묻기 답 전하기 |
 | `mcpChangeStatus` 외부 AI 변경 상태 (S-54) | `APPLIED` | 반영됨 — 사용자가 아직 정하지 않았다 |
 | | `CONFIRMED` | 맞아요 — 사용자가 확인했다 |
 | | `UNDONE` | 되돌림 |

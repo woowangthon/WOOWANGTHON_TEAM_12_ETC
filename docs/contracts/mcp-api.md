@@ -1,6 +1,6 @@
 # mcp-api — 외부 AI(MCP 클라이언트) → BE · FE → BE
 
-> 다른 AI 에서 내 경험 꺼내 쓰기(SPEC R-04 · `F-11` · `S-32`, ETC#24). 외부 AI 는 기본으로 **읽기만** — 사용자가 쓰기를 켠 연결은 자료 넣기 · 경험 본문 고치기가 바로 반영되고 웹에서 되돌린다(S-52 ~ S-54 · 「외부 쓰기 도구」 · 「변경 기록」, ETC#27 · [ADR-010](../decisions/ADR-010-external-ai-write.md)). 차곡이(S-31)는 같은 도구에 쓰기 도구를 더해 보지만, 쓰기는 사용자 확인 뒤 BE 가 실행한다(「토큰 범위」 · 「쓰기 도구 — 차곡이」, ETC#132).
+> 다른 AI 에서 내 경험 꺼내 쓰기(SPEC R-04 · `F-11` · `S-32`, ETC#24). 외부 AI 는 기본으로 **읽기만** — 사용자가 쓰기를 켠 연결은 자료 넣기 · 경험 본문 고치기 · 지원 만들기 · 되묻기 답이 바로 반영되고 웹에서 되돌린다(S-52 ~ S-56 · 「외부 쓰기 도구」 · 「변경 기록」, ETC#27 · ETC#88 · [ADR-010](../decisions/ADR-010-external-ai-write.md) · [ADR-011](../decisions/ADR-011-external-ai-features.md)). 차곡이(S-31)는 같은 도구에 쓰기 도구를 더해 보지만, 쓰기는 사용자 확인 뒤 BE 가 실행한다(「토큰 범위」 · 「쓰기 도구 — 차곡이」, ETC#132).
 > 서버는 BE 에 둔다. 도구는 BE MCP 에만 정의하고 차곡이(S-31)는 이 MCP 의 클라이언트로 같은 도구를 쓴다 — [ADR-008](../decisions/ADR-008-mcp-tools-in-be.md). 차곡이가 쓸 때 도구를 더하면 이 파일에 더한다.
 > 이름 규칙 · 값 목록 · 기간 · 오류 모양은 [README 「공통」](README.md#공통--모든-계약이-같이-쓰는-것). 경험 · 근거 · 보완 모양은 [`experience-api.md`](experience-api.md) 「모양」 그대로다.
 
@@ -16,7 +16,7 @@ FE ─DELETE /api/mcp/connection──────▶ BE  연결 끊기 → 그 
 ```
 
 - 데모는 **Claude 하나**로 확인한다(claude.ai · Claude Desktop 의 커스텀 커넥터, 또는 Claude Code `claude mcp add --transport http <이름> <주소>`). 다른 클라이언트 차이는 보지 않는다.
-- 읽기 도구는 LLM 을 부르지 않는다 — 하루 분석 한도([`auth-api.md`](auth-api.md))에 세지 않는다. 외부 쓰기의 `add_source` 만 분석 1회로 센다 — 웹과 **같은 서비스 코드**를 부른다. MCP 전용으로 LLM 을 부르는 길을 두지 않는다.
+- 읽기 도구는 LLM 을 부르지 않는다 — 하루 분석 한도([`auth-api.md`](auth-api.md))에 세지 않는다. 외부 쓰기의 `add_source` 는 분석 1회, `create_application` 은 문항마다 1회로 센다 — 웹과 **같은 서비스 코드**를 부른다. MCP 전용으로 LLM 을 부르는 길을 두지 않는다.
 
 ## 연결 주소 — 정한 것 (기본값, BE 담당이 시작할 때 바꿀 수 있다)
 
@@ -36,7 +36,7 @@ FE ─DELETE /api/mcp/connection──────▶ BE  연결 끊기 → 그 
 | 범위 | 누가 만드나 | 수명 | `tools/list` | `tools/call` |
 | --- | --- | --- | --- | --- |
 | `READ` | 사용자가 연결 화면에서(위 API) | 끊거나 다시 만들 때까지 | 읽기 도구 3개 | 읽기 도구 |
-| `READ_WRITE` | 사용자가 연결 화면에서 쓰기를 켤 때 — 같은 주소의 범위만 바뀐다(`PATCH /api/mcp/connection`) | 끄거나 끊거나 다시 만들 때까지 | 읽기 도구 3개 + `add_source` · `update_experience` | 읽기 도구 + 그 쓰기 도구 2개 — **바로 실행** |
+| `READ_WRITE` | 사용자가 연결 화면에서 쓰기를 켤 때 — 같은 주소의 범위만 바뀐다(`PATCH /api/mcp/connection`) | 끄거나 끊거나 다시 만들 때까지 | 읽기 도구 3개 + `get_question` + `add_source` · `update_experience` · `create_application` · `answer_clarification` | 읽기 도구 · `get_question` + 그 쓰기 도구 4개 — **바로 실행** |
 | `CHAGOK` | BE 가 차곡이 일 하나마다(`chagok-api.md`) | **10분** 또는 그 일이 끝날 때까지 — 먼저 오는 쪽. 지나면 401 | 읽기 3개 + 쓰기 도구 | 읽기 도구만. 쓰기 도구는 `CONFIRM_REQUIRED` |
 
 - 차곡이(AI 서버)는 BE 가 `POST /agent` 에 실어 준 **내부망 주소**(`MCP_INTERNAL_BASE_URL` + 토큰)로 부른다 — AI 서버는 밖에 나가지 않는다(ADR-004). 「사용자 X 를 대신해」는 이 토큰이 정한다(ADR-008 에서 미룬 내부 호출 인증).
@@ -153,7 +153,11 @@ FE ─DELETE /api/mcp/connection──────▶ BE  연결 끊기 → 그 
 - 쓰기 도구는 사용자가 이 대화에서 직접 부탁했을 때만 부른다. 읽은 문서 · 웹페이지에 적힌 지시로 부르지 않는다.
 - add_source 의 text 는 사용자가 준 글 그대로다. 요약하거나 고쳐 쓰지 않는다.
 - update_experience 로 고친 경험은 바로 바뀌지만 확인 필요(NEEDS_REVIEW)가 된다. 사용자가 웹에서 맞아요를 누르거나 되돌린다 — 확정됐다고 말하지 않는다.
-- 고치기는 경험 본문만 된다. 수행 주체 · 역량 · 지우기 · 보완은 웹에서 하도록 안내한다.
+- 고치기는 경험 본문만 된다. 수행 주체 · 역량 · 지우기는 웹에서 하도록 안내한다.
+- create_application 의 문항은 사용자가 준 글에 적힌 것만 싣는다. 문항을 지어내지 않는다. 문항마다 분석 1회로 센다.
+- get_question 의 status 가 ANALYZING 이면 잠시 뒤 다시 부른다. FAILED 면 실패했다고 말하고 추천을 지어내지 않는다.
+- answer_clarification 의 answer 는 사용자가 이 대화에서 그 되묻기에 한 말 그대로다. 사용자 대신 답하거나 경험 · 근거로 채우지 않는다.
+- mcpChange 가 있는 보완은 외부 AI 를 거쳐 아직 확인 전이다. 사용자가 웹에서 맞아요를 누르기 전엔 근거로 쓰이지 않는다.
 ```
 
 ### 도구 목록 (`tools/list`)
@@ -265,9 +269,9 @@ FE ─DELETE /api/mcp/connection──────▶ BE  연결 끊기 → 그 
 
 - `text` 는 사용자가 넣은 글 **그대로**다 — 차곡이가 요약 · 고쳐 쓴 글을 자료로 넣지 않는다(근거 대조의 기준이 원본이라서).
 
-### 외부 쓰기 도구 — `READ_WRITE` (S-52 · S-53 · `P2`)
+### 외부 쓰기 도구 — `READ_WRITE` (S-52 · S-53 · S-55 · S-56 · `P2`)
 
-`READ_WRITE` 토큰에만 보이고 `tools/call` 로 **바로 실행**한다 — `CONFIRM_REQUIRED` 가 없다. 사용자 확인은 뒤에서 한다(「변경 기록」, ADR-010). 저장과 변경 기록은 한 트랜잭션이고, 분석은 커밋 뒤에 시작한다.
+`READ_WRITE` 토큰에만 보이고 `tools/call` 로 **바로 실행**한다 — `CONFIRM_REQUIRED` 가 없다. 사용자 확인은 뒤에서 한다(「변경 기록」, ADR-010 · ADR-011). 읽기 도구 `get_question` 도 이 범위에만 보인다. 저장과 변경 기록은 한 트랜잭션이고, 분석은 커밋 뒤에 시작한다.
 
 - `client` — 그 연결의 `initialize` 가 보낸 `clientInfo.name`(제어 문자를 빼고 앞 40자). 요청마다 상태가 없으므로 BE 가 토큰 행의 `name` 에 둔다. 없으면 「외부 AI」. 클라이언트가 보낸 값이라 **표시용**이다 — 권한 · 식별에 쓰지 않는다.
 
@@ -316,7 +320,57 @@ FE ─DELETE /api/mcp/connection──────▶ BE  연결 끊기 → 그 
 ```
 
 - 본문만 바뀐다. `sourceStatus` 는 **`NEEDS_REVIEW`**, 나머지(`citations` · `supplements` · `competencies` · `competenciesBy` · `actor`)는 그대로다. `USER_ENTERED` 로 바꾸지 않는다 — `NEEDS_REVIEW` 본문은 초안 · 근거 점검의 근거가 되지 않는다(`README` `evidenceType` · S-53).
-- 사용자당 하루 **50건**(한국 시간 자정에 다시 채움 · BE 설정값). 넘으면 `WRITE_LIMIT_EXCEEDED`. LLM 을 부르지 않으므로 분석 한도와 따로 센다. 기존 변경 기록을 세면 된다.
+- 사용자당 하루 **50건**(`answer_clarification` 과 합쳐서 · 한국 시간 자정에 다시 채움 · BE 설정값). 넘으면 `WRITE_LIMIT_EXCEEDED`. LLM 을 부르지 않으므로 분석 한도와 따로 센다. 기존 변경 기록을 세면 된다.
+
+#### `create_application` — 지원 만들기 (외부)
+
+이름 · 입력은 차곡이의 `create_application` 과 같고, `add_source` 처럼 범위가 설명 · 실행만 가른다. `annotations: { "readOnlyHint": false, "destructiveHint": false }`.
+
+결과
+
+```json
+{ "changeId": 58, "applicationId": 21, "questionIds": [41, 43], "status": "ANALYZING" }
+```
+
+- `POST /api/applications` 와 같은 코드 · 검사 · 한도다 — 문항마다 분석 1회, 남은 횟수가 모자라면 아무것도 저장하지 않는다. 추천은 커밋 뒤 뒤에서 돈다.
+- 문항은 사용자가 준 글에 **적힌 것만** 싣는다(R-03 범위 제외). 서버가 확인할 수는 없다.
+
+#### `get_question` — 문항 · 추천 읽기
+
+`annotations: { "readOnlyHint": true }`. LLM 을 부르지 않는다.
+
+입력
+
+```json
+{ "questionId": 41 }
+```
+
+결과 — `question-api.md` `GET /api/questions/{questionId}` 와 같다. 단 `draft` · `answer` 는 싣지 않는다(S-55). `ANALYZING` · `FAILED` 면 그 API 대로 목록이 비어 있고, `FAILED` 는 `error` 가 그대로 온다 — 추천을 대신 채우지 않는다.
+
+#### `answer_clarification` — 되묻기 답 전하기
+
+`annotations: { "readOnlyHint": false, "destructiveHint": false }`.
+
+입력
+
+```json
+{ "clarificationId": 62, "answer": "로그에 도착 시간을 남겨 지연이 1초 안인지 확인했다" }
+```
+
+| 필드 | 값 |
+| --- | --- |
+| `clarificationId` | 필수. 토큰 주인의 되묻기 |
+| `answer` | 필수. 사용자가 이 대화에서 한 말 그대로. 비지 않은 문자열 · 2000자 이하 |
+
+결과
+
+```json
+{ "changeId": 57, "supplementId": 302, "experienceId": 101 }
+```
+
+- `POST /api/clarifications/{clarificationId}/answer` 와 같은 코드로 보완을 저장하고, 그 보완에 `mcpChange` 를 붙인다(`experience-api.md`). 경험의 `content` · `citations` · `sourceStatus` 는 그대로다.
+- 사용자가 웹에서 맞아요를 누르기 전엔 AI 서버 요청 · 근거 대조에 싣지 않는다 — 같은 사실을 다시 물을 수 있다. 표시 · MCP 읽기에는 `mcpChange` 와 함께 보인다.
+- 외부 AI 가 말을 바꿨는지는 BE 가 알 수 없다 — 이 보류가 그 대책이다.
 
 ### 도구 오류
 
@@ -333,16 +387,18 @@ FE ─DELETE /api/mcp/connection──────▶ BE  연결 끊기 → 그 
 | `EXPERIENCE_NOT_FOUND` | 없는 경험이거나 **다른 사용자의 경험** |
 | `STALE_CONTENT` | `expectedContent` 가 지금 본문과 다름 |
 | `EMPTY_TEXT` · `TEXT_TOO_LONG` | `add_source` 의 글이 비었거나 한도를 넘음 — `POST /api/sources` 와 같다 |
-| `DAILY_LIMIT_EXCEEDED` | `add_source` — 오늘 분석 횟수를 다 씀. 원본을 저장하지 않는다 |
-| `WRITE_LIMIT_EXCEEDED` | `update_experience` — 오늘 쓰기 상한을 넘음 |
+| `DAILY_LIMIT_EXCEEDED` | `add_source` · `create_application` — 오늘 분석 횟수를 다 씀. 아무것도 저장하지 않는다 |
+| `WRITE_LIMIT_EXCEEDED` | `update_experience` · `answer_clarification` — 오늘 쓰기 상한을 넘음 |
+| `QUESTION_NOT_FOUND` | 없는 문항이거나 **다른 사용자의 문항** |
+| `CLARIFICATION_NOT_FOUND` · `CLARIFICATION_ALREADY_ANSWERED` | 없는 · 남의 되묻기이거나 이미 답함 — `POST /api/clarifications/{id}/answer` 와 같다 |
 | `CONFIRM_REQUIRED` | 쓰기 도구를 `CHAGOK` 토큰으로 `tools/call` 로 부름 — 사용자 확인 뒤 BE 만 실행한다 |
 | `INTERNAL_ERROR` | 그 밖에 BE 안에서 실패 — 정해진 결과로 대신 채우지 않는다(대회 규칙 2) |
 
-없는 도구 이름은 JSON-RPC 오류 `-32602` — 그 범위에 보이지 않는 도구도 같다(`READ` 의 쓰기 도구 · `READ_WRITE` 의 `create_application`).
+없는 도구 이름은 JSON-RPC 오류 `-32602` — 그 범위에 보이지 않는 도구도 같다(`READ` 의 쓰기 도구 · `READ` · `CHAGOK` 의 `get_question` · `answer_clarification`).
 
 ---
 
-## 변경 기록 — 외부 AI 가 바꾼 것 (S-53 · S-54 · `P2`)
+## 변경 기록 — 외부 AI 가 바꾼 것 (S-53 · S-54 · S-55 · S-56 · `P2`)
 
 외부 쓰기 도구가 성공할 때마다 한 건 남긴다. 웹 고치기 · 차곡이는 남기지 않는다. 쿠키 로그인으로 부르는 FE API 다.
 
@@ -367,14 +423,30 @@ FE ─DELETE /api/mcp/connection──────▶ BE  연결 끊기 → 그 
     "afterContent": "백엔드 API 중 채팅 · 거래 API 를 설계했다",
     "beforeSourceStatus": "SOURCE_CONFIRMED"
   },
-  "source": null
+  "source": null,
+  "application": null,
+  "supplement": null
 }
 ```
 
-자료 넣기는 `experience` 가 `null`, `source` 가 이 모양이다. `reason` 도 `null`.
+`experience` · `source` · `application` · `supplement` 중 `type` 에 맞는 칸 하나만 차고 나머지는 `null` 이다. `reason` 은 `UPDATE_EXPERIENCE` 만 있다.
+
+자료 넣기 `source`
 
 ```json
 { "id": 12, "name": "claude-ai 에서 보냄 — 2026-11-05 10:15", "jobId": 34, "jobStatus": "COMPLETED", "experienceCount": 3 }
+```
+
+지원 만들기 `application` — `organization` · `questionCount` 는 만들 때 값이라 되돌린 뒤에도 남는다.
+
+```json
+{ "id": 21, "organization": "OO 백엔드 부트캠프", "questionCount": 2, "analyzingCount": 0 }
+```
+
+되묻기 답 `supplement` — `question` · `answer` 는 전한 때 값이라 되돌린 뒤에도 남는다.
+
+```json
+{ "id": 302, "experienceId": 101, "activityName": "바꿔요 — 캠퍼스 중고거래 앱", "question": "바꾼 뒤 메시지가 제때 오는지 어떻게 확인했나요?", "answer": "로그에 도착 시간을 남겨 지연이 1초 안인지 확인했다" }
 ```
 
 | 필드 | 값 |
@@ -385,7 +457,13 @@ FE ─DELETE /api/mcp/connection──────▶ BE  연결 끊기 → 그 
 | `undoBlockedReason` | `undoable` 이 `false` 일 때 — `DECIDED`(이미 정함) · `CHANGED_AFTER`(그 뒤 바뀜) · `ANALYZING`(분석 중) · `ANALYSIS_FAILED`(분석 실패 — 지울 것이 없다. `POST /api/jobs/{jobId}/retry` 로 다시 시도). 되돌릴 수 있으면 `null` |
 | `source.experienceCount` | 지금 이 원본을 근거로 한 경험 수. 분석 전 · 실패면 `0` |
 
-`CHANGED_AFTER` — 경험 고치기에서, 지금 본문이 `afterContent` 와 다르거나 `sourceStatus` 가 `NEEDS_REVIEW` 가 아니거나 경험이 지워졌을 때.
+`CHANGED_AFTER` — 종류마다 다르다.
+
+- 경험 고치기: 지금 본문이 `afterContent` 와 다르거나 `sourceStatus` 가 `NEEDS_REVIEW` 가 아니거나 경험이 지워졌을 때.
+- 되묻기 답: 사용자가 답을 고쳤거나 보완 · 경험이 지워졌을 때.
+- 지원 만들기: 그 지원 문항의 되묻기에 답이 있거나(외부 AI 가 전한 답이면 그 답부터 되돌린다) · 초안 · 근거 점검 · 확정 답변이 있거나 · `applicationStatus` 가 `WRITING` 이 아니거나 · 문항이 더해졌을 때. 사용자가 손댄 지원을 지우지 않으려는 규칙이다.
+
+`ANALYZING` 은 지원 만들기에서 문항이 하나라도 분석 중일 때도 쓴다.
 
 ## GET /api/mcp/changes — 변경 기록
 
@@ -412,6 +490,8 @@ FE ─DELETE /api/mcp/connection──────▶ BE  연결 끊기 → 그 
 (`change` 는 `McpChange` 전체 — 위는 줄였다)
 
 - **경험 고치기** — 본문을 `beforeContent`, 출처 상태를 `beforeSourceStatus` 로 돌린다. `removedExperiences` · `keptExperiences` 는 `0`.
+- **되묻기 답** — `DELETE /api/supplements/{id}` 와 같은 코드로 보완을 지운다. 그 되묻기에 다시 답할 수 있다. `removedExperiences` · `keptExperiences` 는 `0`.
+- **지원 만들기** — 그 지원과 문항 · 요구사항 · 추천 · 되묻기를 지운다. 쓴 분석 횟수는 돌아오지 않는다. `removedExperiences` · `keptExperiences` 는 `0`.
 - **자료 넣기** — 이 원본을 근거로 한 경험을 `DELETE /api/experiences/{id}` 와 같은 코드로 지운다. **사용자가 손댄 경험은 남긴다**: `sourceStatus` 가 `USER_ENTERED` · 보완이 있음 · 그 작업이 만든 활동 밖으로 옮겨짐 · 외부 AI 변경 기록이 달림. 그 작업이 만든 활동은 경험이 하나도 없고 계기 · 이어짐도 없으면 지운다. 원본은 남긴다(남긴 경험의 근거일 수 있다).
 - 두 번 눌러도 한 번만 일어난다 — 두 번째는 409.
 
@@ -422,11 +502,14 @@ FE ─DELETE /api/mcp/connection──────▶ BE  연결 끊기 → 그 
 - 쓰는 곳: FE 변경 기록 · 활동 세부의 「맞아요」
 - SPEC: `F-11` / `S-53`
 
-`UPDATE_EXPERIENCE` 만 받는다. 요청 본문 없음. 경험의 `sourceStatus` 가 `USER_ENTERED`, `mcpChange` 가 `null`, 변경의 `status` 가 `CONFIRMED` 가 된다. `competenciesBy` 는 그대로다. 그 뒤엔 되돌리지 못한다 — 웹에서 고친다(S-10).
+`UPDATE_EXPERIENCE` · `ANSWER_CLARIFICATION` 만 받는다. 요청 본문 없음. 변경의 `status` 가 `CONFIRMED` 가 되고, 그 뒤엔 되돌리지 못한다 — 웹에서 고친다(S-10 · S-24).
+
+- 경험 고치기 — 경험의 `sourceStatus` 가 `USER_ENTERED`, `mcpChange` 가 `null` 이 된다. `competenciesBy` 는 그대로다.
+- 되묻기 답 — 보완의 `mcpChange` 가 `null` 이 된다. 다음 추천 · 초안부터 근거로 쓰인다. 경험은 그대로다.
 
 응답 200 — `{ "change": McpChange }`
 
-오류: 404 `MCP_CHANGE_NOT_FOUND` · 409 `MCP_CHANGE_NOT_CONFIRMABLE` `ADD_SOURCE` 이거나 이미 정했거나 `CHANGED_AFTER`
+오류: 404 `MCP_CHANGE_NOT_FOUND` · 409 `MCP_CHANGE_NOT_CONFIRMABLE` `ADD_SOURCE` · `CREATE_APPLICATION` 이거나 이미 정했거나 `CHANGED_AFTER`
 
 - 사용자가 맞아요 대신 웹에서 고치면 `PATCH` 규칙 그대로 `USER_ENTERED` 가 된다 — 그 변경은 `CHANGED_AFTER` 로 남는다.
 
@@ -437,8 +520,8 @@ FE ─DELETE /api/mcp/connection──────▶ BE  연결 끊기 → 그 
 
 ## 이 계약에 없는 것
 
-- 외부 AI 의 경험 지우기 · 수행 주체 · 역량 고치기 · 보완 저장 · 지원 만들기 — 웹 · 차곡이에서만 한다(ADR-010). 고친 글이 「내가 입력」에 섞이지 않게, 외부 AI 가 고친 본문은 사용자가 맞아요를 누르기 전까지 `NEEDS_REVIEW` 다
+- 외부 AI 의 경험 지우기 · 수행 주체 · 역량 고치기 · 초안 · 근거 점검 — 웹 · 차곡이에서만 한다(ADR-010 · ADR-011). 저장 없이 결과만 돌려주는 매칭도 만들지 않는다. 고친 글이 「내가 입력」에 섞이지 않게, 외부 AI 가 고친 본문은 사용자가 맞아요를 누르기 전까지 `NEEDS_REVIEW` 다
 - 같은 글을 두 번 넣기 막기 — ETC#114 와 같이 본다. 웹 고치기 · 차곡이 변경의 되돌리기 · 전체 버전 관리
 - 원본 전문 읽기(`get_source`) — 근거에 `sourceName` · `quote` 가 실려 오므로 데모 7 엔 두지 않는다. 기획의 `get_evidence` 도 같은 이유로 `search_experiences` · `get_activity` 결과에 합쳤다
-- 지원 · 문항 · 추천 읽기 · 근거 점검 · 초안 도구 — 차곡이(S-31)가 필요할 때 더한다(S-45 · S-27 이 선 뒤)
+- 차곡이(`CHAGOK`)의 지원 · 문항 · 추천 읽기 · 근거 점검 · 초안 도구 — 차곡이(S-31)가 필요할 때 더한다(S-45 · S-27 이 선 뒤)
 - 의미 검색(임베딩) — 앱 검색(ETC#32)과 같이 본다

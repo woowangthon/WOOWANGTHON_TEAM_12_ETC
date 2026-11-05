@@ -111,14 +111,16 @@ FE ─PATCH /api/activity-links/{id} { status }────▶ BE  CONFIRMED · 
   "question": "폴링을 WebSocket 으로 바꿀 때 직접 고친 부분은 어디였나요?",
   "answer": "서버에 STOMP 엔드포인트를 만들고, 앱의 3초 폴링 코드를 구독 방식으로 바꿨다",
   "questionId": 41,
+  "mcpChange": null,
   "createdAt": "2026-11-04T10:05:00+09:00",
   "updatedAt": "2026-11-04T10:05:00+09:00"
 }
 ```
 
 - 되묻기 질문과 사용자의 답 한 쌍. 만드는 곳은 `question-api.md` 「POST /api/clarifications/{id}/answer」.
-- 보완은 늘 「내가 입력」이다 — 따로 출처 칸이 없다. 보완이 생기거나 바뀌어도 **경험의 `content` · `citations` · `sourceStatus` 는 그대로**다(원문 사실과 사용자 말을 섞지 않는다 — SPEC 미결정 10). 경험 수정(`PATCH /api/experiences/{id}`)은 보완을 바꾸지 않는다.
-- `questionId` — 이 보완이 나온 지원 문항. 문항이 없어지면 `null`(스프린트 2 엔 문항 지우기가 없다).
+- `mcpChange` — 외부 AI 를 거쳐 들어와 사용자가 아직 정하지 않은 보완(S-56 `P2`). `{ "changeId": 57, "client": "claude-ai" }`, 그 밖엔 `null`. 이 값이 있는 동안은 「내가 입력」이 아니다 — BE 는 AI 서버의 `/match` · `/ask` · `/draft` · `/ground-check` 요청과 근거 대조에서 뺀다. FE 는 「Claude 를 거친 답」과 맞아요 · 되돌리기를 보인다(`mcp-api.md` 「변경 기록」). 맞아요 · 웹에서 답 고치기 뒤엔 `null` 이 된다. **모든 `Supplement` 응답에 실린다** — 다른 예시엔 줄였다.
+- `mcpChange` 가 없는 보완은 「내가 입력」이다 — 따로 출처 칸이 없다. 보완이 생기거나 바뀌어도 **경험의 `content` · `citations` · `sourceStatus` 는 그대로**다(원문 사실과 사용자 말을 섞지 않는다 — SPEC 미결정 10). 경험 수정(`PATCH /api/experiences/{id}`)은 보완을 바꾸지 않는다.
+- `questionId` — 이 보완이 나온 지원 문항. 문항이 없어지면 `null`(외부 AI 가 만든 지원을 되돌릴 때 — S-55).
 - 경험을 지우면 보완도 지워지고, 경험을 옮기거나 활동을 합치면 보완은 경험을 따라간다.
 
 이어짐 `ActivityLink` — `P1` (SPEC S-35)
@@ -818,7 +820,7 @@ AI 에 싣는 것: 활동마다 `id` · 이름 · 기간 · 계기(`note`, 후�
 - 쓰는 곳: FE 활동 세부의 보완 바로 고치기
 - SPEC: `F-07` / `S-24`
 
-답만 고친다(질문은 되묻기 그대로). `updatedAt` 이 바뀐다. 경험의 출처 상태는 그대로다.
+답만 고친다(질문은 되묻기 그대로). `updatedAt` 이 바뀐다. 경험의 출처 상태는 그대로다. 외부 AI 를 거친 답을 고치면 사용자 말이 된다 — `mcpChange` 가 `null` 이 되고 그 변경은 `CHANGED_AFTER` 로 남는다(S-56).
 
 요청
 

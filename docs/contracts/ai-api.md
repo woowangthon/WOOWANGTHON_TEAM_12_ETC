@@ -570,6 +570,126 @@ BE 는 어떤 오류든 점검을 `FAILED`(`AI_FAILED`, `message` 에 위 `code`
 
 BE 는 어떤 오류든 초안을 `FAILED`(`AI_FAILED`, `message` 에 위 `code`)로 둔다 — `/match` 와 같다.
 
+## POST /new-facts — 확정 답에서 새 경험 후보 찾기
+
+- 부르는 곳: BE 후보 찾기 작업(question-api `POST /api/questions/{questionId}/answer/new-facts` 뒤)
+- SPEC: `F-09` / `S-48` — 우선순위 `P1`
+
+사용자가 확정한 답을 **코드로** 문장으로 나누고(「POST /ground-check」의 「문장 나누기」와 같다), 빼야 할 문장을 **코드가** 먼저 걷어 낸 뒤, 남은 문장 중 **사용자가 새로 쓴 사실**만 LLM 이 골라 경험 문장으로 옮긴다. 근거가 없다는 것만으로 고르지 않는다 — 생각 · 포장 · 기존 자료와 어긋나는 문장은 후보가 아니다(SPEC S-48).
+
+요청 — question-api 「확정 답변」 예시. 경험은 `/ground-check` 와 같은 모양이다(예시는 101 · 103 만 — 실제로는 경험 전부).
+
+```json
+{
+  "text": "「바꿔요」 프로젝트에서 채팅 메시지가 늦게 도착하는 문제가 있었고, 제가 폴링을 WebSocket 으로 바꿔 해결했습니다. 서버에 STOMP 엔드포인트를 만들고, 앱의 3초 폴링 코드를 구독 방식으로 바꿨습니다. 바꾼 뒤에는 두 기기로 메시지를 보내 양쪽 화면에 바로 도착하는지 확인했습니다. 이어서 알림 기능도 같은 방식으로 바꿔 서버 요청을 하루 1,200회 줄였습니다. 배포까지 제가 맡아 AWS 에 올렸습니다. 누구보다 끈질기게 문제를 파고들었습니다. 앞으로도 문제의 원인을 살피는 개발자가 되고 싶습니다.",
+  "experiences": [
+    {
+      "id": 101,
+      "activityName": "바꿔요 — 캠퍼스 중고거래 앱",
+      "period": { "start": "2025-03", "end": "2025-06", "ongoing": false },
+      "content": "채팅 메시지가 늦게 도착하는 문제를 폴링에서 WebSocket 으로 바꿔 해결했다",
+      "competencies": ["PROBLEM_SOLVING", "IMPLEMENTATION"],
+      "actor": "ME",
+      "sourceStatus": "SOURCE_CONFIRMED",
+      "citations": [{ "id": 201, "quote": "채팅 메시지가 늦게 도착하는 문제가 있었다. 내가 폴링을 WebSocket 으로 바꿔 해결했다." }],
+      "supplements": [{ "id": 301, "question": "폴링을 WebSocket 으로 바꿀 때 직접 고친 부분은 어디였나요?", "answer": "서버에 STOMP 엔드포인트를 만들고, 앱의 3초 폴링 코드를 구독 방식으로 바꿨다" }]
+    },
+    {
+      "id": 103,
+      "activityName": "바꿔요 — 캠퍼스 중고거래 앱",
+      "period": { "start": "2025-03", "end": "2025-06", "ongoing": false },
+      "content": "서비스를 AWS 에 배포했다",
+      "competencies": ["IMPLEMENTATION"],
+      "actor": "TEAM",
+      "sourceStatus": "SOURCE_CONFIRMED",
+      "citations": [{ "id": 203, "quote": "배포는 팀원이 맡아 AWS 에 올렸다." }],
+      "supplements": []
+    }
+  ],
+  "activities": [
+    { "id": 7, "name": "바꿔요 — 캠퍼스 중고거래 앱", "period": { "start": "2025-03", "end": "2025-06", "ongoing": false } },
+    { "id": 8, "name": "알고리즘 스터디", "period": { "start": "2024-09", "end": null, "ongoing": true } }
+  ],
+  "excludedSentences": [
+    "「바꿔요」 프로젝트에서 채팅 메시지가 늦게 도착하는 문제가 있었고, 제가 폴링을 WebSocket 으로 바꿔 해결했습니다.",
+    "서버에 STOMP 엔드포인트를 만들고, 앱의 3초 폴링 코드를 구독 방식으로 바꿨습니다.",
+    "앞으로도 문제의 원인을 살피는 개발자가 되고 싶습니다."
+  ]
+}
+```
+
+| 필드 | 값 |
+| --- | --- |
+| `text` | 확정 답(BE 한도 5000자). 비지 않은 문자열 |
+| `experiences` | 사용자의 경험 전부 — `/ground-check` 요청과 같은 모양 · 원본에서 찾은 근거만. **0개면 `[]`** — 오류가 아니다 |
+| `activities` | 사용자의 활동 전부 `{ id, name, period }`. 0개면 `[]` — 그때 후보의 `activityId` 는 모두 `null` |
+| `excludedSentences` | 후보로 삼지 않을 문장 — 그 문항의 저장된 초안 문장 · 전에 「저장 안 함」 한 문장. 없으면 `[]` |
+
+응답 200
+
+```json
+{
+  "candidates": [
+    {
+      "sentence": "바꾼 뒤에는 두 기기로 메시지를 보내 양쪽 화면에 바로 도착하는지 확인했습니다.",
+      "content": "WebSocket 으로 바꾼 뒤 두 기기로 메시지를 보내 양쪽 화면에 바로 도착하는지 확인했다",
+      "actor": "ME",
+      "activityId": 7
+    },
+    {
+      "sentence": "이어서 알림 기능도 같은 방식으로 바꿔 서버 요청을 하루 1,200회 줄였습니다.",
+      "content": "알림 기능도 구독 방식으로 바꿔 서버 요청을 하루 1,200회 줄였다",
+      "actor": "ME",
+      "activityId": 7
+    }
+  ],
+  "model": "<LLM 모델 이름>"
+}
+```
+
+- 예시 읽는 법: 첫째 · 둘째 · 일곱째 문장은 `excludedSentences` 와 같아 코드가 LLM 에 묻기 전에 뺐다. 다섯째 「배포까지 제가 맡아」는 경험 103(`TEAM`)과 어긋나고, 여섯째는 자기 칭찬 · 포장이라 LLM 이 고르지 않는다. 셋째 · 넷째만 자료 · 보완에 없는 지난 일 · 결과다.
+
+### 빼는 문장 — 코드가 한다
+
+- 문장을 나눈 뒤, `excludedSentences` 의 어느 문장과 **같은** 문장은 LLM 에 보내지 않는다. 같다 = S-04 대조 기준(NFKC · 공백 무시)으로 글자가 같다. 일부만 같거나 비슷하면 빼지 않는다(사용자가 고친 문장일 수 있다).
+- 남은 문장이 0개면 LLM 을 부르지 않고 `{ "candidates": [] }` 를 돌려준다.
+
+### 응답 규칙 — 어기면 AI 서버가 다시 시도한 뒤 `LLM_INVALID_OUTPUT` 으로 돌려준다
+
+| 필드 | 규칙 |
+| --- | --- |
+| `candidates` | 0 ~ **5**개, 확정 답의 순서대로. 문장 하나에 후보 하나까지 |
+| `candidates[].sentence` | 코드가 나눈 문장 중 하나와 글자가 같다 · `excludedSentences` 에 없다(LLM 에는 문장 번호로 묻고 코드가 글을 채운다) |
+| `candidates[].content` | 비지 않은 한 문장, 「~했다」 꼴. 원래 문장의 사실만 — 자기 칭찬 · 포장 · 생각은 걷어 낸다 |
+| `candidates[].actor` | `ME` · `TEAM` · `UNKNOWN` — 원래 문장의 주어로(「제가」 → `ME`, 「팀이」 → `TEAM`, 알 수 없으면 `UNKNOWN`) |
+| `candidates[].activityId` | 요청 `activities` 의 `id` 또는 `null`(맞는 활동이 없어 보일 때) |
+| `model` | 실제로 답한 LLM 이름. 선택 |
+
+고르는 규칙(프롬프트 · 채점):
+
+- 후보 = 지난 일 · 결과 · 역할을 말하는 문장인데, 그 사실이 경험 · 근거 · 보완 · 본문 어디에도 **없는** 것. 이미 받치는 문장(근거 점검이면 `SOURCE` · `USER_INPUT` 일 문장)은 후보가 아니다.
+- 고르지 않는다: 생각 · 동기 · 포부 · 느낌 · 이어 주는 말(근거 점검의 `OPINION`) · 자기 칭찬 · 포장만 있는 문장(「누구보다 끈질기게」 — S-05) · 기존 자료와 **어긋나는** 문장(`TEAM` · `UNKNOWN` 경험의 일을 「제가」로, 자료와 다른 수치 · 역할 — 새 사실이 아니라 근거 점검에서 확인할 문장이다).
+- 받치는 사실에 새 결과 · 수치를 더한 문장(「해결했고 만족도가 크게 올랐다」)은 **더한 부분만** 후보로 옮길 수 있다 — `content` 에 받치던 사실을 다시 쓰지 않는다.
+
+코드가 LLM 답 뒤에 확인한다 — 엄한 쪽으로만 고친다(후보를 빼는 쪽).
+
+- 지어낸 `activityId`(요청에 없음) → `null` 로 고친다. 문장 번호가 범위 밖 · 빼야 할 문장 · 한 문장에 둘 → 위반(다시 시도 → `LLM_INVALID_OUTPUT`).
+- **숫자 대조**: `content` 속 숫자(연속된 숫자 — `/ground-check` 와 같은 기준)가 원래 `sentence` 에 **하나라도 없으면** 그 후보를 뺀다. 경험 문장에 원래 문장에 없는 수치가 들어가지 않게(S-05).
+- 5개를 넘으면 앞에서 5개만 둔다.
+
+### 오류
+
+| HTTP | `code` | 언제 |
+| --- | --- | --- |
+| 400 | `INVALID_REQUEST` | `text` 가 없거나 공백뿐(나눈 문장이 0개) · `experiences` · `activities` · `excludedSentences` 가 없음(`null`) · 경험 · 활동 `id` 중복 |
+| 413 | `TEXT_TOO_LONG` | `text` 와 경험 글을 합친 글자 수가 **100000** 을 넘음(`/ground-check` 와 같다) |
+| 502 | `LLM_ERROR` | LLM API 호출이 실패함 |
+| 502 | `LLM_INVALID_OUTPUT` | LLM 출력이 위 규칙을 벗어남(다시 시도한 뒤에도). 그럴듯하게 고쳐서 돌려주지 않는다 — 위의 엄한 쪽 고치기만 예외 |
+| 504 | `LLM_TIMEOUT` | 제한 시간 안에 답하지 않음 |
+| 500 | `INTERNAL_ERROR` | 그 밖 |
+
+BE 는 어떤 오류든 후보 찾기를 `FAILED`(`AI_FAILED`, `message` 에 위 `code`)로 둔다 — `/ground-check` 와 같다.
+
 ## 입구 셋 — 공통 (S-28 · S-29 · S-30)
 
 - 부르는 곳: BE entrance-api 가 FE 요청을 받은 그 자리에서(동기 — 작업 없음). 결과를 BE 는 **저장하지 않고** FE 에 넘긴다.

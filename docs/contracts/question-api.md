@@ -262,6 +262,8 @@ FE ─POST /api/questions/{id}/draft──▶ BE  사용자가 다시 만들기�
 
 `draft` — 이 문항의 답변 초안(아래 「답변 초안」 `Draft`). 아직 만들지 않았으면 `null`. 초안을 만드는 중엔 이 응답을 폴링한다.
 
+`answer` — 이 문항의 확정 답변(아래 「확정 답변」 `Answer` · S-48 `P1`). 확정하지 않았으면 `null`. 후보를 찾는 중엔 이 응답을 폴링한다. 이 파일의 다른 예시엔 줄였다.
+
 응답 200 — 문항 A, 되묻기 하나에 답한 뒤
 
 ```json
@@ -696,12 +698,170 @@ AI#48 · BE#72 · FE#104 에서 함께 맞춘다. 새 AI 응답에는 모든 문
 
 ---
 
+## 확정 답변 (S-48 · `P1`)
+
+사용자가 그 문항에 낼 글로 「확정」한 답이다. **문항마다 최신 하나** — 다시 확정하면 바뀐다. 초안을 고친 글이든 직접 쓴 글이든 같다. 확정하면 FE 가 이어서 **새 경험 후보 찾기**를 시작한다 — 글에서 사용자가 새로 쓴 사실 문장만 후보로 돌려주고, 사용자가 확인하면 그 후보가 경험이 된다(SPEC S-48 · 미결정 14 가). 저절로 저장하지 않는다. BE → AI 는 [`ai-api.md`](ai-api.md) 「POST /new-facts」.
+
+확정 답변은 근거가 아니다 — `/match` · `/draft` · `/ground-check` 요청에 싣지 않는다. 후보를 저장해 생긴 **경험**만 다른 경험처럼 쓰인다. 비슷한 문항에서 다시 보기(S-43)는 ETC#109 에서 이 모양 위에 더한다.
+
+확정 답변 `Answer` — 문항 A, 초안을 고쳐 확정하고 후보 찾기가 끝난 뒤
+
+```json
+{
+  "questionId": 41,
+  "text": "「바꿔요」 프로젝트에서 채팅 메시지가 늦게 도착하는 문제가 있었고, 제가 폴링을 WebSocket 으로 바꿔 해결했습니다. 서버에 STOMP 엔드포인트를 만들고, 앱의 3초 폴링 코드를 구독 방식으로 바꿨습니다. 바꾼 뒤에는 두 기기로 메시지를 보내 양쪽 화면에 바로 도착하는지 확인했습니다. 이어서 알림 기능도 같은 방식으로 바꿔 서버 요청을 하루 1,200회 줄였습니다. 배포까지 제가 맡아 AWS 에 올렸습니다. 누구보다 끈질기게 문제를 파고들었습니다. 앞으로도 문제의 원인을 살피는 개발자가 되고 싶습니다.",
+  "confirmedAt": "2026-11-06T09:00:00+09:00",
+  "newFacts": {
+    "status": "COMPLETED",
+    "error": null,
+    "candidates": [
+      {
+        "id": 801,
+        "sentence": "바꾼 뒤에는 두 기기로 메시지를 보내 양쪽 화면에 바로 도착하는지 확인했습니다.",
+        "content": "WebSocket 으로 바꾼 뒤 두 기기로 메시지를 보내 양쪽 화면에 바로 도착하는지 확인했다",
+        "actor": "ME",
+        "activityId": 7,
+        "activityName": "바꿔요 — 캠퍼스 중고거래 앱",
+        "status": "SAVED",
+        "experienceId": 108
+      },
+      {
+        "id": 802,
+        "sentence": "이어서 알림 기능도 같은 방식으로 바꿔 서버 요청을 하루 1,200회 줄였습니다.",
+        "content": "알림 기능도 구독 방식으로 바꿔 서버 요청을 하루 1,200회 줄였다",
+        "actor": "ME",
+        "activityId": 7,
+        "activityName": "바꿔요 — 캠퍼스 중고거래 앱",
+        "status": "PENDING",
+        "experienceId": null
+      }
+    ],
+    "createdAt": "2026-11-06T09:00:01+09:00",
+    "updatedAt": "2026-11-06T09:00:15+09:00"
+  }
+}
+```
+
+- `text` — 확정한 글 그대로(최대 5000자 — 근거 점검과 같은 셈). `confirmedAt` — 마지막으로 확정한 시각.
+- `newFacts` — 이 답의 새 경험 후보 찾기. 아직 시작하지 않았으면 `null`(확정만 하고 한도를 다 쓴 경우 등). 다시 확정하면 `null` 로 돌아간다.
+- `newFacts.status` · `error` — 작업 상태(README 「값 목록」). `ANALYZING` · `FAILED` 면 `candidates` 는 `[]`. `FAILED` 의 `error.code` 는 문항과 같은 값(`AI_TIMEOUT` · `AI_UNAVAILABLE` · `AI_FAILED` · `INTERNAL_ERROR`) — 정해진 후보로 채우지 않는다(대회 규칙 2). FE 는 오류와 「다시 찾기」(같은 `POST`)를 보인다. 서버가 재시작돼 끊긴 찾기도 `FAILED` 로 정리한다(초안과 같다).
+- `candidates` — 후보, **글의 순서대로**. 0 ~ 5개. `COMPLETED` 인데 0개면 FE 는 「새로 쓴 사실이 없어요」.
+- `candidates[].sentence` — 확정 글 속 원래 문장(글의 이어진 일부 — 고치지 않는다). FE 는 이 문장을 같이 보여 어디서 나온 후보인지 알게 한다.
+- `candidates[].content` · `actor` — AI 가 옮긴 경험 문장(「~했다」)과 수행 주체 제안. **AI 해석**이다 — FE 는 고칠 수 있는 칸으로 보이고, 저장할 때 사용자가 고친 값을 보낸다. 원래 문장에 없는 사실 · 수치는 들어 있지 않다(ai-api 응답 규칙).
+- `candidates[].activityId` · `activityName` — 붙일 활동 제안(AI 해석). 맞는 활동이 없어 보이면 둘 다 `null` — FE 는 활동을 고르게 한다. `activityName` 은 BE 가 응답 때 지금 이름으로 채운다. 그새 활동이 지워지거나 합쳐져 사라졌으면 둘 다 `null` 로 돌린다.
+- `candidates[].status` — README 「값 목록」 `newFactStatus`: `PENDING`(아직 정하지 않음) · `SAVED`(경험으로 저장 — `experienceId` 에 그 경험) · `DISMISSED`(저장 안 함). `SAVED` · `DISMISSED` 는 다시 바뀌지 않는다. 저장한 경험을 그 뒤 지워도 후보는 `SAVED` 그대로이고 `experienceId` 만 `null` 이 된다.
+- 예시 읽는 법: 앞 두 문장은 저장된 초안 문장과 글자가 같아 AI 서버 코드가 뺐다(AI 제안 복사 — 근거가 있든 지워졌든 새 사실로 보지 않는다). 셋째(확인한 방법)는 자료 · 보완에 없던 새 사실이라 후보가 되고, 사용자가 활동 7 에 저장해 경험 108 이 생겼다. 넷째는 사용자가 새로 쓴 결과 · 수치 — 「1,200」이 원래 문장에 있으니 경험 문장에 남을 수 있다. 다섯째 「배포까지 제가 맡아」는 경험 103(`TEAM`, 「배포는 팀원이 맡아」)과 어긋나 후보가 아니다. 여섯째는 자기 칭찬 · 포장, 일곱째는 포부(생각)라 뺀다(초안 문장과 같아서도 빠진다).
+
+## PUT /api/questions/{questionId}/answer — 답 확정하기
+
+- 쓰는 곳: FE 지원 화면 「내가 쓴 답」 칸(근거 점검 S-45 와 같은 칸)의 「확정」
+- SPEC: `F-09` / `S-48` — 우선순위 `P1`
+
+요청 — `PUT /api/questions/41/answer`
+
+```json
+{ "text": "「바꿔요」 프로젝트에서 채팅 메시지가 늦게 도착하는 문제가 있었고, … 앞으로도 문제의 원인을 살피는 개발자가 되고 싶습니다." }
+```
+
+| 필드 | 값 |
+| --- | --- |
+| `text` | 확정할 답. 공백만 있으면 안 된다. 최대 **5000자** |
+
+응답 200 — `{ "answer": Answer }`, `newFacts: null`. AI 를 부르지 않는다 — **분석 횟수를 쓰지 않는다.** 문항의 추천 상태와 상관없이 확정할 수 있다(근거 점검과 같다).
+
+- 예전 확정 답을 이것으로 바꾼다. 예전 후보 중 `PENDING` 은 지운다. `SAVED` 로 생긴 경험은 그대로 남는다. `DISMISSED` 한 문장은 **그 문항에 기억해 두고** 다음 찾기에서 뺀다(아래 「후보 찾기」).
+- FE 는 「확정」 한 번에 이 호출이 성공한 뒤 바로 아래 「후보 찾기」를 부른다. 확정이 실패하면 오류 · 다시 시도를 보이고 확정된 것처럼 보이지 않는다.
+
+오류
+
+| HTTP | `code` | 언제 |
+| --- | --- | --- |
+| 400 | `EMPTY_TEXT` | `text` 가 비었거나 공백뿐 |
+| 400 | `INVALID_REQUEST` | `text` 가 없음 |
+| 404 | `QUESTION_NOT_FOUND` | 없는 문항 |
+| 409 | `NEW_FACTS_IN_PROGRESS` | 그 답의 후보 찾기가 아직 `ANALYZING` — 예전 답을 바꾸지 않는다 |
+| 413 | `TEXT_TOO_LONG` | `text` 가 5000자를 넘음 |
+
+## POST /api/questions/{questionId}/answer/new-facts — 새 경험 후보 찾기
+
+- 쓰는 곳: FE 「확정」 직후 · 실패했을 때 「다시 찾기」
+- SPEC: `F-09` / `S-48`
+
+요청 — `POST /api/questions/41/answer/new-facts`, 본문 없음. 응답 202 — `{ "answer": Answer }`, `newFacts.status: "ANALYZING"` · `candidates: []`. 그 답의 예전 찾기(완료든 실패든)를 이것으로 바꾼다 — 예전 `PENDING` 후보는 지우고, `SAVED` 경험은 남고, `DISMISSED` 문장은 계속 뺀다.
+
+BE 가 AI 에 보내는 것(ai-api 「POST /new-facts」):
+
+- `text` — 확정 답 그대로.
+- `experiences` — 그 사용자의 **경험 전부**, 지금 상태로(`/ground-check` 와 같은 모양 · 원본에서 찾은 근거만). 경험 0개여도 받는다.
+- `activities` — 그 사용자의 활동 전부 `{ id, name, period }`(붙일 활동 제안용).
+- `excludedSentences` — 그 문항의 저장된 초안 `sentences[].text` 전부(`FACT` · `OPINION` 모두) + 그 문항에서 `DISMISSED` 한 후보의 `sentence` 전부. 없으면 `[]`.
+
+분석 1회로 센다([`auth-api.md`](auth-api.md) `dailyAnalysis`).
+
+오류
+
+| HTTP | `code` | 언제 |
+| --- | --- | --- |
+| 404 | `QUESTION_NOT_FOUND` | 없는 문항 |
+| 404 | `ANSWER_NOT_FOUND` | 그 문항에 확정 답이 없음 |
+| 409 | `NEW_FACTS_IN_PROGRESS` | 이미 `ANALYZING` — 예전 것을 바꾸지 않는다 |
+| 429 | `DAILY_LIMIT_EXCEEDED` | 오늘 분석 횟수를 다 씀 — 예전 찾기를 바꾸지 않는다. 답은 확정된 그대로다 |
+
+## POST /api/new-fact-candidates/{candidateId}/save — 후보를 경험으로 저장
+
+- 쓰는 곳: FE 새 경험 후보의 「경험으로 저장」
+- SPEC: `F-09` / `S-48`
+
+요청 — `POST /api/new-fact-candidates/801/save`
+
+```json
+{ "activityId": 7, "content": "WebSocket 으로 바꾼 뒤 두 기기로 메시지를 보내 양쪽 화면에 바로 도착하는지 확인했다", "actor": "ME", "competencies": [] }
+```
+
+| 필드 | 값 |
+| --- | --- |
+| `activityId` | 붙일 활동(필수) — 그 사용자의 기존 활동 |
+| `content` | 경험 문장(필수, 비지 않은 문자열) — 사용자가 고친 값 |
+| `actor` | `ME` · `TEAM` · `UNKNOWN`(필수) |
+| `competencies` | 역량 값 배열(선택 — 빼면 `[]`). 「경험 직접 추가」와 같은 규칙 |
+
+응답 201 — 만든 `Experience`(`experience-api.md`). 「경험 직접 추가」와 같은 경험이다 — **`sourceStatus: USER_ENTERED` · `competenciesBy: USER` · `citations: []`**, 활동의 경험 맨 뒤. 다른 점은 `origin` 하나 — 이 문항의 확정 답에서 왔다는 표시(experience-api 「Experience」). 후보는 `SAVED` · `experienceId` 가 붙는다.
+
+```json
+{
+  "id": 108,
+  "activityId": 7,
+  "content": "WebSocket 으로 바꾼 뒤 두 기기로 메시지를 보내 양쪽 화면에 바로 도착하는지 확인했다",
+  "competencies": [],
+  "competenciesBy": "USER",
+  "actor": "ME",
+  "sourceStatus": "USER_ENTERED",
+  "citations": [],
+  "supplements": [],
+  "origin": { "type": "ANSWER", "questionId": 41, "applicationId": 21, "organization": "OO 백엔드 부트캠프", "questionText": "기술적인 문제를 해결한 경험을 구체적으로 적어 주세요." }
+}
+```
+
+오류: 400 `INVALID_REQUEST`(빈 `content` · 틀린 `actor` · `competencies` 규칙 위반 · `activityId` 없음) · 404 `NEW_FACT_NOT_FOUND`(없는 후보 · 다시 확정 · 다시 찾기로 지워진 후보) · 404 `ACTIVITY_NOT_FOUND` · 409 `NEW_FACT_ALREADY_DECIDED`(이미 `SAVED` · `DISMISSED` — 경험을 또 만들지 않는다).
+
+## POST /api/new-fact-candidates/{candidateId}/dismiss — 저장 안 함
+
+- 쓰는 곳: FE 새 경험 후보의 「저장 안 함」
+- SPEC: `F-09` / `S-48`
+
+요청 본문 없음. 응답 204. 후보는 `DISMISSED` 가 되고, 그 `sentence` 는 이 문항에서 다음 찾기부터 빠진다(글자가 같을 때만 — 문장을 고쳐 다시 확정하면 다시 후보가 될 수 있다).
+
+오류: 404 `NEW_FACT_NOT_FOUND` · 409 `NEW_FACT_ALREADY_DECIDED`
+
+---
+
 ## 이 계약에 없는 것
 
 - 지원 · 문항 지우기, 문항 텍스트 · 지원처 이름 고치기 — 없다(종류 · 직무 · 상태 · 낸 달 · 문항 유형만 `PATCH`).
 - 지원 상태(S-36)의 바뀐 이력 · 상태별 개수 · 합격률 · 상태로 거르기 — 없다. 상태는 꼬리표 하나다. 받은 피드백(면접 질문 · 탈락 사유 · 멘토 의견)을 경험에 쌓기는 ETC#30. 타임라인(`GET /api/activities`)에 지원을 섞어 주는 API 도 없다 — FE 가 `GET /api/applications` 의 `submittedMonth` 로 합친다(S-37) 넣기 전엔 FE 에서 자유롭게 고치고, 넣은 뒤 잘못 넣었으면 그 지원에 새로 더한다(SPEC S-18)
 - 「자주 나오는 문항」 목록(S-26) — FE 에 둔다. API 없음. 「내가 넣었던 문항」(S-40)은 `GET /api/questions` 를 FE 가 묶어 보인다 — 새 API 없음
-- 예전 답변 다시 보기(S-43) — 확정 답변(ETC#67)이 생긴 뒤 계약을 더한다
+- 예전 답변 다시 보기(S-43) — 확정 답변(위 「확정 답변」)의 모양 위에 ETC#109 에서 더한다
 - 공고 링크에서 본문 가져오기 — entrance-api `parse-application` 의 `url`(S-46). 여기는 원문 링크 `postingUrl` 을 남기기만 한다 · 넣은 뒤 링크 고치기 없음
-- 답변 초안을 화면에서 고쳐 저장하기 · 확정 답변 · 근거 없는 문장을 새 경험으로(ETC#67), 작성 지침 · 구성 틀(ETC#68), 예전 초안 이력 · 비교, 문항 여러 개를 한 번에 초안으로, 글자 수 맞추기 — 없다. 초안은 문항마다 최신 하나다(S-27)
-- 근거 점검의 예전 결과 모아 보기 · 문장을 고쳐 주기 — 없다. 점검은 문항마다 최신 하나, 글은 사람이 고친다(S-45). 근거 없는 문장을 새 경험 후보로 올리기는 확정 답변(ETC#67)에서
+- 답변 초안을 화면에서 고쳐 저장하기(사용자는 고친 글을 「확정」한다 — S-48), 작성 지침 · 구성 틀(ETC#68), 예전 초안 이력 · 비교, 문항 여러 개를 한 번에 초안으로, 글자 수 맞추기 — 없다. 초안은 문항마다 최신 하나다(S-27)
+- 근거 점검의 예전 결과 모아 보기 · 문장을 고쳐 주기 — 없다. 점검은 문항마다 최신 하나, 글은 사람이 고친다(S-45). 새 경험 후보는 근거 점검 결과가 아니라 확정 답변에서 따로 찾는다(S-48 — 근거 없음엔 과장 · 「팀 → 제가」도 섞인다)
+- 확정 답변의 이력 · 확정 취소 · 후보에서 새 활동 만들기 · 여러 문항 한꺼번에 찾기 — 없다(S-48). 후보 찾기는 진행 중인 일(S-47 · `work-api.md`)에 아직 넣지 않는다 — 문항 화면에서 바로 보인다

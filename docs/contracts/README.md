@@ -73,6 +73,10 @@
 | | `USER_INPUT` | 내가 입력 — 원본 발췌 없이 보완 · 직접 넣거나 고친 경험 본문(`EXPERIENCE`)만 받친다 |
 | | `UNSUPPORTED` | 근거 없음 — 받치는 근거 · 보완이 없다. 「거짓」이 아니라 「확인해 주세요」 |
 | | `OPINION` | 생각 — 동기 · 포부 · 느낌 · 이어 주는 문장처럼 사실 주장이 아니라 점검하지 않는다(AI 해석) |
+| `newFactStatus` 새 경험 후보 상태 (S-48) | `PENDING` | 아직 정하지 않음 |
+| | `SAVED` | 경험으로 저장함 |
+| | `DISMISSED` | 저장 안 함 — 그 문항에서 같은 문장은 다시 후보가 되지 않는다 |
+| `experienceOrigin` 경험이 온 곳 (S-48) | `ANSWER` | 내가 쓴 지원서 — 확정 답의 새 경험 후보를 저장했다. 그 밖의 경험은 `origin: null` |
 | `sectionKind` 원본 구간 종류 (S-39) | `PAGE` | PDF 의 쪽 |
 | | `SLIDE` | PPTX 의 슬라이드 |
 | `entranceKind` 홈 입력 가르기 (S-28) | `SOURCE` | 자료 — 쌓기(S-01)로 |

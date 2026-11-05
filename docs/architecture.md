@@ -12,6 +12,7 @@ flowchart LR
         BE --> DB[(PostgreSQL)]
     end
     AI --> LLM[LLM API]
+    AI -.->|사용자가 준 공고 링크 한 번 · S-46| WEB[공고 페이지]
 ```
 
 ## 구성 요소
@@ -20,7 +21,7 @@ flowchart LR
 | --- | --- | --- | --- |
 | FE | `WOOWANGTHON_TEAM_12_FE` | Next.js(App Router) · TypeScript · Tailwind CSS, Vercel 배포 | 화면. 데이터 · 인증은 전부 BE API 로 |
 | BE | `WOOWANGTHON_TEAM_12_BE` | Spring Boot | 인증 · 저장 · 조회 · 수정 · 분석 작업 상태 · 사용 한도. AI 서버를 부르는 유일한 곳 |
-| AI | `WOOWANGTHON_TEAM_12_AI` | Python FastAPI | 받은 텍스트에서 활동 · 경험 · 근거를 뽑아 JSON 으로 돌려준다. DB 를 만지지 않는다 |
+| AI | `WOOWANGTHON_TEAM_12_AI` | Python FastAPI | 받은 텍스트에서 활동 · 경험 · 근거를 뽑아 JSON 으로 돌려준다. DB 를 만지지 않는다. 밖으로 나가는 건 LLM API 와, 사용자가 준 공고 링크를 그 요청에서 한 번 받는 것(S-46 — robots.txt · 내부 주소 막기, 계약 `ai-api.md` 「링크 받기」)뿐이다 |
 | MCP · 차곡이 도구 | BE 안 (스프린트 3 — SPEC R-04) | Spring Boot — `POST /mcp/{token}` | 다른 AI(MCP)와 홈 입력 뒤의 차곡이가 같이 쓰는 도구 목록. 도구는 BE MCP 에만 정의하고, 차곡이(AI 서버)는 그 MCP 의 클라이언트([ADR-007](decisions/ADR-007-chagok-entrance-agent.md) · [ADR-008](decisions/ADR-008-mcp-tools-in-be.md)) |
 | DB | (BE 가 관리) | PostgreSQL (`pgvector/pgvector` 이미지, 확장은 아직 안 켬) | 원본 · 활동 · 경험 · 근거 |
 

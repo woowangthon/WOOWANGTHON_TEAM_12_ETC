@@ -1,6 +1,6 @@
 # experience-api — FE → BE
 
-> 스프린트 1 「경험 관리」(SPEC R-01) · 스프린트 2 보완(SPEC R-03 — 「보완 `Supplement`」 · 보완 고치기 · 지우기). 활동 분류(SPEC S-57 `P1` — `category` · `categoryBy`). 같은 활동 제안(SPEC S-44 `P1` — `mergeSuggestion` · 따로 두기). 그때의 나 · 이어짐(SPEC R-05 F-13 `P1` — 활동 `note` · `ActivityLink` · 이어짐 제안 받기 · 정하기). 경험마다 쓰인 지원(SPEC R-05 F-14 `P1` — 활동 세부의 `usedIn`, S-38). 경험 찾기(SPEC S-58 `P1` — `GET /api/experiences`). 자료 여러 개 한 번에 · 활동에 자료 더하기(SPEC S-59 · S-60 `P2` — `POST /api/sources/batch` · `POST /api/sources` 의 `activityId` · 작업 `QUEUED` · `targetActivityId` · `targetMatched`). 이름 규칙 · 값 목록 · 기간 · 오류 모양은 [README 「공통」](README.md#공통--모든-계약이-같이-쓰는-것).
+> 스프린트 1 「경험 관리」(SPEC R-01) · 스프린트 2 보완(SPEC R-03 — 「보완 `Supplement`」 · 보완 고치기 · 지우기). 활동 분류(SPEC S-57 `P1` — `category` · `categoryBy`). 같은 활동 제안(SPEC S-44 `P1` — `mergeSuggestion` · 따로 두기). 그때의 나 · 이어짐(SPEC R-05 F-13 `P1` — 활동 `note` · `ActivityLink` · 이어짐 제안 받기 · 정하기). 경험마다 쓰인 지원(SPEC R-05 F-14 `P1` — 활동 세부의 `usedIn`, S-38). 경험 찾기(SPEC S-58 `P1` — `GET /api/experiences`). 자료 여러 개 한 번에 · 활동에 자료 더하기(SPEC S-59 · S-60 `P2` — `POST /api/sources/batch` · `POST /api/sources` 의 `activityId` · 작업 `QUEUED` · `targetActivityId` · `targetMatched`). 폴더 · Notion ZIP · GitHub 가져오기(SPEC S-62 ~ S-64 `P2` — 새 API · 필드 없음, `name` 에 경로). 이름 규칙 · 값 목록 · 기간 · 오류 모양은 [README 「공통」](README.md#공통--모든-계약이-같이-쓰는-것).
 > 예시는 가상의 팀 프로젝트 회고 하나(「바꿔요」 · 알고리즘 스터디)로 이어진다 — [`ai-api.md`](ai-api.md) 예시와 같은 자료다.
 
 ## 흐름
@@ -197,7 +197,7 @@ PDF 를 넣을 때(S-39) — 1쪽은 1 ~ 2줄, 2쪽은 글자가 없어 빠지�
 | 필드 | 값 |
 | --- | --- |
 | `kind` | `TEXT`(붙여넣기) · `FILE`(파일 올리기) |
-| `name` | `FILE` 이면 파일 이름(필수, `.md` · `.txt` · `.pdf` · `.pptx` — 대소문자 무시). `TEXT` 면 `null` — BE 가 「붙여넣은 텍스트 2026-11-03 14:05」처럼 이름을 붙인다 |
+| `name` | `FILE` 이면 파일 이름(필수, `.md` · `.txt` · `.pdf` · `.pptx` — 대소문자 무시). 폴더 · Notion ZIP 에서 가져오면(S-62 · S-63) 폴더 안 경로(`볼트/활동/바꿔요-회고.md`), GitHub 에서 가져오면(S-64) `owner/repo (GitHub).md` — `/` · 공백이 들어갈 수 있고 BE 는 받은 그대로 남긴다(지금 동작 그대로 — BE 변경 없음). `TEXT` 면 `null` — BE 가 「붙여넣은 텍스트 2026-11-03 14:05」처럼 이름을 붙인다 |
 | `text` | 원본 텍스트. 공백만 있으면 안 된다. 최대 길이는 아래 한도 |
 | `sections` | `.pdf` · `.pptx` 면 **필수**(1개 이상), 그 밖엔 `null`(빼도 된다). 원소 `{ kind, number, startLine, endLine }` — `kind` 는 `.pdf` 면 `PAGE`, `.pptx` 면 `SLIDE`(README 「값 목록」) · `number` 는 1부터 센 쪽 · 슬라이드 번호 · `startLine` ≤ `endLine` 은 위 「줄 세기」의 줄 번호이고 `text` 의 줄 수를 넘지 않는다. `number` · 줄 둘 다 오름차순이고 구간끼리 겹치지 않는다. BE 는 받은 그대로 원본에 남긴다 |
 | `activityId` | 활동 세부의 「자료 더하기」(S-60, `P2`)일 때 그 활동의 `id`, 그 밖엔 `null`(빼도 된다). 아래 「활동에 자료 더하기」 |

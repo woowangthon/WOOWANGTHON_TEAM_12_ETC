@@ -1,11 +1,12 @@
 # ai-api — BE → AI
 
-> 스프린트 1 「경험 관리」(SPEC F-02 — `POST /extract`) · 스프린트 2 「문항 매칭」(SPEC R-03 — `POST /match`) · 근거 점검(SPEC S-45 — `POST /ground-check`, `P1`). 이름 규칙 · 값 목록 · 기간 · 오류 모양은 [README 「공통」](README.md#공통--모든-계약이-같이-쓰는-것).
+> 스프린트 1 「경험 관리」(SPEC F-02 — `POST /extract`) · 스프린트 2 「문항 매칭」(SPEC R-03 — `POST /match`) · 근거 점검(SPEC S-45 — `POST /ground-check`, `P1`) · 스프린트 3 「입구 하나」(SPEC F-10 — `POST /route` · `POST /ask` · `POST /parse-application`). 이름 규칙 · 값 목록 · 기간 · 오류 모양은 [README 「공통」](README.md#공통--모든-계약이-같이-쓰는-것).
 > AI 서버는 DB 를 만지지 않고 상태가 없다 — 받은 텍스트로 JSON 만 돌려준다([ADR-003](../decisions/ADR-003-stack-and-ai-boundary.md)). 저장 · ID · 사용자 구분은 BE.
 
 - 부르는 곳: BE 만, 내부망으로([ADR-004](../decisions/ADR-004-deploy.md)). 인증 없음.
 - 주소: `http://<AI 서버>:<포트>` — 값은 BE 설정(compose 서비스 이름).
 - 시간: 한 번 부르는 데 수십 초 걸릴 수 있다. BE 는 제한 시간(BE `AI_TIMEOUT_SECONDS`, 기본 120초)을 넘으면 끊고 작업을 `FAILED`(`AI_TIMEOUT`)로 둔다. AI 서버는 BE 의 작업 상태를 모른다. AI 서버는 LLM 폴백 · 다시 시도까지 합쳐 100초 안에 답하거나 `LLM_TIMEOUT` 으로 돌려준다(`LLM_TIMEOUT_SECONDS`). `/extract` · `/match` · `/ground-check` 모두 같다.
+- 입구 셋(`/route` · `/ask` · `/parse-application`)은 사용자가 화면에서 기다리는 **동기** 호출이다(entrance-api) — BE 는 60초(`AI_SYNC_TIMEOUT_SECONDS`)에서 끊고, AI 서버는 폴백 · 다시 시도까지 합쳐 **50초** 안에 답하거나 `LLM_TIMEOUT` 이다(`LLM_SYNC_TIMEOUT_SECONDS`).
 
 ## POST /extract — 활동 · 경험 · 근거 추출
 
@@ -444,6 +445,146 @@ LLM 이 문장을 다시 쓰거나 빠뜨리지 않게 AI 서버 코드가 나�
 | 500 | `INTERNAL_ERROR` | 그 밖 |
 
 BE 는 어떤 오류든 점검을 `FAILED`(`AI_FAILED`, `message` 에 위 `code`)로 둔다 — `/match` 와 같다.
+
+## 입구 셋 — 공통 (S-28 · S-29 · S-30)
+
+- 부르는 곳: BE entrance-api 가 FE 요청을 받은 그 자리에서(동기 — 작업 없음). 결과를 BE 는 **저장하지 않고** FE 에 넘긴다.
+- 오류 표는 셋 다 같다 — 아래 「POST /parse-application」 끝. BE 는 어떤 오류든 FE 에 502 `AI_FAILED`(`message` 에 AI 쪽 `code`), 시간을 넘기면 504 `AI_TIMEOUT` 으로 돌려준다.
+- 응답 규칙을 어기면 AI 서버가 한 번 다시 시도한 뒤 `LLM_INVALID_OUTPUT` 이다. 규칙에 맞게 잘라 내거나 고쳐서 돌려주지 않는다.
+
+## POST /route — 홈 입력 가르기
+
+- SPEC: `F-10` / `S-28`(`P0`) · `S-29`(`ASK`) — [ADR-007](../decisions/ADR-007-chagok-entrance-agent.md)
+
+요청
+
+```json
+{ "text": "팀 프로젝트에서 맡은 역할과, 팀과 함께 일한 방식을 적어 주세요.", "totalLength": 35 }
+```
+
+| 필드 | 값 |
+| --- | --- |
+| `text` | 홈 입력의 **앞 4000자**(코드 포인트). BE 가 자른다. 비지 않은 문자열 |
+| `totalLength` | 자르기 전 전체 길이(코드 포인트). 긴 글이면 자료일 가능성이 높다는 단서 |
+
+응답 200
+
+```json
+{ "kind": "APPLICATION", "reason": "지원서가 묻는 문항 문장이다", "model": "<LLM 모델 이름>" }
+```
+
+| 필드 | 규칙 |
+| --- | --- |
+| `kind` | README 「값 목록」 `entranceKind` 하나. `SOURCE` 내가 한 일을 적은 글(회고 · README · 이력서 · 노트 · 회의록) · `APPLICATION` 지원처가 묻는 문항 · 모집 공고 · `ASK` 내 경험을 찾아 달라는 물음(「~ 한 적 있었나?」) · `UNSURE` 둘 이상으로 읽힌다 — **애매하면 `UNSURE`**(틀리게 넘기는 것보다 묻는 게 싸다) |
+| `reason` | 비지 않은 한 문장(최대 200자). AI 해석 |
+| `model` | 실제로 답한 LLM 이름. 선택 |
+
+- LLM 한 번 + 분기(ADR-007). 맞게 가른 비율은 시험 입력 묶음으로 재고 `ai-scope.md` 에 남긴다.
+- `/route` 400: `text` 가 비었거나 4000자를 넘음.
+
+## POST /ask — 한 줄 질문에 맞는 경험
+
+- SPEC: `F-10` / `S-29`(`P1`) — 규칙은 `S-20` 과 같다
+
+요청 — `experiences` 는 「POST /match」 요청의 `experiences` 와 **같은 모양**이다(사용자의 경험 전부 · 근거 · 보완). BE 는 경험이 0개면 부르지 않는다.
+
+```json
+{
+  "query": "동아리에서 의견 모아 본 적 있었나?",
+  "experiences": [
+    {
+      "id": 102,
+      "activityName": "바꿔요 — 캠퍼스 중고거래 앱",
+      "period": { "start": "2025-03", "end": "2025-06", "ongoing": false },
+      "content": "매주 금요일 스프린트 회고를 했다",
+      "competencies": ["COLLABORATION"],
+      "actor": "TEAM",
+      "sourceStatus": "SOURCE_CONFIRMED",
+      "citations": [{ "id": 202, "quote": "팀은 매주 금요일 스프린트 회고를 했다." }],
+      "supplements": []
+    }
+  ]
+}
+```
+
+| 필드 | 값 |
+| --- | --- |
+| `query` | 질문(BE 한도 2000자). 비지 않은 문자열 |
+| `experiences` | 「POST /match」와 같다. 1개 이상 · `id` 중복 없음 |
+
+응답 200
+
+```json
+{
+  "recommendations": [
+    {
+      "experienceId": 102,
+      "reason": "팀이 매주 회고로 의견을 모은 자리라 질문과 맞는다. 회고를 내가 이끌었는지는 자료에 없다",
+      "evidence": [{ "type": "CITATION", "id": 202 }]
+    }
+  ],
+  "model": "<LLM 모델 이름>"
+}
+```
+
+| 필드 | 규칙 |
+| --- | --- |
+| `recommendations` | 배열 **0 ~ 3개**, 더 잘 맞는 것부터. 맞는 게 없으면 `[]` — 억지로 채우지 않는다 |
+| `recommendations[].experienceId` · `reason` · `evidence` | 「POST /match」 응답 규칙의 같은 이름 필드와 **같다** — 요청에 있는 경험 ID · 추천끼리 중복 없음, `reason` 에 경험 · 근거 · 보완에 없는 수치 · 역할 · 결과를 넣지 않고 `TEAM` · `UNKNOWN` 을 「내가 한 일」로 바꿔 말하지 않는다, `evidence` 는 **같은 경험의** 근거 · 보완 ID |
+| `model` | 실제로 답한 LLM 이름. 선택 |
+
+- 요구사항 · 되묻기 · 문항 유형은 없다(지원을 만들지 않는다). 안에서 `/match` 의 코드를 같이 써도 된다 — 응답 모양만 지킨다.
+- `/ask` 400: `query` 가 비었음 · `experiences` 가 없거나 0개 · 경험 `id` 중복. 413 `TEXT_TOO_LONG`: 「POST /match」와 같은 셈(`MAX_MATCH_CHARS`).
+
+## POST /parse-application — 문항 · 공고에서 지원처 · 종류 · 직무 · 문항 나누기
+
+- SPEC: `F-10` / `S-30`(`P1`) · 미결정 12(붙여 넣은 공고) · `S-42`
+
+요청
+
+```json
+{ "text": "[OO 백엔드 부트캠프 4기 모집]\n모집 분야: 백엔드(Spring)\n\n자기소개서 문항\n1. 기술적인 문제를 해결한 경험을 구체적으로 적어 주세요. (500자)\n2. 지원 동기와 수료 후 목표를 적어 주세요. (500자)" }
+```
+
+| 필드 | 값 |
+| --- | --- |
+| `text` | 붙여 넣은 문항 · 공고 글 그대로(BE 한도 20000자). 비지 않은 문자열 |
+
+응답 200
+
+```json
+{
+  "organization": "OO 백엔드 부트캠프 4기",
+  "organizationType": "BOOTCAMP",
+  "jobRole": "BACKEND",
+  "questions": [
+    "기술적인 문제를 해결한 경험을 구체적으로 적어 주세요. (500자)",
+    "지원 동기와 수료 후 목표를 적어 주세요. (500자)"
+  ],
+  "model": "<LLM 모델 이름>"
+}
+```
+
+| 필드 | 규칙 |
+| --- | --- |
+| `organization` | `null` 또는 비지 않은 문자열(최대 100자) — **요청 `text` 에 들어 있는 글자**여야 한다(아래 「적혀 있나」). 지어낸 이름이면 위반 |
+| `organizationType` · `jobRole` | README 「값 목록」 값 하나 또는 `null`. AI 해석 — 확실하지 않으면 `null`. 목록 밖 값은 위반 |
+| `questions` | 문자열 배열 **0 ~ 10개**, 글에 나온 순서대로, 중복 없음, 각각 비지 않고 최대 5000자. **각각 요청 `text` 에 적혀 있어야 한다** — 문항을 만들거나 다듬어 쓰지 않는다(R-03 범위 제외). 앞 번호(「1.」)는 빼도 된다. 글이 문항 하나뿐이면 그 하나. 못 찾으면 `[]` |
+| `model` | 실제로 답한 LLM 이름. 선택 |
+
+- **적혀 있나** — 코드로 확인한다: 양쪽의 연속 공백(줄바꿈 포함)을 공백 하나로 줄인 뒤 요청 `text` 의 부분 문자열이면 적혀 있다.
+- `/parse-application` 400: `text` 가 비었음. 413 `TEXT_TOO_LONG`: 20000자를 넘음.
+
+### 오류 — 입구 셋 공통
+
+| HTTP | `code` | 언제 |
+| --- | --- | --- |
+| 400 | `INVALID_REQUEST` | 위 엔드포인트마다 적은 경우 |
+| 413 | `TEXT_TOO_LONG` | 위 엔드포인트마다 적은 경우 |
+| 502 | `LLM_ERROR` | LLM API 호출이 실패함 |
+| 502 | `LLM_INVALID_OUTPUT` | LLM 출력이 응답 규칙을 벗어남(다시 시도한 뒤에도) |
+| 504 | `LLM_TIMEOUT` | 50초 안에 답하지 않음 |
+| 500 | `INTERNAL_ERROR` | 그 밖 |
 
 ## GET /health — 살아 있나
 

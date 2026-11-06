@@ -13,6 +13,7 @@ FE ─GET /api/activities─────────▶ BE  타임라인
 FE ─GET /api/activities/{id}────▶ BE  세부(경험 · 근거)
 FE ─GET /api/experiences?query=…▶ BE  경험 찾기 · 거르기(S-58 — MCP search_experiences 와 같은 검색)
 FE ─PATCH · POST · DELETE …─────▶ BE  고치기 · 더하기 · 지우기 · 옮기기 · 합치기
+FE ─PUT /api/experiences/{id}/saved▶ BE  저장 켜기 · 끄기(S-71)
 
 자료 여러 개 한 번에 · 활동에 자료 더하기 (S-59 · S-60, P2)
 FE ─POST /api/sources/batch─────────────▶ BE  원본 N개 · 작업 N개 → 202 { items }
@@ -99,6 +100,7 @@ FE ─PATCH /api/activity-links/{id} { status }────▶ BE  CONFIRMED · 
 - `mcpChange` — 외부 AI 가 본문을 고쳐 사용자가 아직 정하지 않은 경험(S-53 `P2`). `{ "changeId": 56, "client": "claude-ai" }`, 그 밖엔 `null`. FE 는 「Claude 가 고침」을 보이고 `mcp-api.md` 「변경 기록」으로 전 · 후 본문과 맞아요 · 되돌리기를 잇는다. 사용자가 이 경험을 고치거나 변경을 정하면 `null` 이 된다. **모든 `Experience` 응답에 실린다** — 이 파일 · `question-api.md` 의 다른 예시엔 줄였다. AI 서버 요청에는 싣지 않는다.
 - `origin` — 이 경험이 어디서 왔나(S-48 `P1`). 보통 `null`(자료 분석 · 직접 추가). 확정 답의 새 경험 후보를 저장해 생긴 경험(question-api 「후보를 경험으로 저장」)만 `{ "type": "ANSWER", "questionId", "applicationId", "organization", "questionText" }` — 「내가 쓴 지원서 — 지원처 · 문항」. `type` 은 README 「값 목록」 `experienceOrigin`. `organization` · `questionText` 는 BE 가 응답 때 지금 값으로 채운다(지원처 이름이 없으면 `null`). 그런 경험은 늘 `sourceStatus: USER_ENTERED` 로 시작하고, 고치거나 옮기거나 합쳐도 `origin` 은 그대로다. FE 는 「원문에서 확인」 · 일반 「내가 입력」과 구분해 「내가 쓴 지원서 · <지원처> · <문항>」으로 보인다. **모든 `Experience` 응답에 실린다** — 이 파일 · `question-api.md` 의 다른 예시엔 줄였다(전부 `null`). AI 요청(`/match` · `/draft` · `/ground-check` · `/new-facts`)엔 싣지 않는다 — 그 경험은 `USER_ENTERED` 본문으로 다른 경험과 같이 쓰인다.
 - `shared` — 공개 프로필에 넣었나(S-65 `P2`). 새 경험은 늘 `false`(기본은 아무것도 공개되지 않는다). 바꾸는 곳은 `PUT /api/experiences/{id}/shared`([`share-api.md`](share-api.md)) 하나 — 경험 수정 · 옮기기 · 활동 합치기 · `sourceStatus` 변화에도 그대로다. **FE 로 가는 모든 `Experience` 응답에 실린다** — 이 파일 · `question-api.md` 의 다른 예시엔 줄였다. MCP 도구 · AI 서버 요청엔 싣지 않는다.
+- `saved` — 사용자가 저장했나(S-71 `P2`). 새 경험은 늘 `false`. 활동 세부 · 경험 찾기의 경험에 싣고 MCP · 공개 프로필 응답에는 싣지 않는다. 바꾸는 곳은 아래 「PUT /api/experiences/{experienceId}/saved」.
 - `usedIn` — 쓰인 지원(S-38 `P1`). **활동 세부의 경험에만** 더 붙는다 — 아래 「GET /api/activities/{activityId}」의 「쓰인 지원 `usedIn`」.
 
 근거 `Citation`
@@ -617,6 +619,7 @@ FE 는 `jobId` 를 들고 있다가(새로고침 대비 주소 · 브라우저 �
 | `year` | `YYYY` — 활동 `period` 가 그해와 겹치는 경험. 규칙은 `search_experiences` 의 `year` 와 같다(`start` 가 `null` 인 활동은 빠진다) |
 | `sourceStatus` | 값 하나(README 「값 목록」 `sourceStatus`) — 그 출처 상태인 경험. 「확인 필요만 보기」는 `NEEDS_REVIEW` |
 | `category` | 값 하나(README 「값 목록」 `activityCategory`) — 그 분류 활동의 경험. 미분류 활동의 경험은 이 값을 주면 빠진다(S-57 「전체」에만) |
+| `saved` | `true` — 저장한 경험만(S-71). 빼면 거르지 않는다. MCP `search_experiences` 에는 없는 조건이다 |
 | `limit` | 1 ~ 200, 기본 100 |
 
 - 조건은 모두 그리고(AND). 아무것도 안 주면 경험 전부(최대 `limit`).
@@ -662,7 +665,7 @@ FE 는 `jobId` 를 들고 있다가(새로고침 대비 주소 · 브라우저 �
 - 경험 하나는 위 `Experience` 와 같고 `activityId` 대신 `activity`(`id` · `name` · `period` · `category`)를 싣는다. `usedIn`(활동 세부에만)은 싣지 않는다. 경험을 누르면 FE 는 `activity.id` 로 활동 세부를 연다.
 - `total` — `limit` 을 적용하기 전 맞은 개수. `total` 이 `experiences` 개수보다 크면 FE 는 「N개 중 M개」와 더 좁히라는 안내를 보인다. 맞은 게 없으면 `{ "total": 0, "experiences": [] }` — 오류가 아니다. FE 는 「쌓인 자료에서 찾지 못했어요」로 보인다(「경험 없음」이 아니다).
 
-오류: 400 `INVALID_REQUEST` — 값 목록 밖의 `competencies` · `sourceStatus` · `category`, `YYYY` 가 아닌 `year`, 범위 밖 `limit`
+오류: 400 `INVALID_REQUEST` — 값 목록 밖의 `competencies` · `sourceStatus` · `category`, `YYYY` 가 아닌 `year`, `true` 가 아닌 `saved`, 범위 밖 `limit`
 
 ## PATCH /api/activities/{activityId} — 활동 수정
 
@@ -761,6 +764,35 @@ FE 는 `jobId` 를 들고 있다가(새로고침 대비 주소 · 브라우저 �
 ```
 
 오류: 400 `INVALID_REQUEST` 빈 `content` · 틀린 `actor` 값 · `competencies` 가 목록 밖 값 · 중복 · 4개 이상 · `null` · 404 `EXPERIENCE_NOT_FOUND`
+
+## PUT /api/experiences/{experienceId}/saved — 경험 저장 · 빼기 (`P2`)
+
+- 쓰는 곳: FE 활동 세부의 경험 · 경험 찾기 결과 줄
+- SPEC: `F-03` / `S-71`
+
+경험 수정(`PATCH /api/experiences/{id}`)과 따로 둔다 — 그 요청은 값이 바뀌면 `sourceStatus` 를 `USER_ENTERED` 로 바꾸지만, 저장은 내용을 고친 게 아니다. `shared`(share-api)와 같은 모양이다.
+
+요청
+
+```json
+{ "saved": true }
+```
+
+| 필드 | 값 |
+| --- | --- |
+| `saved` | `true`(저장) · `false`(빼기). 필수. 이미 그 값이면 아무것도 바꾸지 않고 200 |
+
+응답 200 — 바뀐 `Experience`.
+
+오류
+
+| HTTP | `code` | 언제 |
+| --- | --- | --- |
+| 400 | `INVALID_REQUEST` | `saved` 가 없거나 불리언이 아님 |
+| 404 | `EXPERIENCE_NOT_FOUND` | 없는 경험 |
+
+- `saved` 는 **웹에서 사용자만** 바꾼다 — 외부 AI · 차곡이의 쓰기 도구로 바꿀 수 없고, 분석 작업 수 · 하루 한도와 상관없다.
+- 경험을 옮기거나 활동을 합쳐도 그대로다. 경험을 합치면(`POST /api/experiences/{keepId}/merge`) 둘 중 하나라도 `true` 면 남길 경험이 `true` 다.
 
 ## POST /api/activities/{activityId}/experiences — 경험 직접 추가
 

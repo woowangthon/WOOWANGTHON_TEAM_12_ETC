@@ -8,6 +8,7 @@
 FE ─POST /api/auth/signup · login──▶ BE  아이디 · 비밀번호 확인 → 세션 쿠키(JSESSIONID)
 FE ─GET /api/auth/me───────────────▶ BE  로그인했나 · 오늘 분석 횟수
 FE ─그 밖의 /api/… (쿠키 실어서)───▶ BE  로그인 안 했으면 401 UNAUTHENTICATED
+누구나 ─GET /api/public/profiles/{token}─▶ BE  로그인 없는 공개 읽기 하나뿐(share-api.md)
 FE ─POST /api/auth/logout──────────▶ BE  세션 지움
 ```
 
@@ -79,7 +80,7 @@ FE ─POST /api/auth/logout──────────▶ BE  세션 지움
 
 | HTTP | `code` | 어디서 | 언제 |
 | --- | --- | --- | --- |
-| 401 | `UNAUTHENTICATED` | 위 가입 · 로그인 · 로그아웃을 뺀 모든 `/api/…` | 로그인하지 않음 · 세션이 끝남(7일 · BE 재시작) |
+| 401 | `UNAUTHENTICATED` | 위 가입 · 로그인 · 로그아웃 · `GET /api/public/profiles/{token}`([`share-api.md`](share-api.md))을 뺀 모든 `/api/…` | 로그인하지 않음 · 세션이 끝남(7일 · BE 재시작) |
 | 429 | `DAILY_LIMIT_EXCEEDED` | 분석을 시작하는 열네 곳(위 `dailyAnalysis`) | 오늘 한도를 다 씀 — 원본 · 문항을 저장하지 않고 분석을 시작하지 않는다. FE 는 「오늘 분석 횟수를 다 썼어요」처럼 이유를 보인다(S-15) |
 
 - 사용자별로 나뉜다: 다른 사용자의 원본 · 활동 · 경험 · 근거 · 문항은 목록에 없고, ID 로 불러도 `404 …_NOT_FOUND` 다(있는지 알려 주지 않는다).

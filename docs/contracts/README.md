@@ -20,6 +20,7 @@
 | [`chagok-api.md`](chagok-api.md) | FE → BE | 차곡이 도구 루프 — 일 시작 · 단계 읽기(폴링) · 확인하고 실행 · 그만두기 (S-31) |
 | [`work-api.md`](work-api.md) | FE → BE | 진행 중인 일 · 막 끝난 일을 한 번에 읽기 · 소식 읽음 (S-47) |
 | [`guideline-api.md`](guideline-api.md) | FE → BE | 작성 지침 목록 · 붙여 넣은 글 정리(동기 · 저장 안 함) · 저장 · 켜고 끄기 · 지우기 (S-49) |
+| [`share-api.md`](share-api.md) | FE · 로그인 없는 사람 → BE | 공개 프로필 링크 — 프로필에 넣기 · 내 공개 설정 · 링크 켜기 · 끄기 · 로그인 없는 공개 읽기 (S-65 · S-66) |
 | [`ai-api.md`](ai-api.md) | BE → AI | 추출 `/extract` (스프린트 1) · 매칭 `/match` (스프린트 2) · 근거 점검 `/ground-check` (S-45) · 답변 초안 `/draft` (S-27) · 입구 `/route` · `/ask` · `/parse-application` (스프린트 3) · 이어짐 제안 `/link-suggestions` (S-35) · 차곡이 도구 루프 `/agent` (S-31) · 작성 지침 정리 `/guidelines` (S-49) |
 | [`mcp-api.md`](mcp-api.md) | 외부 AI(MCP) · 차곡이(AI) · FE → BE | 연결 주소 만들기 · 끊기, MCP 읽기 도구 `search_experiences` · `list_activities` · `get_activity` (스프린트 3 — S-32) · 토큰 범위 READ / CHAGOK · 차곡이 쓰기 도구 `create_application` · `add_source` (S-31) |
 
@@ -30,7 +31,7 @@
 - JSON 필드 이름은 `camelCase`. ID 는 BE 가 매기는 정수(`number`).
 - 시각은 ISO 8601 + 시간대 — `"2026-11-03T14:05:00+09:00"`.
 - 값이 없으면 필드를 빼지 않고 `null` 로 둔다(배열은 `[]`).
-- 로그인은 세션 쿠키다(인증 헤더 없음) — FE 는 모든 요청에 쿠키를 싣는다(`credentials: 'include'`). 가입 · 로그인 · 로그아웃을 뺀 모든 `/api/…` 는 로그인하지 않으면 401 `UNAUTHENTICATED`, 분석을 시작하는 곳은 하루 한도를 넘으면 429 `DAILY_LIMIT_EXCEEDED` — [`auth-api.md`](auth-api.md).
+- 로그인은 세션 쿠키다(인증 헤더 없음) — FE 는 모든 요청에 쿠키를 싣는다(`credentials: 'include'`). 가입 · 로그인 · 로그아웃 · 공개 프로필 읽기(`GET /api/public/profiles/{token}`, [`share-api.md`](share-api.md))를 뺀 모든 `/api/…` 는 로그인하지 않으면 401 `UNAUTHENTICATED`, 분석을 시작하는 곳은 하루 한도를 넘으면 429 `DAILY_LIMIT_EXCEEDED` — [`auth-api.md`](auth-api.md).
 
 ### 값 목록 — 코드에선 이 영문 값만 쓴다
 

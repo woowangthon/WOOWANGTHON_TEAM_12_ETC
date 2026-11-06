@@ -1,6 +1,6 @@
 # experience-api — FE → BE
 
-> 스프린트 1 「경험 관리」(SPEC R-01) · 스프린트 2 보완(SPEC R-03 — 「보완 `Supplement`」 · 보완 고치기 · 지우기). 활동 분류(SPEC S-57 `P1` — `category` · `categoryBy`). 같은 활동 제안(SPEC S-44 `P1` — `mergeSuggestion` · 따로 두기). 그때의 나 · 이어짐(SPEC R-05 F-13 `P1` — 활동 `note` · `ActivityLink` · 이어짐 제안 받기 · 정하기). 경험마다 쓰인 지원(SPEC R-05 F-14 `P1` — 활동 세부의 `usedIn`, S-38). 경험 찾기(SPEC S-58 `P1` — `GET /api/experiences`). 자료 여러 개 한 번에 · 활동에 자료 더하기(SPEC S-59 · S-60 `P2` — `POST /api/sources/batch` · `POST /api/sources` 의 `activityId` · 작업 `QUEUED` · `targetActivityId` · `targetMatched`). 폴더 · Notion ZIP · GitHub 가져오기(SPEC S-62 ~ S-64 `P2` — 새 API · 필드 없음, `name` 에 경로). 이름 규칙 · 값 목록 · 기간 · 오류 모양은 [README 「공통」](README.md#공통--모든-계약이-같이-쓰는-것).
+> 스프린트 1 「경험 관리」(SPEC R-01) · 스프린트 2 보완(SPEC R-03 — 「보완 `Supplement`」 · 보완 고치기 · 지우기). 활동 분류(SPEC S-57 `P1` — `category` · `categoryBy`). 같은 활동 제안(SPEC S-44 `P1` — `mergeSuggestion` · 따로 두기). 그때의 나 · 이어짐(SPEC R-05 F-13 `P1` — 활동 `note` · `ActivityLink` · 이어짐 제안 받기 · 정하기). 경험마다 쓰인 지원(SPEC R-05 F-14 `P1` — 활동 세부의 `usedIn`, S-38). 경험 찾기(SPEC S-58 `P1` — `GET /api/experiences`). 자료 여러 개 한 번에 · 활동에 자료 더하기(SPEC S-59 · S-60 `P2` — `POST /api/sources/batch` · `POST /api/sources` 의 `activityId` · 작업 `QUEUED` · `targetActivityId` · `targetMatched`). 폴더 · Notion ZIP · GitHub 가져오기(SPEC S-62 ~ S-64 `P2` — 새 API · 필드 없음, `name` 에 경로). 공개 프로필에 넣기(SPEC S-65 `P2` — `Experience` 의 `shared`, API 는 [`share-api.md`](share-api.md)). 이름 규칙 · 값 목록 · 기간 · 오류 모양은 [README 「공통」](README.md#공통--모든-계약이-같이-쓰는-것).
 > 예시는 가상의 팀 프로젝트 회고 하나(「바꿔요」 · 알고리즘 스터디)로 이어진다 — [`ai-api.md`](ai-api.md) 예시와 같은 자료다.
 
 ## 흐름
@@ -94,6 +94,7 @@ FE ─PATCH /api/activity-links/{id} { status }────▶ BE  CONFIRMED · 
 - `competenciesBy` — 지금 `competencies` 를 누가 붙였나(README 「값 목록」 — `AI` · `USER`). **BE 만** 붙인다: 분석이 만든 경험은 `AI`, 직접 추가(`POST …/experiences`)는 `USER`, 경험 수정(`PATCH`)에서 `competencies` 가 실제로 바뀌면(순서 · `[]` 포함) `USER`. 본문 · 수행 주체만 고치거나, 옮기거나, 합치거나, 보완이 생겨도 그대로다. FE 는 `AI` 일 때만 역량 앞에 「AI」 표시를 붙인다 — `sourceStatus` 로 짐작하지 않는다(본문만 고쳐도 `USER_ENTERED` 가 되기 때문). **모든 `Experience` 응답에 실린다** — 이 파일 · `question-api.md` 의 다른 예시엔 줄였다.
 - `mcpChange` — 외부 AI 가 본문을 고쳐 사용자가 아직 정하지 않은 경험(S-53 `P2`). `{ "changeId": 56, "client": "claude-ai" }`, 그 밖엔 `null`. FE 는 「Claude 가 고침」을 보이고 `mcp-api.md` 「변경 기록」으로 전 · 후 본문과 맞아요 · 되돌리기를 잇는다. 사용자가 이 경험을 고치거나 변경을 정하면 `null` 이 된다. **모든 `Experience` 응답에 실린다** — 이 파일 · `question-api.md` 의 다른 예시엔 줄였다. AI 서버 요청에는 싣지 않는다.
 - `origin` — 이 경험이 어디서 왔나(S-48 `P1`). 보통 `null`(자료 분석 · 직접 추가). 확정 답의 새 경험 후보를 저장해 생긴 경험(question-api 「후보를 경험으로 저장」)만 `{ "type": "ANSWER", "questionId", "applicationId", "organization", "questionText" }` — 「내가 쓴 지원서 — 지원처 · 문항」. `type` 은 README 「값 목록」 `experienceOrigin`. `organization` · `questionText` 는 BE 가 응답 때 지금 값으로 채운다(지원처 이름이 없으면 `null`). 그런 경험은 늘 `sourceStatus: USER_ENTERED` 로 시작하고, 고치거나 옮기거나 합쳐도 `origin` 은 그대로다. FE 는 「원문에서 확인」 · 일반 「내가 입력」과 구분해 「내가 쓴 지원서 · <지원처> · <문항>」으로 보인다. **모든 `Experience` 응답에 실린다** — 이 파일 · `question-api.md` 의 다른 예시엔 줄였다(전부 `null`). AI 요청(`/match` · `/draft` · `/ground-check` · `/new-facts`)엔 싣지 않는다 — 그 경험은 `USER_ENTERED` 본문으로 다른 경험과 같이 쓰인다.
+- `shared` — 공개 프로필에 넣었나(S-65 `P2`). 새 경험은 늘 `false`(기본은 아무것도 공개되지 않는다). 바꾸는 곳은 `PUT /api/experiences/{id}/shared`([`share-api.md`](share-api.md)) 하나 — 경험 수정 · 옮기기 · 활동 합치기 · `sourceStatus` 변화에도 그대로다. **FE 로 가는 모든 `Experience` 응답에 실린다** — 이 파일 · `question-api.md` 의 다른 예시엔 줄였다. MCP 도구 · AI 서버 요청엔 싣지 않는다.
 - `usedIn` — 쓰인 지원(S-38 `P1`). **활동 세부의 경험에만** 더 붙는다 — 아래 「GET /api/activities/{activityId}」의 「쓰인 지원 `usedIn`」.
 
 근거 `Citation`
@@ -735,7 +736,7 @@ FE 는 `jobId` 를 들고 있다가(새로고침 대비 주소 · 브라우저 �
 - 쓰는 곳: FE 활동 세부의 「경험 직접 추가」
 - SPEC: `F-04` / `S-11`
 
-사용자가 활동에 경험을 직접 적어 넣는다. **`sourceStatus` 는 `USER_ENTERED`, `competenciesBy` 는 `USER`, `citations` 는 `[]`** — BE 가 붙인다(근거 없는 AI 경험의 `NEEDS_REVIEW` 와 다르다). 활동의 경험 맨 뒤에 붙는다.
+사용자가 활동에 경험을 직접 적어 넣는다. **`sourceStatus` 는 `USER_ENTERED`, `competenciesBy` 는 `USER`, `citations` 는 `[]`, `shared` 는 `false`** — BE 가 붙인다(근거 없는 AI 경험의 `NEEDS_REVIEW` 와 다르다). 활동의 경험 맨 뒤에 붙는다.
 
 요청 — `POST /api/activities/7/experiences`
 

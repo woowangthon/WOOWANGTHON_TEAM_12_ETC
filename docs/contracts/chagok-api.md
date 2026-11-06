@@ -146,7 +146,7 @@ FE ─POST /api/chagok/runs/{runId}/cancel───────────▶ B
 - 쓰는 곳: FE `CONFIRM` 단계의 「만들기」(문구는 FE)
 - SPEC: `S-31` — 「저장 · 변경은 사용자가 확인한 뒤에만」
 
-요청 본문 없음. BE 는 마지막 `CONFIRM` 단계의 `tool` · `arguments` 를 **그 도구의 REST API 와 같은 규칙으로** 검사하고 실행한다(`create_application` = `POST /api/applications`, `add_source` = `POST /api/sources`).
+요청 본문 없음. BE 는 마지막 `CONFIRM` 단계의 `tool` · `arguments` 를 **그 도구의 REST API 와 같은 규칙으로** 검사하고 실행한다(`create_application` = `POST /api/applications`, `add_source` = `POST /api/sources` — 같은 자료 알아보기 S-69 는 하지 않는다).
 
 응답 200 — `status: "DONE"` · `result` 가 채워진 Run.
 

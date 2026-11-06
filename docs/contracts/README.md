@@ -14,7 +14,7 @@
 | --- | --- | --- |
 | `<영역>-api.md` | FE → BE | 엔드포인트 · 요청 · 응답 · 오류 — 영역마다 한 파일 |
 | [`auth-api.md`](auth-api.md) | FE → BE | 가입 · 로그인 · 내 정보 · 하루 분석 한도, 모든 API 의 401 · 429 (R-02) |
-| [`experience-api.md`](experience-api.md) | FE → BE | 자료 넣기 · 분석 작업 · 활동 · 경험 · 근거 (스프린트 1) · 보완 (스프린트 2) · 그때의 나 · 이어짐 (S-34 · S-35) · 경험마다 쓰인 지원 `usedIn` (S-38) · 경험 찾기 `GET /api/experiences` (S-58) · 자료 여러 개 한 번에 `POST /api/sources/batch` · 활동에 자료 더하기 `activityId` (S-59 · S-60) |
+| [`experience-api.md`](experience-api.md) | FE → BE | 자료 넣기 · 분석 작업 · 활동 · 경험 · 근거 (스프린트 1) · 보완 (스프린트 2) · 그때의 나 · 이어짐 (S-34 · S-35) · 경험마다 쓰인 지원 `usedIn` (S-38) · 경험 찾기 `GET /api/experiences` (S-58) · 자료 여러 개 한 번에 `POST /api/sources/batch` · 활동에 자료 더하기 `activityId` (S-59 · S-60) · 같은 자료 알아보기 `SOURCE_DUPLICATE` (S-69) · 경험 합치기 (S-70) |
 | [`question-api.md`](question-api.md) | FE → BE | 지원(문항 여러 개) · 지원 문항 · 추천 · 되묻기에 답하기 (스프린트 2) · 근거 점검 (S-45) · 답변 초안 (S-27 · 구성 틀 S-50) · 확정 답변 · 새 경험 후보 (S-48) · 비슷한 확정 답변 (S-43) · 지원 상태 · 낸 달 (S-36 · S-37) |
 | [`entrance-api.md`](entrance-api.md) | FE → BE | 홈 입력 가르기 · 한 줄 질문 꺼내기 · 지원처 · 문항 나누기 — 저장 없는 동기 호출 (스프린트 3 — S-28 ~ S-30) |
 | [`chagok-api.md`](chagok-api.md) | FE → BE | 차곡이 도구 루프 — 일 시작 · 단계 읽기(폴링) · 확인하고 실행 · 그만두기 (S-31) |
@@ -178,7 +178,7 @@
 
 ### 오류 응답
 
-모든 4xx · 5xx 는 같은 모양이다. `code` 는 각 계약의 엔드포인트에 적은 값, `message` 는 사람이 읽는 설명(로그용 — 화면 문구로 그대로 쓰지 않아도 된다). 예외: entrance-api `parse-application` 의 422 `URL_BLOCKED` · `URL_UNREADABLE` 은 `message` 가 **화면에 그대로 보이는 한국어 한 줄**이다(S-46 — 왜 못 읽었는지).
+모든 4xx · 5xx 는 같은 모양이다. `code` 는 각 계약의 엔드포인트에 적은 값, `message` 는 사람이 읽는 설명(로그용 — 화면 문구로 그대로 쓰지 않아도 된다). 예외: entrance-api `parse-application` 의 422 `URL_BLOCKED` · `URL_UNREADABLE` 은 `message` 가 **화면에 그대로 보이는 한국어 한 줄**이다(S-46 — 왜 못 읽었는지). experience-api 의 409 `SOURCE_DUPLICATE` 는 `error` 안에 `source` 를 더 싣는다(S-69).
 
 ```json
 { "error": { "code": "TEXT_TOO_LONG", "message": "텍스트가 50000자를 넘습니다" } }

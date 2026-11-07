@@ -717,6 +717,22 @@ FE 는 `jobId` 를 들고 있다가(새로고침 대비 주소 · 브라우저 �
 | 400 | `INVALID_PERIOD` | `start` 가 `end` 보다 늦음 · `ongoing: true` 인데 `end` 가 있음 |
 | 404 | `ACTIVITY_NOT_FOUND` | 없는 활동 |
 
+## POST /api/activities/{activityId}/actor — 활동의 수행 주체 한 번에 정하기 (`P0`)
+
+- 쓰는 곳: FE 초안의 주체 확인 카드 · 활동 세부
+- SPEC: `S-76`
+
+요청 `{ "actor": "ME" }` — `ME` · `TEAM`. 그 활동의 `UNKNOWN` 경험만 바꾼다. `sourceStatus` · 본문 · 근거는 그대로다. AI 를 부르지 않고 분석 횟수를 세지 않는다.
+
+응답 200 `{ "changed": 4 }`. 오류: 400 `INVALID_REQUEST`(`UNKNOWN` · 없는 값) · 404 `ACTIVITY_NOT_FOUND`.
+
+## GET /api/sources/{sourceId} — 자료 원문 읽기 (`P1`)
+
+- 쓰는 곳: FE 활동 세부 · 근거의 자료 이름
+- SPEC: `S-74`
+
+응답 200 `{ "id": 12, "name": "2024-활동정리.md", "text": "…", "createdAt": "2026-11-05T10:00:00+09:00" }`. `text` 는 저장한 글자 그대로다(근거 `location` 의 줄 번호가 이 글 기준). 내 자료만 읽는다 — 공개 프로필 경로에는 없다. 오류: 404 `SOURCE_NOT_FOUND`(없거나 남의 자료).
+
 ## PATCH /api/experiences/{experienceId} — 경험 수정
 
 - 쓰는 곳: FE 활동 세부에서 바로 고치기

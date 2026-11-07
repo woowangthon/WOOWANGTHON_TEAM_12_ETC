@@ -54,6 +54,7 @@ FE ─GET /api/questions/{id}/similar-answers ▶ BE  비슷한 문항의 확정
 - `organization` — 지원처 이름(그 지원의 것). 선택이라 `null` 일 수 있다.
 - `status` — README 「값 목록」 작업 상태(`ANALYZING` · `COMPLETED` · `FAILED`).
 - `questionType` — README 「값 목록」 문항 유형 하나(S-41). 매칭이 끝나면 AI 가 붙인다(`/match` 응답의 `questionType`). 아직 없으면(`ANALYZING` · `FAILED`, 사용자가 고르지 않음) `null`.
+- `targetLength` — 목표 글자 수(S-77). 없으면 `null`.
 - `questionTypeBy` — `AI`(매칭이 붙인 해석 — FE 는 AI 해석으로 보인다) · `USER`(사용자가 `PATCH` 로 골랐다). `questionType` 이 `null` 이면 `null`. **`USER` 면 다시 시도 · 매칭 결과가 덮어쓰지 않는다.**
 
 요구사항 `Requirement` — AI 가 문항을 쪼갠 「이 지원처가 보려는 것」 하나(SPEC R-03 용어)
@@ -392,7 +393,7 @@ FE ─GET /api/questions/{id}/similar-answers ▶ BE  비슷한 문항의 확정
 - 쓰는 곳: FE 지원 화면의 지원처 종류 · 직무 칸 · 지원 목록 · 지원 화면의 상태 꼬리표
 - SPEC: `R-03` / `S-42` · `R-05` / `S-36` · `S-37` — 우선순위 `P1`
 
-보낸 필드만 바꾼다. 지원처 이름 · 문항 · 공고 링크는 여기서 바꾸지 않는다(S-18 · S-46).
+보낸 필드만 바꾼다. 문항 · 공고 링크는 여기서 바꾸지 않는다(S-46).
 
 요청 — `PATCH /api/applications/21`
 
@@ -410,6 +411,7 @@ FE ─GET /api/questions/{id}/similar-answers ▶ BE  비슷한 문항의 확정
 
 | 필드 | 값 |
 | --- | --- |
+| `organization` | 지원처 이름(S-73). 앞뒤 공백을 걷고 최대 100자. `null` 이나 빈 문자열이면 비운다 |
 | `organizationType` · `jobRole` | README 「값 목록」 값 하나. `null` 을 보내면 비운다(S-42) |
 | `applicationStatus` | README 「값 목록」 지원 상태 하나. `null` 은 받지 않는다 — 늘 값이 있다(S-36) |
 | `submittedMonth` | 낸 달 `"YYYY-MM"`(S-37). 바꾼 뒤 상태가 `WRITING` 이면 받지 않는다. `null` 은 받지 않는다 — 지우려면 상태를 `WRITING` 으로 |
@@ -426,12 +428,14 @@ FE ─GET /api/questions/{id}/similar-answers ▶ BE  비슷한 문항의 확정
 | 400 | `INVALID_REQUEST` | 목록에 없는 값 · 바꿀 필드가 하나도 없음 · `applicationStatus` 가 `null` · `submittedMonth` 가 `null` 이거나 `YYYY-MM` 이 아님(`2025-2` · `2025` 안 됨) · 바꾼 뒤 상태가 `WRITING` 인데 `submittedMonth` 를 보냄 |
 | 404 | `APPLICATION_NOT_FOUND` | 없는 지원 |
 
-## PATCH /api/questions/{questionId} — 문항 유형 고치기
+## PATCH /api/questions/{questionId} — 문항 유형 · 목표 글자 수 고치기
 
 - 쓰는 곳: FE 추천 결과의 문항 유형
 - SPEC: `R-03` / `S-41` — 우선순위 `P1`
 
-문항 텍스트는 바꾸지 않는다(S-18) — 유형만.
+문항 텍스트는 바꾸지 않는다(S-18) — 유형 · 목표 글자 수만(보낸 필드만 바꾼다).
+
+`targetLength` 는 100 ~ 5000 정수, `null` 이면 비운다(S-77). `{ "targetLength": 500 }` 처럼 보낸다. 범위 밖이면 400 `INVALID_REQUEST`. 추천은 다시 돌지 않는다.
 
 요청 — `PATCH /api/questions/41`
 
@@ -643,16 +647,18 @@ FE ─GET /api/questions/{id}/similar-answers ▶ BE  비슷한 문항의 확정
 - `status` · `error` — 작업 상태(README 「값 목록」). `ANALYZING` · `FAILED` 면 `sentences` · `omitted` 는 `[]`. `FAILED` 의 `error.code` 는 문항과 같은 값(`AI_TIMEOUT` · `AI_UNAVAILABLE` · `AI_FAILED` · `INTERNAL_ERROR`) — 정해진 문장으로 채우지 않는다(대회 규칙 2). 서버가 재시작돼 끊긴 초안도 `FAILED` 로 정리한다(추천과 같다).
 - `experienceIds` — 사용자가 고른 경험, 보낸 순서대로. 실패했을 때 「다시 만들기」는 이 값으로 같은 `POST` 를 부른다. 그새 지워진 경험은 빠진다.
 - `sentences` — 초안 문장, **글의 순서대로**. 한 문장에 줄바꿈이 없다. FE 는 차례로 이어 보이고, 「텍스트로 복사」는 `FACT` · `OPINION` 모두 순서대로 `text` 만 이어 붙인다. 근거 칩과 「AI 제안 — 확인 필요」 표시는 화면에만 두고 복사하지 않는다. 0개일 수 있다 — 고른 경험에 받칠 근거 · 보완 · 본문이 하나도 없을 때(그때는 `omitted` 만 있다).
-- `sentences[].kind` — 필수, README `draftSentenceKind`(`FACT` · `OPINION`). BE 는 AI 값을 저장하고 그대로 응답한다. `OPINION` 은 전체 최대 15문장 중 최대 3개이며 FE 는 근거 칩 대신 「AI 제안 — 확인 필요」를 붙여 사실과 구분한다. 연결 · 직무 관련성 · 포부만 허용하며 숫자 · 새 사실 · 감정 지어내기 · 칭찬 · 의미 단정은 금지한다. `TEAM` · `UNKNOWN` 일을 내 일로 쓰지 않는다. 생성 검증은 ai-api 「POST /draft」를 따른다.
+- `sentences[].note` — `ELABORATED` 만 문자열(왜 확인이 필요한지 한 줄 · 60자 이하), 나머지는 `null`(S-78). 옛 초안은 BE 가 `null` 로 채운다.
+- `sentences[].kind` — 필수, README `draftSentenceKind`(`FACT` · `OPINION` · `ELABORATED`). BE 는 AI 값을 저장하고 그대로 응답한다. `OPINION` 은 전체 최대 15문장 중 최대 3개이며 FE 는 근거 칩 대신 「AI 제안 — 확인 필요」를 붙여 사실과 구분한다. 연결 · 직무 관련성 · 포부만 허용하며 숫자 · 새 사실 · 감정 지어내기 · 칭찬 · 의미 단정은 금지한다. `TEAM` · `UNKNOWN` 일을 내 일로 쓰지 않는다. 생성 검증은 ai-api 「POST /draft」를 따른다.
 - `sentences[].evidence` — 그 문장을 받치는 것. 근거 점검(`GroundingCheck`)의 `evidence` 와 **같은 모양**이다 — FE 가 같은 표시를 쓴다. `type` 은 `evidenceType`(`CITATION` 원문 · `SUPPLEMENT` · `EXPERIENCE` 내가 입력), `id` 는 그 근거 · 보완 · 경험의 ID. BE 가 `experienceId` · `activityId` · `text`(발췌문 `quote` · 보완 `answer` · 경험 `content` — **지금 상태로**)를 붙인다. 만들 때 `FACT` 는 **1개 이상**, `OPINION` 은 `[]` 이다. 그새 지워진 근거 · 보완 · 경험은 빠지므로 0개가 될 수 있다 — 문장은 만들었을 때 그대로 둔다(다시 만들면 새로 쓴다). 보완을 고쳤으면(S-24) `text` 는 고친 답이고 문장은 그대로다. 근거 삭제로 비어도 `FACT` 를 `OPINION` 으로 바꾸지 않는다.
 - `omitted` — 문항에 필요한데 고른 경험의 근거 · 보완 · 직접 입력한 본문에 없어 **쓰지 않은 것**, 객체 0 ~ 5개. AI 해석이다. 화면에서 「자료에 없어 쓰지 않았어요」처럼 — 부족한 사람처럼 읽히지 않게(SPEC S-19). 추천의 `clarifications` 최대 3개와 별개이고 그 배열에 섞지 않는다.
 - `omitted[].text` · `question` · `experienceId` — AI `/draft` 응답 그대로. 경험에 연결된 것은 `experienceIds` 안의 경험 ID 와 구체적인 질문이 함께 있다. 연결되지 않은 빈칸은 둘 다 `null` 이며 FE 는 답 저장 칸을 붙이지 않고 사용자가 직접 쓸 거리로 보인다.
+- `omitted[].placeholder` · `sentenceIndex` — 문장 속 빈칸(S-78). `placeholder` 는 `[결과]` 처럼 그 문장 `text` 에 글자 그대로 한 번 있는 자리 표시, `sentenceIndex` 는 `sentences` 순번. 빈칸이 아니면 둘 다 `null`. FE 는 답하면 자리 표시를 답으로 바꿔 보이고 보완으로 저장한다. 다음 다시 만들기 전까지 `sentences` 는 저장된 그대로다.
 - `omitted[].clarificationId` — BE 가 초안 완료 시 질문마다 새로 붙여 저장하는 되묻기 ID. 추천 되묻기와 같은 ID 공간을 쓰되 초안에 속한 것으로 구분한다. 경험이 `null` 이면 이 값도 `null` 이고 되묻기를 만들지 않는다. 새로고침해도 같은 ID 다. FE 는 배열 순번 · 문구 · 추천 되묻기 ID 로 대신 답하지 않는다.
 - `omitted[].supplementId` — 아직 답하지 않았으면 `null`, 답했으면 만든 보완 ID. BE 가 현재 연결을 조회해 응답하므로 새로고침해도 답한 상태가 유지된다. 답은 활동 세부의 보완에서 확인 · 수정한다(S-24). 보완을 지우면 `null` 로 돌아가 다시 답할 수 있다. 경험을 지우면 해당 `omitted` 항목은 응답에서 빠진다.
 - `frame` — 이 초안을 쓴 구성 틀(README 「값 목록」 `draftFrame`, S-50). 요청한 값 그대로 — `NONE` 은 「틀 없이」. `ANALYZING` · `FAILED` 에도 있다(실패한 초안의 「다시 만들기」가 같은 틀을 보낸다). 틀이 생기기 전에 저장된 초안은 BE 가 `NONE` 으로 채운다. FE 는 틀 이름 · 출처(README 「구성 틀」)를 초안 옆에 보인다.
 - `guidelines` — 이 초안에 실은 작성 지침(S-49), 실은 순서대로. 켜 둔 지침이 없었으면 `[]`. `ANALYZING` · `FAILED` 면 `[]`. `id` · `text` · `source` 는 **초안을 만들 때의 것**을 BE 가 저장해 둔다 — 그 뒤 지침을 고치거나 지워도 바뀌지 않는다(`id` 가 지금 없는 지침일 수 있다). 틀이 생기기 전에 저장된 초안은 `[]`.
 - `guidelines[].applied` · `note` — AI 가 그 지침을 이번 초안에 반영했다고 보는지(**AI 해석** — ai-api `/draft` 응답 그대로). `applied: true` 면 `note: null`, `false` 면 `note` 에 왜 못 했는지 한 줄(근거 규칙과 부딪침 · 이 문항에 맞지 않음 등). FE 는 「적용한 지침」과 「이번엔 반영 못 함 — `note`」를 나눠 보인다. 지침은 문체 · 구성 · 강조만 바꾼다 — 반영했다고 근거 규칙이 느슨해지지 않는다.
-- 필드 5개는 모두 응답한다. 경험에 붙지 않는 빈칸은 `text` 만 문자열이고 나머지 네 필드는 `null` 이다. 건너뛰기는 요청하지 않는 것 — 보완이 생기지 않고 초안의 표시 · 복사를 막지 않는다.
+- 필드 7개는 모두 응답한다. 경험에 붙지 않는 빈칸은 `text` 만 문자열이고 `question` · `experienceId` · `clarificationId` · `supplementId` 는 `null` 이다(`placeholder` · `sentenceIndex` 는 있을 수 있다). 건너뛰기는 요청하지 않는 것 — 보완이 생기지 않고 초안의 표시 · 복사를 막지 않는다.
 - 예시 읽는 법: 첫 문장은 회고 발췌 201 이 받친다(원문 — 101 이 `ME` 라 「제가」로 쓸 수 있다). 둘째는 되묻기 61 에 답한 보완 301 만 받친다(내가 입력) — 「3초」의 3 이 301 에 있어 숫자 확인을 지난다. 되묻기 62(확인한 방법)는 건너뛰어 받칠 게 없으니 쓰지 않고 `omitted` 로 간다. 「Java · Spring」은 문항 A 요구사항에서 `NOT_FOUND` 였던 것, 「배운 점 · 느낀 점」은 자료에 없어 지어내지 않은 것이다. `TEAM` 경험 102 를 같이 골랐다면 「팀은 매주 금요일 스프린트 회고를 했습니다」로 쓰고 「제가」로 바꾸지 않는다.
 
 - 셋째 예시 문장은 사용자의 실제 마음으로 확인한 사실이 아니라 포부 제안이다. 자료에 없는 「뿌듯했습니다」 같은 감정은 생성하지 않는다. S-34 의 생각 · 계기 기록은 초안 재료로 쓰지 않는다.
@@ -688,10 +694,11 @@ AI#48 · BE#72 · FE#104 에서 함께 맞춘다. 새 AI 응답에는 모든 문
 
 응답 202 — `Draft`, `status: "ANALYZING"` · `sentences: []` · `omitted: []`. 그 문항의 예전 초안(완료든 실패든)을 이것으로 바꾼다. 실패한 초안을 다시 만들 때도 이 호출이다(따로 `retry` 가 없다).
 
-- BE 는 **고른 경험만** 지금 상태로 AI 에 보낸다 — 본문 · 역량 · 수행 주체 · 출처 상태 · 활동 이름 · 기간 · **원본에서 찾은 근거만**(`matched: true`) · 보완 전부. 원본에서 못 찾은 발췌는 「원문」으로 칠하지 않게 싣지 않는다(근거 점검과 같다).
+- BE 는 고른 경험과 같은 활동의 나머지 경험을 `contextExperiences` 로 함께 보낸다(최대 12개, 최근 순 · S-75 · ai-api). 그 문항 `targetLength` 도 싣는다(S-77).
+- BE 는 **고른 경험을** 지금 상태로 AI 에 보낸다 — 본문 · 역량 · 수행 주체 · 출처 상태 · 활동 이름 · 기간 · **원본에서 찾은 근거만**(`matched: true`) · 보완 전부. 원본에서 못 찾은 발췌는 「원문」으로 칠하지 않게 싣지 않는다(근거 점검과 같다).
 - BE 는 저장된 매칭 결과와 지원의 직무도 싣는다(ETC#141) — 그 문항의 `requirements`(`text` · `status` 만), **고른 경험의** 추천 `reason` · `emphasis` · `gaps`, 지원의 `jobRole`(없으면 싣지 않는다). LLM 을 더 부르지 않고 지금 저장된 값을 그대로 옮긴다. AI 해석이라 초안의 근거가 되지 않는다 — `Draft` 응답 모양은 그대로이고 이 값들을 초안에 저장하지 않는다. 직무를 `PATCH` 로 바꾸면 다음에 만드는 초안부터 반영된다.
 - BE 는 그 사용자의 **지금 켜 둔 작성 지침**(guideline-api, 최대 10개 · 만든 순서)을 `{ id, text }` 로 싣고, `frame` 이 `NONE` 이 아니면 `question.frame` 으로 싣는다(ai-api 「POST /draft」). 초안에는 그때의 지침 `text` · `source` 를 저장해 둔다(위 `Draft.guidelines`). 지침은 FE 가 요청에 싣지 않는다 — 켜고 끄기는 guideline-api 에서.
-- 분석 1회로 센다([`auth-api.md`](auth-api.md) `dailyAnalysis`).
+- 분석 1회로 센다([`auth-api.md`](auth-api.md) `dailyAnalysis`). 지금 초안의 `omitted` 중 `supplementId` 가 있는 것이 하나 이상이면 세지 않는다(S-77).
 
 - 보완에 답한 뒤에도 **사용자가 다시 만들기를 누를 때만** 호출한다. FE 는 답 저장의 성공을 확인한 뒤 같은 `experienceIds` 로 요청하고, BE 는 그때 저장된 보완 전부를 싣는다. 답 저장 실패 시 오류 · 다시 시도를 보이고 저장된 것처럼 표시하지 않는다.
 - 다시 만들기를 받아 예전 초안을 교체할 때 그 초안의 `clarificationId` 는 무효가 된다(이후 답 저장은 404 `CLARIFICATION_NOT_FOUND`). 이미 쌓인 보완은 지우지 않는다. 새 초안에는 새 ID 를 붙이며, 추천의 `clarifications` 는 바꾸지 않는다. 답 저장과 교체가 겹쳐도 무효인 ID 로 보완이 생기지 않게 BE 가 원자적으로 처리한다.

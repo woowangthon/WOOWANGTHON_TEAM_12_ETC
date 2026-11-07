@@ -388,6 +388,8 @@ BE 는 어떤 오류든 문항을 `FAILED`(`AI_FAILED`, `message` 에 위 `code`
 | --- | --- |
 | `text` | 점검할 답(BE 한도 5000자). 비지 않은 문자열 |
 | `experiences` | 사용자의 경험 전부 — `/match` 요청과 같은 모양. **0개면 `[]`** — 오류가 아니다 |
+| `contextExperiences` | 선택. 고른 경험과 같은 활동의 나머지 경험 0 ~ 12개, `experiences` 와 같은 모양(`reason` · `emphasis` · `gaps` 없음). 뒷받침 재료다 — 고른 경험이 뼈대. 근거 · 보완 ID 를 `evidence` 로 붙일 수 있다(S-75) |
+| `question.targetLength` | 선택. 목표 글자 수 100 ~ 5000(S-77). 목표의 80 ~ 100% 를 노리되 못 채워도 실패가 아니다 — 지어내지 않고 빈칸 · `omitted` 로 남긴다. 15문장 상한은 그대로 |
 | `experiences[].citations` | **원본에서 찾은 근거만**(`matched: true`) `{ id, quote }`. 확인 못 한 근거는 싣지 않는다 — 「원문」으로 칠하지 않게 |
 | `experiences[].sourceStatus` | `USER_ENTERED` 인 경험만 본문(`content`)이 근거(`EXPERIENCE`)가 될 수 있다 — 사용자가 직접 넣거나 고친 글이라 「내가 입력」이다. AI 가 뽑은 본문(`SOURCE_CONFIRMED` · `NEEDS_REVIEW`)은 근거가 아니다(근거는 발췌문이다) |
 
@@ -554,9 +556,11 @@ BE 는 어떤 오류든 점검을 `FAILED`(`AI_FAILED`, `message` 에 위 `code`
 | 필드 | 규칙 |
 | --- | --- |
 | `sentences` | 배열 **1 ~ 15개**, 글의 순서대로. **0개는** 고른 경험에 받칠 것(근거 · 보완 · `USER_ENTERED` 본문)이 하나도 없을 때만 — 받칠 것이 있는데 0개면 위반. 받칠 것이 없으면 생각만으로 채우지 않고 `sentences: []` 와 `omitted` 를 반환한다 |
-| `sentences[].kind` | 필수, README `draftSentenceKind`: `FACT` · `OPINION`. `OPINION` 은 전체 15개 안에서 최대 3개(0개도 가능) |
+| `sentences[].kind` | 필수, README `draftSentenceKind`: `FACT` · `OPINION` · `ELABORATED`. `OPINION` 은 전체 15개 안에서 최대 3개(0개도 가능) |
+| `sentences[].note` | `ELABORATED` 만 필수 — 왜 확인이 필요한지 60자 이하. 나머지는 `null` |
+| `omitted[].placeholder` · `sentenceIndex` | 둘 다 있거나 둘 다 `null`. `placeholder` 는 `[` `]` 로 감싼 12자 이하, 그 문장 `text` 에 글자 그대로 한 번. 문장에 있는 `[…]` 는 모두 `omitted` 짝이 있어야 한다 — 코드가 확인한다(S-78) |
 | `sentences[].text` | 비지 않은 문장 하나 — 줄바꿈 없음. 경험 · 근거 · 보완에 없는 수치 · 역할 · 결과를 넣지 않는다(S-05). `TEAM` · `UNKNOWN` 경험의 일을 「내가 · 제가」로 쓰지 않는다(S-20). `TEAM` 은 「팀은 · 팀이 함께」로 쓴다. `UNKNOWN` 은 누가 했는지 쓰지 않는다 — 「팀은」도 자료에 없는 말이다. 일어난 일 · 원인을 주어로 쓰고(「코드가 수정됐습니다」), 내 몫은 `omitted` 로 |
-| `sentences[].evidence` | `{ "type", "id" }` 배열. `FACT` 는 **1개 이상**, `OPINION` 은 `[]`. 중복 없음. `type` 은 `CITATION` · `SUPPLEMENT` · `EXPERIENCE`. `id` 는 **요청에 있는** 근거 · 보완 · 경험 ID — `EXPERIENCE` 는 `sourceStatus: USER_ENTERED` 경험만. 한 문장이 여러 경험의 근거를 같이 붙여도 된다 |
+| `sentences[].evidence` | `{ "type", "id" }` 배열. `FACT` · `ELABORATED` 는 **1개 이상**, `OPINION` 은 `[]`. 중복 없음. `type` 은 `CITATION` · `SUPPLEMENT` · `EXPERIENCE`. `id` 는 **요청에 있는** 근거 · 보완 · 경험 ID — `EXPERIENCE` 는 `sourceStatus: USER_ENTERED` 경험만. 한 문장이 여러 경험의 근거를 같이 붙여도 된다 |
 | `omitted` | `{ text, question, experienceId }` 객체 배열 **0 ~ 5개**, 중요한 것부터. 필드는 모두 필수(`null` 허용은 아래). 추천의 `clarifications` 최대 3개와 별개(S-27) |
 | `omitted[].text` | 문항에 필요한데 고른 경험의 근거 · 보완 · 직접 입력한 본문에 없어 쓰지 않은 것, 공백뿐이 아닌 짧은 구절. 답을 유도하는 수치 · 역할을 넣지 않는다 |
 | `omitted[].experienceId` | 그 사실을 보완할 **요청 `experiences` 중 하나의 정수 ID**. 어느 경험의 빈칸인지 붙일 수 없으면 `null` — 새 경험 ID 를 만들거나 임의의 경험에 붙이지 않는다 |
@@ -567,6 +571,7 @@ BE 는 어떤 오류든 점검을 `FAILED`(`AI_FAILED`, `message` 에 위 `code`
 쓰는 규칙(프롬프트 · 채점):
 
 - 받친다 = 문장의 사실(한 일 · 결과 · 역할 · 수치)이 붙인 근거 · 보완 · 본문에 **다 있다** — `/ground-check` 의 「받친다」와 같은 기준. 근거를 매끄럽게 옮겨 쓰는 건 되지만, 「해결했다」에 「크게 개선했다」를 더하지 않는다.
+- `ELABORATED` 는 받치는 사실의 맥락 · 연결을 풀어 쓰거나, `UNKNOWN` 경험의 일을 사용자 확인 전에 「제가」로 쓴 문장이다(S-78). 숫자는 `FACT` 와 같이 코드가 대조한다. `TEAM` 일을 내 일로 쓰지 않는다. 새 수치 · 성과 · 직책 · 기술 이름 · 감정 · 칭찬은 쓰지 않고 빈칸으로 둔다.
 - `OPINION` 은 사실 주장이 없는 **연결 · 직무 관련성 · 포부 제안만** 허용한다. 근거는 `[]` 이며 「AI 제안 — 확인 필요」로 보인다. 숫자 · 감정 지어내기(「뿌듯했습니다」) · 칭찬 · 의미 단정은 금지한다. 자료에 있는 배운 점 · 감정은 `FACT` 로 근거를 붙인다.
 - 과거의 일 · 역할 · 결과 · 수치나 지원처 정보를 `OPINION` 으로 빼지 않는다. 사실과 생각이 섞인 문장도 사실 부분의 근거 규칙을 피할 수 없다. `TEAM` · `UNKNOWN` 일을 내 일로 쓰지 않는 규칙은 종류와 무관하다. S-34 의 생각 · 계기 기록은 요청 재료나 근거로 넣지 않는다.
 - `/ground-check` 의 `status: OPINION` 은 사용자가 쓴 글을 점검하는 판정이다. 초안의 `kind: OPINION` 은 AI 생성 범위라 더 좁다 — 점검에서 느낌을 생각으로 분류할 수 있어도 초안에서 감정을 만들 수는 없다. 초안의 종류를 점검 판정으로 그대로 쓰지 않고 글을 다시 점검한다.

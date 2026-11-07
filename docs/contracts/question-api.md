@@ -765,7 +765,7 @@ AI#48 · BE#72 · FE#104 에서 함께 맞춘다. 새 AI 응답에는 모든 문
 
 ## PUT /api/questions/{questionId}/answer — 답 확정하기
 
-- 쓰는 곳: FE 지원 화면 「내가 쓴 답」 칸(근거 점검 S-45 와 같은 칸)의 「확정」
+- 쓰는 곳: FE 지원 화면 「내가 쓴 답」 칸(근거 점검 S-45 와 같은 칸)의 「다 썼어요」
 - SPEC: `F-09` / `S-48` — 우선순위 `P1`
 
 요청 — `PUT /api/questions/41/answer`

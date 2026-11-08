@@ -648,6 +648,7 @@ FE ─GET /api/questions/{id}/similar-answers ▶ BE  비슷한 문항의 확정
   ],
   "frame": "STAR",
   "useContext": true,
+  "freeRegenerate": false,
   "guidelines": [
     { "id": 901, "text": "첫 문장에 무엇을 했고 어떻게 됐는지 먼저 쓴다", "source": "유튜브 「자소서 첫 문장 쓰는 법」", "applied": true, "note": null },
     { "id": 905, "text": "결과는 꼭 수치로 쓴다", "source": "멘토 피드백", "applied": false, "note": "결과를 보여 줄 수치가 자료에 없어 넣지 않았어요" }
@@ -671,6 +672,7 @@ FE ─GET /api/questions/{id}/similar-answers ▶ BE  비슷한 문항의 확정
 - `omitted[].clarificationId` — BE 가 초안 완료 시 질문마다 새로 붙여 저장하는 되묻기 ID. 추천 되묻기와 같은 ID 공간을 쓰되 초안에 속한 것으로 구분한다. 경험이 `null` 이면 이 값도 `null` 이고 되묻기를 만들지 않는다. 새로고침해도 같은 ID 다. FE 는 배열 순번 · 문구 · 추천 되묻기 ID 로 대신 답하지 않는다.
 - `omitted[].supplementId` — 아직 답하지 않았으면 `null`, 답했으면 만든 보완 ID. BE 가 현재 연결을 조회해 응답하므로 새로고침해도 답한 상태가 유지된다. 답은 활동 세부의 보완에서 확인 · 수정한다(S-24). 보완을 지우면 `null` 로 돌아가 다시 답할 수 있다. 경험을 지우면 해당 `omitted` 항목은 응답에서 빠진다.
 - `useContext` — 이 초안에 같은 활동의 다른 경험을 뒷받침 재료로 썼나(요청 값 그대로, S-75). `ANALYZING` · `FAILED` 에도 있다. 이 값이 생기기 전 초안은 BE 가 `true` 로 채운다.
+- `freeRegenerate` — 지금 「다시 만들기」를 누르면 분석 횟수를 쓰지 않는가(아래 `POST /api/questions/{questionId}/draft` 의 미차감 조건 — 빠진 사실에 답함 · 재료 경험의 주체를 정함, S-77). BE 가 응답할 때 계산한다. `ANALYZING` 이면 `false`. FE 는 `true` 면 다시 만들기 버튼 옆 「분석 1회」를 숨긴다 — 판단을 FE 가 따로 하지 않는다.
 - `frame` — 이 초안을 쓴 구성 틀(README 「값 목록」 `draftFrame`, S-50). 요청한 값 그대로 — `NONE` 은 「틀 없이」. `ANALYZING` · `FAILED` 에도 있다(실패한 초안의 「다시 만들기」가 같은 틀을 보낸다). 틀이 생기기 전에 저장된 초안은 BE 가 `NONE` 으로 채운다. FE 는 틀 이름 · 출처(README 「구성 틀」)를 초안 옆에 보인다.
 - `guidelines` — 이 초안에 실은 작성 지침(S-49), 실은 순서대로. 켜 둔 지침이 없었으면 `[]`. `ANALYZING` · `FAILED` 면 `[]`. `id` · `text` · `source` 는 **초안을 만들 때의 것**을 BE 가 저장해 둔다 — 그 뒤 지침을 고치거나 지워도 바뀌지 않는다(`id` 가 지금 없는 지침일 수 있다). 틀이 생기기 전에 저장된 초안은 `[]`.
 - `guidelines[].applied` · `note` — AI 가 그 지침을 이번 초안에 반영했다고 보는지(**AI 해석** — ai-api `/draft` 응답 그대로). `applied: true` 면 `note: null`, `false` 면 `note` 에 왜 못 했는지 한 줄(근거 규칙과 부딪침 · 이 문항에 맞지 않음 등). FE 는 「적용한 지침」과 「이번엔 반영 못 함 — `note`」를 나눠 보인다. 지침은 문체 · 구성 · 강조만 바꾼다 — 반영했다고 근거 규칙이 느슨해지지 않는다.
@@ -715,7 +717,7 @@ AI#48 · BE#72 · FE#104 에서 함께 맞춘다. 새 AI 응답에는 모든 문
 - BE 는 **고른 경험을** 지금 상태로 AI 에 보낸다 — 본문 · 역량 · 수행 주체 · 출처 상태 · 활동 이름 · 기간 · **원본에서 찾은 근거만**(`matched: true`) · 보완 전부. 원본에서 못 찾은 발췌는 「원문」으로 칠하지 않게 싣지 않는다(근거 점검과 같다).
 - BE 는 저장된 매칭 결과와 지원의 직무도 싣는다(ETC#141) — 그 문항의 `requirements`(`text` · `status` 만), **고른 경험의** 추천 `reason` · `emphasis` · `gaps`, 지원의 `jobRole`(없으면 싣지 않는다). LLM 을 더 부르지 않고 지금 저장된 값을 그대로 옮긴다. AI 해석이라 초안의 근거가 되지 않는다 — `Draft` 응답 모양은 그대로이고 이 값들을 초안에 저장하지 않는다. 직무를 `PATCH` 로 바꾸면 다음에 만드는 초안부터 반영된다.
 - BE 는 그 사용자의 **지금 켜 둔 작성 지침**(guideline-api, 최대 10개 · 만든 순서)을 `{ id, text }` 로 싣고, `frame` 이 `NONE` 이 아니면 `question.frame` 으로 싣는다(ai-api 「POST /draft」). 초안에는 그때의 지침 `text` · `source` 를 저장해 둔다(위 `Draft.guidelines`). 지침은 FE 가 요청에 싣지 않는다 — 켜고 끄기는 guideline-api 에서.
-- 분석 1회로 센다([`auth-api.md`](auth-api.md) `dailyAnalysis`). 지금 초안의 `omitted` 중 `supplementId` 가 있는 것이 하나 이상이거나, 지금 초안을 만든 뒤 그 고른 경험 · 보조 재료 경험의 주체를 정했으면(S-76 — `UNKNOWN` 에서 `ME` · `TEAM` 으로) 세지 않는다(S-77).
+- 분석 1회로 센다([`auth-api.md`](auth-api.md) `dailyAnalysis`). 지금 초안의 `omitted` 중 `supplementId` 가 있는 것이 하나 이상이거나, 지금 초안을 만든 뒤 그 고른 경험 · 보조 재료 경험의 주체를 정했으면(S-76 — `UNKNOWN` 에서 `ME` · `TEAM` 으로) 세지 않는다(S-77). 그 여부는 `Draft.freeRegenerate` 로 미리 보인다.
 
 - 보완에 답한 뒤에도 **사용자가 다시 만들기를 누를 때만** 호출한다. FE 는 답 저장의 성공을 확인한 뒤 같은 `experienceIds` 로 요청하고, BE 는 그때 저장된 보완 전부를 싣는다. 답 저장 실패 시 오류 · 다시 시도를 보이고 저장된 것처럼 표시하지 않는다.
 - 다시 만들기를 받아 예전 초안을 교체할 때 그 초안의 `clarificationId` 는 무효가 된다(이후 답 저장은 404 `CLARIFICATION_NOT_FOUND`). 이미 쌓인 보완은 지우지 않는다. 새 초안에는 새 ID 를 붙이며, 추천의 `clarifications` 는 바꾸지 않는다. 답 저장과 교체가 겹쳐도 무효인 ID 로 보완이 생기지 않게 BE 가 원자적으로 처리한다.

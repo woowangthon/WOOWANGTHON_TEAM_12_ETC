@@ -514,13 +514,13 @@ FE ─GET /api/questions/{id}/similar-answers ▶ BE  비슷한 문항의 확정
     {
       "text": "저는 「바꿔요」 프로젝트에서 채팅 메시지가 늦게 도착하는 문제를 WebSocket 으로 바꿔 해결했습니다.",
       "status": "SOURCE",
-      "evidence": [{ "type": "CITATION", "id": 201, "experienceId": 101, "activityId": 7, "text": "채팅 메시지가 늦게 도착하는 문제가 있었다. 내가 폴링을 WebSocket 으로 바꿔 해결했다." }],
+      "evidence": [{ "type": "CITATION", "id": 201, "experienceId": 101, "activityId": 7, "text": "채팅 메시지가 늦게 도착하는 문제가 있었다. 내가 폴링을 WebSocket 으로 바꿔 해결했다.", "sourceName": "바꿔요-회고.md", "question": null }],
       "note": null
     },
     {
       "text": "서버에 STOMP 엔드포인트를 만들고 앱의 폴링 코드를 구독 방식으로 바꿨습니다.",
       "status": "USER_INPUT",
-      "evidence": [{ "type": "SUPPLEMENT", "id": 301, "experienceId": 101, "activityId": 7, "text": "서버에 STOMP 엔드포인트를 만들고, 앱의 3초 폴링 코드를 구독 방식으로 바꿨다" }],
+      "evidence": [{ "type": "SUPPLEMENT", "id": 301, "experienceId": 101, "activityId": 7, "text": "서버에 STOMP 엔드포인트를 만들고, 앱의 3초 폴링 코드를 구독 방식으로 바꿨다", "sourceName": null, "question": "폴링을 WebSocket 으로 바꿀 때 직접 고친 부분은 어디였나요?" }],
       "note": null
     },
     {
@@ -551,7 +551,7 @@ FE ─GET /api/questions/{id}/similar-answers ▶ BE  비슷한 문항의 확정
 - `status` · `error` — 작업 상태(README 「값 목록」). `ANALYZING` · `FAILED` 면 `sentences` 는 `[]`. `FAILED` 의 `error.code` 는 `GET /api/questions/{questionId}` 와 같은 값 — 정해진 결과로 칠하지 않는다(대회 규칙 2).
 - `sentences` — 글을 나눈 문장, **글의 순서대로**. 문장 나누기는 AI 서버 코드가 한다(ai-api 「POST /ground-check」 — 줄 맨 앞 번호 표시는 문장에 들지 않아 이 배열에 없다). FE 는 이 배열을 차례로 이어 보여 칠한다.
 - `sentences[].status` — README 「값 목록」 `groundingStatus`. 화면: `UNSUPPORTED` 는 눈에 띄게 칠하고 「지우거나, 사실이면 근거를 더해 주세요」, `OPINION` 은 칠하지 않고 AI 해석으로(SPEC S-45). 「근거 없음」을 「거짓」처럼 보이지 않는다.
-- `sentences[].evidence` — 받치는 것. `type` 은 `evidenceType`(`CITATION` · `SUPPLEMENT` · `EXPERIENCE`), `id` 는 그 근거 · 보완 · 경험의 ID. BE 가 `experienceId` · `activityId`(활동 세부 S-08 로 가는 길) · `text`(발췌문 `quote` · 보완 `answer` · 경험 `content` — **지금 상태로**)를 붙인다. `SOURCE` · `USER_INPUT` 은 1개 이상, `UNSUPPORTED` · `OPINION` 은 `[]`. 그새 지워진 근거 · 보완 · 경험은 빠진다 — 판정(`status`)은 점검했을 때 그대로다(다시 점검하면 새로 판정).
+- `sentences[].evidence` — 받치는 것. `type` 은 `evidenceType`(`CITATION` · `SUPPLEMENT` · `EXPERIENCE`), `id` 는 그 근거 · 보완 · 경험의 ID. BE 가 `experienceId` · `activityId`(활동 세부 S-08 로 가는 길) · `text`(발췌문 `quote` · 보완 `answer` · 경험 `content` — **지금 상태로**)를 붙인다. 근거 칩의 이름도 붙인다 — `sourceName` 은 `CITATION` 이면 그 발췌가 나온 자료 이름, `question` 은 `SUPPLEMENT` 면 그 보완의 질문, 그 밖엔 둘 다 `null`. 추천에 없는 경험(초안의 보조 재료 등)의 근거도 같은 모양이라 FE 는 추천 목록에서 찾지 않는다. `SOURCE` · `USER_INPUT` 은 1개 이상, `UNSUPPORTED` · `OPINION` 은 `[]`. 그새 지워진 근거 · 보완 · 경험은 빠진다 — 판정(`status`)은 점검했을 때 그대로다(다시 점검하면 새로 판정).
 - `sentences[].note` — `UNSUPPORTED` 일 때만 왜 근거 없음인지 한 줄(그 밖엔 `null`). AI 해석이거나 코드가 쓴 문구(숫자 대조)다 — FE 는 AI 해석으로 보인다.
 - 예시 읽는 법: 첫 문장은 회고 발췌 201 이 받친다(원문). 둘째는 문항 A 에서 답한 보완 301 만 받친다(내가 입력). 셋째는 자료에 없는 결과 · 수치다 — LLM 이 근거를 붙였더라도 「80」이 근거 · 보완에 없으니 코드가 근거 없음으로 돌린다. 넷째는 경험 103(`TEAM`, 「배포는 팀원이 맡아」)을 「제가」로 바꿔 쓴 문장이다. 다섯째는 포부라 점검하지 않는다.
 
@@ -616,12 +616,12 @@ FE ─GET /api/questions/{id}/similar-answers ▶ BE  비슷한 문항의 확정
     {
       "kind": "FACT",
       "text": "「바꿔요」 프로젝트에서 채팅 메시지가 늦게 도착하는 문제가 있었고, 제가 폴링을 WebSocket 으로 바꿔 해결했습니다.",
-      "evidence": [{ "type": "CITATION", "id": 201, "experienceId": 101, "activityId": 7, "text": "채팅 메시지가 늦게 도착하는 문제가 있었다. 내가 폴링을 WebSocket 으로 바꿔 해결했다." }]
+      "evidence": [{ "type": "CITATION", "id": 201, "experienceId": 101, "activityId": 7, "text": "채팅 메시지가 늦게 도착하는 문제가 있었다. 내가 폴링을 WebSocket 으로 바꿔 해결했다.", "sourceName": "바꿔요-회고.md", "question": null }]
     },
     {
       "kind": "FACT",
       "text": "서버에 STOMP 엔드포인트를 만들고, 앱의 3초 폴링 코드를 구독 방식으로 바꿨습니다.",
-      "evidence": [{ "type": "SUPPLEMENT", "id": 301, "experienceId": 101, "activityId": 7, "text": "서버에 STOMP 엔드포인트를 만들고, 앱의 3초 폴링 코드를 구독 방식으로 바꿨다" }]
+      "evidence": [{ "type": "SUPPLEMENT", "id": 301, "experienceId": 101, "activityId": 7, "text": "서버에 STOMP 엔드포인트를 만들고, 앱의 3초 폴링 코드를 구독 방식으로 바꿨다", "sourceName": null, "question": "폴링을 WebSocket 으로 바꿀 때 직접 고친 부분은 어디였나요?" }]
     },
     {
       "kind": "OPINION",
@@ -635,6 +635,7 @@ FE ─GET /api/questions/{id}/similar-answers ▶ BE  비슷한 문항의 확정
     { "text": "이 경험에서 배운 점 · 느낀 점", "question": "채팅 방식을 바꾸며 배운 점이나 느낀 점이 있나요?", "experienceId": 101, "clarificationId": 65, "supplementId": null }
   ],
   "frame": "STAR",
+  "useContext": true,
   "guidelines": [
     { "id": 901, "text": "첫 문장에 무엇을 했고 어떻게 됐는지 먼저 쓴다", "source": "유튜브 「자소서 첫 문장 쓰는 법」", "applied": true, "note": null },
     { "id": 905, "text": "결과는 꼭 수치로 쓴다", "source": "멘토 피드백", "applied": false, "note": "결과를 보여 줄 수치가 자료에 없어 넣지 않았어요" }
@@ -651,10 +652,11 @@ FE ─GET /api/questions/{id}/similar-answers ▶ BE  비슷한 문항의 확정
 - `sentences[].kind` — 필수, README `draftSentenceKind`(`FACT` · `OPINION` · `ELABORATED`). BE 는 AI 값을 저장하고 그대로 응답한다. `OPINION` 은 전체 최대 15문장 중 최대 3개이며 FE 는 근거 칩 대신 「AI 제안 — 확인 필요」를 붙여 사실과 구분한다. 연결 · 직무 관련성 · 포부만 허용하며 숫자 · 새 사실 · 감정 지어내기 · 칭찬 · 의미 단정은 금지한다. `TEAM` · `UNKNOWN` 일을 내 일로 쓰지 않는다. 생성 검증은 ai-api 「POST /draft」를 따른다.
 - `sentences[].evidence` — 그 문장을 받치는 것. 근거 점검(`GroundingCheck`)의 `evidence` 와 **같은 모양**이다 — FE 가 같은 표시를 쓴다. `type` 은 `evidenceType`(`CITATION` 원문 · `SUPPLEMENT` · `EXPERIENCE` 내가 입력), `id` 는 그 근거 · 보완 · 경험의 ID. BE 가 `experienceId` · `activityId` · `text`(발췌문 `quote` · 보완 `answer` · 경험 `content` — **지금 상태로**)를 붙인다. 만들 때 `FACT` 는 **1개 이상**, `OPINION` 은 `[]` 이다. 그새 지워진 근거 · 보완 · 경험은 빠지므로 0개가 될 수 있다 — 문장은 만들었을 때 그대로 둔다(다시 만들면 새로 쓴다). 보완을 고쳤으면(S-24) `text` 는 고친 답이고 문장은 그대로다. 근거 삭제로 비어도 `FACT` 를 `OPINION` 으로 바꾸지 않는다.
 - `omitted` — 문항에 필요한데 고른 경험의 근거 · 보완 · 직접 입력한 본문에 없어 **쓰지 않은 것**, 객체 0 ~ 5개. AI 해석이다. 화면에서 「자료에 없어 쓰지 않았어요」처럼 — 부족한 사람처럼 읽히지 않게(SPEC S-19). 추천의 `clarifications` 최대 3개와 별개이고 그 배열에 섞지 않는다.
-- `omitted[].text` · `question` · `experienceId` — AI `/draft` 응답 그대로. 경험에 연결된 것은 `experienceIds` 안의 경험 ID 와 구체적인 질문이 함께 있다. 연결되지 않은 빈칸은 둘 다 `null` 이며 FE 는 답 저장 칸을 붙이지 않고 사용자가 직접 쓸 거리로 보인다.
+- `omitted[].text` · `question` · `experienceId` — AI `/draft` 응답 그대로. 경험에 연결된 것은 고른 경험(`experienceIds`) 또는 같은 활동의 보조 재료 경험(S-75)의 ID 와 구체적인 질문이 함께 있다. 연결되지 않은 빈칸은 둘 다 `null` 이며 FE 는 답 저장 칸을 붙이지 않고 사용자가 직접 쓸 거리로 보인다.
 - `omitted[].placeholder` · `sentenceIndex` — 문장 속 빈칸(S-78). `placeholder` 는 `[결과]` 처럼 그 문장 `text` 에 글자 그대로 한 번 있는 자리 표시, `sentenceIndex` 는 `sentences` 순번. 빈칸이 아니면 둘 다 `null`. FE 는 답하면 자리 표시를 답으로 바꿔 보이고 보완으로 저장한다. 다음 다시 만들기 전까지 `sentences` 는 저장된 그대로다.
 - `omitted[].clarificationId` — BE 가 초안 완료 시 질문마다 새로 붙여 저장하는 되묻기 ID. 추천 되묻기와 같은 ID 공간을 쓰되 초안에 속한 것으로 구분한다. 경험이 `null` 이면 이 값도 `null` 이고 되묻기를 만들지 않는다. 새로고침해도 같은 ID 다. FE 는 배열 순번 · 문구 · 추천 되묻기 ID 로 대신 답하지 않는다.
 - `omitted[].supplementId` — 아직 답하지 않았으면 `null`, 답했으면 만든 보완 ID. BE 가 현재 연결을 조회해 응답하므로 새로고침해도 답한 상태가 유지된다. 답은 활동 세부의 보완에서 확인 · 수정한다(S-24). 보완을 지우면 `null` 로 돌아가 다시 답할 수 있다. 경험을 지우면 해당 `omitted` 항목은 응답에서 빠진다.
+- `useContext` — 이 초안에 같은 활동의 다른 경험을 뒷받침 재료로 썼나(요청 값 그대로, S-75). `ANALYZING` · `FAILED` 에도 있다. 이 값이 생기기 전 초안은 BE 가 `true` 로 채운다.
 - `frame` — 이 초안을 쓴 구성 틀(README 「값 목록」 `draftFrame`, S-50). 요청한 값 그대로 — `NONE` 은 「틀 없이」. `ANALYZING` · `FAILED` 에도 있다(실패한 초안의 「다시 만들기」가 같은 틀을 보낸다). 틀이 생기기 전에 저장된 초안은 BE 가 `NONE` 으로 채운다. FE 는 틀 이름 · 출처(README 「구성 틀」)를 초안 옆에 보인다.
 - `guidelines` — 이 초안에 실은 작성 지침(S-49), 실은 순서대로. 켜 둔 지침이 없었으면 `[]`. `ANALYZING` · `FAILED` 면 `[]`. `id` · `text` · `source` 는 **초안을 만들 때의 것**을 BE 가 저장해 둔다 — 그 뒤 지침을 고치거나 지워도 바뀌지 않는다(`id` 가 지금 없는 지침일 수 있다). 틀이 생기기 전에 저장된 초안은 `[]`.
 - `guidelines[].applied` · `note` — AI 가 그 지침을 이번 초안에 반영했다고 보는지(**AI 해석** — ai-api `/draft` 응답 그대로). `applied: true` 면 `note: null`, `false` 면 `note` 에 왜 못 했는지 한 줄(근거 규칙과 부딪침 · 이 문항에 맞지 않음 등). FE 는 「적용한 지침」과 「이번엔 반영 못 함 — `note`」를 나눠 보인다. 지침은 문체 · 구성 · 강조만 바꾼다 — 반영했다고 근거 규칙이 느슨해지지 않는다.
@@ -690,11 +692,12 @@ AI#48 · BE#72 · FE#104 에서 함께 맞춘다. 새 AI 응답에는 모든 문
 | 필드 | 값 |
 | --- | --- |
 | `experienceIds` | 그 문항 `recommendations` 의 경험 ID **1 ~ 3개**, 중복 없음. AI 에 이 순서로 싣는다 |
+| `useContext` | 선택. `true`(기본) 면 같은 활동의 다른 경험도 뒷받침 재료로 쓴다(S-75). `false` 면 고른 경험만 — FE 는 끌 때 「고른 경험만으로 써서 짧거나 부실할 수 있어요」를 알린다. 불리언이 아니면 400. 다시 만들 땐 그 초안의 `useContext` 를 골라 둔다 |
 | `frame` | 선택. 구성 틀 — README `draftFrame` 값 하나(S-50). 빼면 `NONE`(틀 없이 — 지금과 같다). FE 는 처음엔 문항 유형으로 미리 고른 틀(README 「문항 유형 → 제안 틀」), 다시 만들 땐 그 초안의 `frame` 을 골라 둔다 |
 
 응답 202 — `Draft`, `status: "ANALYZING"` · `sentences: []` · `omitted: []`. 그 문항의 예전 초안(완료든 실패든)을 이것으로 바꾼다. 실패한 초안을 다시 만들 때도 이 호출이다(따로 `retry` 가 없다).
 
-- BE 는 고른 경험과 같은 활동의 나머지 경험을 `contextExperiences` 로 함께 보낸다(최대 12개, 최근 순 · S-75 · ai-api). 그 문항 `targetLength` 도 싣는다(S-77).
+- BE 는 고른 경험과 같은 활동의 나머지 경험을 `contextExperiences` 로 함께 보낸다(최대 12개 · S-75 · ai-api). 고른 경험 자체는 빼고, `useContext: false` 면 보내지 않는다. 12개는 **첫째 고른 경험의 활동이 먼저** — 둘째 · 셋째로 고른 경험의 활동은 각 2개까지, 나머지를 첫째 활동에 준다. 첫째 활동에 재료가 모자라면 남는 몫을 다음 활동으로 넘긴다. 같은 활동에서 둘 이상 골랐으면 그 활동은 앞선 쪽으로 한 번만 센다. 각 활동 안에서는 최근에 생긴 경험부터. 그 문항 `targetLength` 도 싣는다(S-77).
 - BE 는 **고른 경험을** 지금 상태로 AI 에 보낸다 — 본문 · 역량 · 수행 주체 · 출처 상태 · 활동 이름 · 기간 · **원본에서 찾은 근거만**(`matched: true`) · 보완 전부. 원본에서 못 찾은 발췌는 「원문」으로 칠하지 않게 싣지 않는다(근거 점검과 같다).
 - BE 는 저장된 매칭 결과와 지원의 직무도 싣는다(ETC#141) — 그 문항의 `requirements`(`text` · `status` 만), **고른 경험의** 추천 `reason` · `emphasis` · `gaps`, 지원의 `jobRole`(없으면 싣지 않는다). LLM 을 더 부르지 않고 지금 저장된 값을 그대로 옮긴다. AI 해석이라 초안의 근거가 되지 않는다 — `Draft` 응답 모양은 그대로이고 이 값들을 초안에 저장하지 않는다. 직무를 `PATCH` 로 바꾸면 다음에 만드는 초안부터 반영된다.
 - BE 는 그 사용자의 **지금 켜 둔 작성 지침**(guideline-api, 최대 10개 · 만든 순서)을 `{ id, text }` 로 싣고, `frame` 이 `NONE` 이 아니면 `question.frame` 으로 싣는다(ai-api 「POST /draft」). 초안에는 그때의 지침 `text` · `source` 를 저장해 둔다(위 `Draft.guidelines`). 지침은 FE 가 요청에 싣지 않는다 — 켜고 끄기는 guideline-api 에서.

@@ -388,8 +388,6 @@ BE 는 어떤 오류든 문항을 `FAILED`(`AI_FAILED`, `message` 에 위 `code`
 | --- | --- |
 | `text` | 점검할 답(BE 한도 5000자). 비지 않은 문자열 |
 | `experiences` | 사용자의 경험 전부 — `/match` 요청과 같은 모양. **0개면 `[]`** — 오류가 아니다 |
-| `contextExperiences` | 선택. 고른 경험과 같은 활동의 나머지 경험 0 ~ 12개, `experiences` 와 같은 모양(`reason` · `emphasis` · `gaps` 없음). 뒷받침 재료다 — 고른 경험이 뼈대. 근거 · 보완 ID 를 `evidence` 로 붙일 수 있다(S-75) |
-| `question.targetLength` | 선택. 목표 글자 수 100 ~ 5000(S-77). 목표의 80 ~ 100% 를 노리되 못 채워도 실패가 아니다 — 지어내지 않고 빈칸 · `omitted` 로 남긴다. 15문장 상한은 그대로 |
 | `experiences[].citations` | **원본에서 찾은 근거만**(`matched: true`) `{ id, quote }`. 확인 못 한 근거는 싣지 않는다 — 「원문」으로 칠하지 않게 |
 | `experiences[].sourceStatus` | `USER_ENTERED` 인 경험만 본문(`content`)이 근거(`EXPERIENCE`)가 될 수 있다 — 사용자가 직접 넣거나 고친 글이라 「내가 입력」이다. AI 가 뽑은 본문(`SOURCE_CONFIRMED` · `NEEDS_REVIEW`)은 근거가 아니다(근거는 발췌문이다) |
 
@@ -510,6 +508,8 @@ BE 는 어떤 오류든 점검을 `FAILED`(`AI_FAILED`, `message` 에 위 `code`
 | `experiences[].supplements` | 보완 `{ id, question, answer }` 전부. 사용자가 직접 말한 사실이다(「내가 입력」) |
 | `experiences[].sourceStatus` | `USER_ENTERED` 인 경험만 본문(`content`)이 근거(`EXPERIENCE`)가 될 수 있다 — `/ground-check` 와 같다 |
 | `experiences[].reason` · `emphasis` · `gaps` | 선택. 그 문항의 추천에서 **이 경험의** 이유 · 강조점(문자열) · 부족한 점(문자열 배열) — question-api `Recommendation` 그대로. 없으면 싣지 않는다 |
+| `contextExperiences` | 선택. 고른 경험과 같은 활동의 나머지 경험 0 ~ 12개, `experiences` 와 같은 모양(`reason` · `emphasis` · `gaps` 없음). 뒷받침 재료다 — 고른 경험이 뼈대. 근거 · 보완 ID 를 `evidence` 로 붙일 수 있고, 빠진 사실(`omitted[].experienceId`)을 이 경험에 붙여도 된다(S-75). 사용자가 끄면(question-api `useContext: false`) 싣지 않는다 |
+| `question.targetLength` | 선택. 목표 글자 수 100 ~ 5000(S-77). 목표의 80 ~ 100% 를 노리되 못 채워도 실패가 아니다 — 지어내지 않고 빈칸 · `omitted` 로 남긴다. 15문장 상한은 그대로 |
 | `guidelines` | 선택. 사용자가 켜 둔 작성 지침 `{ id, text }` **0 ~ 10개**(S-49 — guideline-api), `id` 중복 없음. 없거나 `[]` 면 지침 없이 쓴다 |
 
 **매칭 결과 · 직무는 AI 해석이라 근거가 아니다**(ETC#141). 무엇을 앞세우고 무엇을 빈칸으로 볼지 정하는 **단서**로만 쓴다.
@@ -563,7 +563,7 @@ BE 는 어떤 오류든 점검을 `FAILED`(`AI_FAILED`, `message` 에 위 `code`
 | `sentences[].evidence` | `{ "type", "id" }` 배열. `FACT` · `ELABORATED` 는 **1개 이상**, `OPINION` 은 `[]`. 중복 없음. `type` 은 `CITATION` · `SUPPLEMENT` · `EXPERIENCE`. `id` 는 **요청에 있는** 근거 · 보완 · 경험 ID — `EXPERIENCE` 는 `sourceStatus: USER_ENTERED` 경험만. 한 문장이 여러 경험의 근거를 같이 붙여도 된다 |
 | `omitted` | `{ text, question, experienceId }` 객체 배열 **0 ~ 5개**, 중요한 것부터. 필드는 모두 필수(`null` 허용은 아래). 추천의 `clarifications` 최대 3개와 별개(S-27) |
 | `omitted[].text` | 문항에 필요한데 고른 경험의 근거 · 보완 · 직접 입력한 본문에 없어 쓰지 않은 것, 공백뿐이 아닌 짧은 구절. 답을 유도하는 수치 · 역할을 넣지 않는다 |
-| `omitted[].experienceId` | 그 사실을 보완할 **요청 `experiences` 중 하나의 정수 ID**. 어느 경험의 빈칸인지 붙일 수 없으면 `null` — 새 경험 ID 를 만들거나 임의의 경험에 붙이지 않는다 |
+| `omitted[].experienceId` | 그 사실을 보완할 **요청 `experiences` 또는 `contextExperiences` 중 하나의 정수 ID**. 어느 경험의 빈칸인지 붙일 수 없으면 `null` — 새 경험 ID 를 만들거나 임의의 경험에 붙이지 않는다 |
 | `omitted[].question` | `experienceId` 가 있으면 그 경험 · 문항에 맞는 구체적인 질문(공백뿐인 문자열 금지). `experienceId: null` 이면 반드시 `null`. 질문만 `null` 이거나 경험만 `null` 인 조합은 금지 |
 | `guidelines` | 요청 `guidelines` 마다 **하나씩, 같은 순서로** `{ id, applied, note }`. 요청에 지침이 없으면 `[]`(빼도 `[]` 로 읽는다). `applied` 는 `true` · `false`. `applied: true` 면 `note: null`, `false` 면 `note` 는 왜 못 했는지 한 줄(1 ~ 80자, 화면에 그대로 보인다 — 「자료에 수치가 없어 넣지 않았어요」) |
 | `model` | 실제로 답한 LLM 이름. 선택 |

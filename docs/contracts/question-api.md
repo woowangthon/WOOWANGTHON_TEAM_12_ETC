@@ -622,7 +622,8 @@ FE ─GET /api/questions/{id}/similar-answers ▶ BE  비슷한 문항의 확정
       "text": "「바꿔요」 프로젝트에서 채팅 메시지가 늦게 도착하는 문제가 있었고, 제가 폴링을 WebSocket 으로 바꿔 해결했습니다.",
       "evidence": [{ "type": "CITATION", "id": 201, "experienceId": 101, "activityId": 7, "text": "채팅 메시지가 늦게 도착하는 문제가 있었다. 내가 폴링을 WebSocket 으로 바꿔 해결했다.", "sourceName": "바꿔요-회고.md", "question": null , "actor": "ME" }],
       "note": null,
-      "confirmed": false
+      "confirmed": false,
+      "removed": false
     },
     {
       "id": 802,
@@ -630,7 +631,8 @@ FE ─GET /api/questions/{id}/similar-answers ▶ BE  비슷한 문항의 확정
       "text": "서버에 STOMP 엔드포인트를 만들고, 앱의 3초 폴링 코드를 구독 방식으로 바꿨습니다.",
       "evidence": [{ "type": "SUPPLEMENT", "id": 301, "experienceId": 101, "activityId": 7, "text": "서버에 STOMP 엔드포인트를 만들고, 앱의 3초 폴링 코드를 구독 방식으로 바꿨다", "sourceName": null, "question": "폴링을 WebSocket 으로 바꿀 때 직접 고친 부분은 어디였나요?" , "actor": "ME" }],
       "note": null,
-      "confirmed": false
+      "confirmed": false,
+      "removed": false
     },
     {
       "id": 803,
@@ -638,7 +640,8 @@ FE ─GET /api/questions/{id}/similar-answers ▶ BE  비슷한 문항의 확정
       "text": "앞으로도 문제의 원인을 살피는 개발자가 되고 싶습니다.",
       "evidence": [],
       "note": null,
-      "confirmed": true
+      "confirmed": true,
+      "removed": false
     }
   ],
   "omitted": [
@@ -664,6 +667,7 @@ FE ─GET /api/questions/{id}/similar-answers ▶ BE  비슷한 문항의 확정
 - `sentences[].note` — `ELABORATED` 만 문자열(왜 확인이 필요한지 한 줄 · 60자 이하), 나머지는 `null`(S-78). 옛 초안은 BE 가 `null` 로 채운다.
 - `sentences[].id` — 문장 ID. 「맞아요」(아래 `POST /api/draft-sentences/{sentenceId}/confirm`)에 쓴다. 다시 만들면 문장이 새로 생겨 ID 도 바뀐다.
 - `sentences[].confirmed` — 사용자가 카드에서 「맞아요」를 눌렀나(S-79). 새 문장 · 옛 초안은 `false`. FE 는 `true` 면 그 문장에 표시 · 카드를 붙이지 않고 「확인할 곳 N」에서 뺀다 — 새로고침 · 다른 기기에서도 같다. 글을 고쳐 문장이 바뀌면 카드가 사라지는 것은 그대로 FE 몫이다.
+- `sentences[].removed` — 사용자가 카드에서 「빼기」를 눌렀나(S-79). 새 문장 · 옛 초안은 `false`. 뺀 문장도 응답에 그대로 오고, FE 는 답칸 글에서 빼고 「뺀 문장 N개 · 다시 넣기」로 보인다 — 새로고침 · 다른 기기에서도 같다. 「확인할 곳」 · 복사 · 다 썼어요 · 근거 점검 글에서 빠진다. 다시 만들면 새 문장은 `false`.
 - `sentences[].kind` — 필수, README `draftSentenceKind`(`FACT` · `OPINION` · `ELABORATED`). BE 는 AI 값을 저장하고 그대로 응답한다. `OPINION` 은 전체 최대 15문장 중 최대 3개이며 FE 는 근거 칩 대신 「AI 제안 — 확인 필요」를 붙여 사실과 구분한다. 연결 · 직무 관련성 · 포부만 허용하며 숫자 · 새 사실 · 감정 지어내기 · 칭찬 · 의미 단정은 금지한다. `TEAM` · `UNKNOWN` 일을 내 일로 쓰지 않는다. 생성 검증은 ai-api 「POST /draft」를 따른다.
 - `sentences[].evidence` — 그 문장을 받치는 것. 근거 점검(`GroundingCheck`)의 `evidence` 와 **같은 모양**이다 — FE 가 같은 표시를 쓴다. `type` 은 `evidenceType`(`CITATION` 원문 · `SUPPLEMENT` · `EXPERIENCE` 내가 입력), `id` 는 그 근거 · 보완 · 경험의 ID. BE 가 `experienceId` · `activityId` · `text`(발췌문 `quote` · 보완 `answer` · 경험 `content` — **지금 상태로**)를 붙인다. 만들 때 `FACT` 는 **1개 이상**, `OPINION` 은 `[]` 이다. 그새 지워진 근거 · 보완 · 경험은 빠지므로 0개가 될 수 있다 — 문장은 만들었을 때 그대로 둔다(다시 만들면 새로 쓴다). 보완을 고쳤으면(S-24) `text` 는 고친 답이고 문장은 그대로다. 근거 삭제로 비어도 `FACT` 를 `OPINION` 으로 바꾸지 않는다.
 - `omitted` — 문항에 필요한데 고른 경험의 근거 · 보완 · 직접 입력한 본문에 없어 **쓰지 않은 것**, 객체 0 ~ 5개. AI 해석이다. 화면에서 「자료에 없어 쓰지 않았어요」처럼 — 부족한 사람처럼 읽히지 않게(SPEC S-19). 추천의 `clarifications` 최대 3개와 별개이고 그 배열에 섞지 않는다.
@@ -747,6 +751,31 @@ AI#48 · BE#72 · FE#104 에서 함께 맞춘다. 새 AI 응답에는 모든 문
 | HTTP | `code` | 언제 |
 | --- | --- | --- |
 | 404 | `DRAFT_SENTENCE_NOT_FOUND` | 없는 문장 · 남의 문장 · 다시 만들어 사라진 문장(다시 만들기를 시작하면 예전 문장은 없다) |
+
+
+## PUT /api/draft-sentences/{sentenceId}/removed — 초안 문장 빼기 · 다시 넣기
+
+- 쓰는 곳: FE 초안 카드의 「빼기」 · 답칸 아래 「다시 넣기」(S-79)
+- SPEC: `S-79` — 우선순위 `P0`
+
+요청 — `PUT /api/draft-sentences/805/removed`
+
+```json
+{ "removed": true }
+```
+
+| 필드 | 값 |
+| --- | --- |
+| `removed` | 필수. `true` 면 빼고 `false` 면 다시 넣는다 |
+
+응답 204. 그 문장의 `removed` 가 보낸 값이 된다 — 같은 값을 다시 보내도 204. 문장 글 · 근거 · 종류 · `confirmed` 는 바뀌지 않는다. AI 를 부르지 않고 분석 횟수를 쓰지 않는다. 문장 종류와 상관없다.
+
+오류
+
+| HTTP | `code` | 언제 |
+| --- | --- | --- |
+| 400 | `INVALID_REQUEST` | `removed` 가 없음 · 불리언이 아님 · 본문 없음 |
+| 404 | `DRAFT_SENTENCE_NOT_FOUND` | 없는 문장 · 남의 문장 · 다시 만들어 사라진 문장 |
 
 ---
 

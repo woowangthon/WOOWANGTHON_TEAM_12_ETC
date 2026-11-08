@@ -430,12 +430,10 @@ FE ─GET /api/questions/{id}/similar-answers ▶ BE  비슷한 문항의 확정
 
 ## PATCH /api/questions/{questionId} — 문항 유형 · 목표 글자 수 고치기
 
-- 쓰는 곳: FE 추천 결과의 문항 유형
-- SPEC: `R-03` / `S-41` — 우선순위 `P1`
+- 쓰는 곳: FE 추천 결과의 문항 유형 · 문항의 목표 글자 수 칸
+- SPEC: `R-03` / `S-41` — 우선순위 `P1` · `S-77` — 우선순위 `P0`
 
-문항 텍스트는 바꾸지 않는다(S-18) — 유형 · 목표 글자 수만(보낸 필드만 바꾼다).
-
-`targetLength` 는 100 ~ 5000 정수, `null` 이면 비운다(S-77). `{ "targetLength": 500 }` 처럼 보낸다. 범위 밖이면 400 `INVALID_REQUEST`. 추천은 다시 돌지 않는다.
+문항 텍스트는 바꾸지 않는다(S-18) — 유형 · 목표 글자 수만. **보낸 필드만 바꾸고**, 둘 중 하나 이상을 보낸다. 추천은 다시 돌지 않는다.
 
 요청 — `PATCH /api/questions/41`
 
@@ -443,17 +441,22 @@ FE ─GET /api/questions/{id}/similar-answers ▶ BE  비슷한 문항의 확정
 { "questionType": "ACHIEVEMENT" }
 ```
 
+```json
+{ "targetLength": 500 }
+```
+
 | 필드 | 값 |
 | --- | --- |
-| `questionType` | README 「값 목록」 문항 유형 하나. `null` 은 받지 않는다(AI 값으로 되돌리기는 없다 — 다시 고른다) |
+| `questionType` | 선택. README 「값 목록」 문항 유형 하나. `null` 은 받지 않는다(AI 값으로 되돌리기는 없다 — 다시 고른다) |
+| `targetLength` | 선택. 목표 글자 수 100 ~ 5000 정수(S-77). `null` 이면 비운다 |
 
-응답 200 — `GET /api/questions/{questionId}` 와 같은 모양. 값을 보냈으면 `questionTypeBy: "USER"`. 분석 중 · 실패한 문항도 고를 수 있다 — 그 뒤 매칭이 끝나도 덮어쓰지 않는다.
+응답 200 — `GET /api/questions/{questionId}` 와 같은 모양. `questionType` 을 보냈으면 `questionTypeBy: "USER"`(`targetLength` 만 보내면 그대로). 분석 중 · 실패한 문항도 고칠 수 있다 — 그 뒤 매칭이 끝나도 덮어쓰지 않는다.
 
 오류
 
 | HTTP | `code` | 언제 |
 | --- | --- | --- |
-| 400 | `INVALID_REQUEST` | `questionType` 이 없음 · `null` · 목록에 없는 값 |
+| 400 | `INVALID_REQUEST` | 두 필드가 모두 없음 · `questionType` 이 `null` 이거나 목록에 없는 값 · `targetLength` 가 정수가 아님 · 100 ~ 5000 밖 |
 | 404 | `QUESTION_NOT_FOUND` | 없는 문항 |
 
 ## POST /api/clarifications/{clarificationId}/answer — 되묻기에 답하기

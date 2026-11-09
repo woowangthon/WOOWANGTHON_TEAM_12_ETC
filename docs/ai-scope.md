@@ -36,6 +36,7 @@
 | 외부 기술 | Next.js 16 · React 19 · TypeScript 5 (FE) | `create-next-app` 기본 설정 · 연동만 |
 | 외부 기술 | Tailwind CSS 4 (FE) | 설정 · 연동만 |
 | 외부 기술 | pdf.js(`pdfjs-dist`) · JSZip (FE — PDF · PPTX 글자 뽑기, S-39) | 연동만. 브라우저에서 PDF 쪽 · PPTX 슬라이드의 글자 층만 읽는다(OCR · AI 안 씀 — 스캔 PDF 는 넣지 않고 붙여넣기로 안내). 쪽 · 슬라이드 순서와 줄 번호(`sections`)를 맞추는 코드는 직접 구현 — FE `src/lib/source-file/`, 단위 테스트 · 코드로 만든 시험 PDF · PPTX 로 확인. 실제 이력서 · 발표 자료로는 아직 안 봤다(FE#79) |
+| 외부 기술 | JSZip (FE — Notion 「Markdown & CSV」 내보내기 ZIP 풀기, S-63) | 연동만. 브라우저에서 ZIP 을 풀어 `.md` 페이지만 꺼낸다(안의 ZIP 은 한 단계까지 · CSV · 이미지 · 첨부는 읽지 않는다 · AI 안 씀). **ZIP 원본은 풀려고 외부로 보내지 않는다** — 사용자가 고른 페이지의 글자만 보통 자료 넣기처럼 BE 로 보낸다(S-59). 풀기 전 한도(파일 2,000개 · 풀린 크기 100MB) 세기 · Notion 식별자 떼기 · 노트 사이 링크 찾기는 직접 구현 — FE `src/lib/source-file/`, 단위 테스트 · 실제 Notion 내보내기 ZIP 하나(페이지 1개)로 확인. 중첩 ZIP · 한도 초과는 단위 테스트로만 봤다(FE#127) |
 | 외부 기술 | shadcn/ui (button · sheet · dialog) · Radix UI (FE) | 부품 코드를 레포에 복사해 DESIGN.md 대로 색 · 크기를 고쳐 씀 |
 | 외부 기술 | Vercel (FE 배포 · PR 미리보기) | GitHub 연동 설정만 |
 | 외부 기술 | Docker · Docker Compose · Oracle Cloud(OCI) 서버 · Cloudflare Tunnel · Access (BE · AI · DB 배포) | 이미지 · Compose 구성 · 설정만. 공개 전엔 Access 로 팀원만 통과 |

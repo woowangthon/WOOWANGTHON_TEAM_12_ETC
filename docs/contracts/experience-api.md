@@ -719,7 +719,7 @@ FE 는 `jobId` 를 들고 있다가(새로고침 대비 주소 · 브라우저 �
 
 ## POST /api/activities/{activityId}/actor — 활동의 수행 주체 한 번에 정하기 (`P0`)
 
-- 쓰는 곳: FE 초안의 주체 확인 카드 · 활동 세부
+- 쓰는 곳: FE 활동 세부(초안 카드는 근거 경험만 — 아래 `PATCH /api/experiences/{experienceId}` 의 `actor`)
 - SPEC: `S-76`
 
 요청 `{ "actor": "ME" }` — `ME` · `TEAM`. 그 활동의 `UNKNOWN` 경험만 바꾼다. `sourceStatus` · 본문 · 근거는 그대로다. AI 를 부르지 않고 분석 횟수를 세지 않는다.
@@ -735,10 +735,10 @@ FE 는 `jobId` 를 들고 있다가(새로고침 대비 주소 · 브라우저 �
 
 ## PATCH /api/experiences/{experienceId} — 경험 수정
 
-- 쓰는 곳: FE 활동 세부에서 바로 고치기
+- 쓰는 곳: FE 활동 세부에서 바로 고치기 · 초안 카드의 주체 확인(S-79 — `actor` 만)
 - SPEC: `F-04` / `S-10`
 
-보낸 필드만 바꾼다. 실제로 값이 바뀐 필드가 하나라도 있으면 **`sourceStatus` 는 `USER_ENTERED`** 가 된다. `competencies` 가 실제로 바뀌었으면 **`competenciesBy` 도 `USER`** 가 된다(다른 필드만 바뀌면 그대로). `citations` 는 그대로 남는다 — 이 요청으로 바꿀 수 없다.
+보낸 필드만 바꾼다. **`content` 가 실제로 바뀌었으면 `sourceStatus` 는 `USER_ENTERED`** 가 된다. `actor` · `competencies` 만 바뀌면 `sourceStatus` 와 외부 AI 변경 표시(`mcpChange`)는 그대로다 — 누가 했는지 · 어떤 역량인지 정한 것은 본문을 확인한 것이 아니다(S-10, 2026-11-09). `actor` 가 실제로 바뀌면 그 경험에 「주체를 정한 시각」을 처음 한 번만 남긴다 — 다시 만들기 무료(S-77) · 외부 AI 되돌리기의 「사용자가 손댄 경험」에 쓴다(응답에는 없다). `competencies` 가 실제로 바뀌었으면 **`competenciesBy` 도 `USER`** 가 된다(다른 필드만 바뀌면 그대로). `citations` 는 그대로 남는다 — 이 요청으로 바꿀 수 없다.
 
 요청
 

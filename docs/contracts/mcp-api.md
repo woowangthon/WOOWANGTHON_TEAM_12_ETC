@@ -493,7 +493,7 @@ FE ─DELETE /api/mcp/connection──────▶ BE  연결 끊기 → 그 
 - **경험 고치기** — 본문을 `beforeContent`, 출처 상태를 `beforeSourceStatus` 로 돌린다. `removedExperiences` · `keptExperiences` 는 `0`.
 - **되묻기 답** — `DELETE /api/supplements/{id}` 와 같은 코드로 보완을 지운다. 그 되묻기에 다시 답할 수 있다. `removedExperiences` · `keptExperiences` 는 `0`.
 - **지원 만들기** — 그 지원과 문항 · 요구사항 · 추천 · 되묻기를 지운다. 쓴 분석 횟수는 돌아오지 않는다. `removedExperiences` · `keptExperiences` 는 `0`.
-- **자료 넣기** — 이 원본을 근거로 한 경험을 `DELETE /api/experiences/{id}` 와 같은 코드로 지운다. **사용자가 손댄 경험은 남긴다**: `sourceStatus` 가 `USER_ENTERED` · 보완이 있음 · 그 작업이 만든 활동 밖으로 옮겨짐 · 외부 AI 변경 기록이 달림 · 다른 원본의 근거도 있음(경험 합치기 S-70). 그 작업이 만든 활동은 경험이 하나도 없고 계기 · 이어짐도 없으면 지운다. 원본은 남긴다(남긴 경험의 근거일 수 있다).
+- **자료 넣기** — 이 원본을 근거로 한 경험을 `DELETE /api/experiences/{id}` 와 같은 코드로 지운다. **사용자가 손댄 경험은 남긴다**: `sourceStatus` 가 `USER_ENTERED` · 역량을 고침(`competenciesBy` 가 `USER`) · 웹에서 주체를 정하거나 바꿈(2026-11-09 — 이것만으로는 `USER_ENTERED` 가 되지 않는다, S-10) · 보완이 있음 · 그 작업이 만든 활동 밖으로 옮겨짐 · 외부 AI 변경 기록이 달림 · 다른 원본의 근거도 있음(경험 합치기 S-70). 그 작업이 만든 활동은 경험이 하나도 없고 계기 · 이어짐도 없으면 지운다. 원본은 남긴다(남긴 경험의 근거일 수 있다).
 - 두 번 눌러도 한 번만 일어난다 — 두 번째는 409.
 
 오류: 404 `MCP_CHANGE_NOT_FOUND` 없거나 다른 사용자의 변경 · 409 `MCP_CHANGE_NOT_UNDOABLE` `undoable` 이 `false`
@@ -512,7 +512,7 @@ FE ─DELETE /api/mcp/connection──────▶ BE  연결 끊기 → 그 
 
 오류: 404 `MCP_CHANGE_NOT_FOUND` · 409 `MCP_CHANGE_NOT_CONFIRMABLE` `ADD_SOURCE` · `CREATE_APPLICATION` 이거나 이미 정했거나 `CHANGED_AFTER`
 
-- 사용자가 맞아요 대신 웹에서 고치면 `PATCH` 규칙 그대로 `USER_ENTERED` 가 된다 — 그 변경은 `CHANGED_AFTER` 로 남는다.
+- 사용자가 맞아요 대신 웹에서 본문을 고치면 `PATCH` 규칙 그대로 `USER_ENTERED` 가 된다(주체 · 역량만 고치면 「확인 대기」 그대로 — S-10) — 그 변경은 `CHANGED_AFTER` 로 남는다.
 
 ## 다른 사용자의 데이터
 

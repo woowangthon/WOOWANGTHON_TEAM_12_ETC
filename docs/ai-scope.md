@@ -36,6 +36,7 @@
 | 외부 기술 | Next.js 16 · React 19 · TypeScript 5 (FE) | `create-next-app` 기본 설정 · 연동만 |
 | 외부 기술 | Tailwind CSS 4 (FE) | 설정 · 연동만 |
 | 외부 기술 | pdf.js(`pdfjs-dist`) · JSZip (FE — PDF · PPTX 글자 뽑기, S-39) | 연동만. 브라우저에서 PDF 쪽 · PPTX 슬라이드의 글자 층만 읽는다(OCR · AI 안 씀 — 스캔 PDF 는 넣지 않고 붙여넣기로 안내). 쪽 · 슬라이드 순서와 줄 번호(`sections`)를 맞추는 코드는 직접 구현 — FE `src/lib/source-file/`, 단위 테스트 · 코드로 만든 시험 PDF · PPTX 로 확인. 실제 이력서 · 발표 자료로는 아직 안 봤다(FE#79) |
+| 외부 기술 | GitHub REST API (FE — 비인증 · 공개 레포 읽기만, S-64) | 연동만. FE 가 브라우저에서 바로 부른다(서버 · OAuth · GitHub 토큰 없음 — 비인증 한도가 IP 당 시간당 60회 · 검색 분당 10회라 서버 하나에 몰리지 않게). 레포 설명 · README · 넣은 아이디가 기본 브랜치에 쓴 커밋의 제목 · 그 아이디가 연 PR 의 제목만 읽고, 코드 · 커밋 본문 · 이슈 · 리뷰는 읽지 않는다. GitHub 응답은 저장하지 않고 사용자가 미리 보고 보낸 Markdown 글 하나만 지금 계약(`POST /api/sources`)으로 BE 에 보낸다. 없는 · 비공개 레포 · 한도(403 · 429) · 연결 실패는 이유 · 다시 시도로 돌아간다(정해진 글로 채우지 않는다). 글 만들기 · 50000자 자르기는 직접 구현 — FE `src/lib/source-file/github.ts`, 단위 테스트(응답은 테스트 안에서만 고정) · 실제 공개 레포로 확인(FE#128) |
 | 외부 기술 | shadcn/ui (button · sheet · dialog) · Radix UI (FE) | 부품 코드를 레포에 복사해 DESIGN.md 대로 색 · 크기를 고쳐 씀 |
 | 외부 기술 | Vercel (FE 배포 · PR 미리보기) | GitHub 연동 설정만 |
 | 외부 기술 | Docker · Docker Compose · Oracle Cloud(OCI) 서버 · Cloudflare Tunnel · Access (BE · AI · DB 배포) | 이미지 · Compose 구성 · 설정만. 공개 전엔 Access 로 팀원만 통과 |

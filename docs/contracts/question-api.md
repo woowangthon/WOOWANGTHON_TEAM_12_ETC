@@ -897,7 +897,7 @@ AI#48 · BE#72 · FE#104 에서 함께 맞춘다. 새 AI 응답에는 모든 문
 - `candidates` — 후보, **글의 순서대로**. 0 ~ 5개. `COMPLETED` 인데 0개면 FE 는 「새로 쓴 사실이 없어요」.
 - `candidates[].sentence` — 확정 글 속 원래 문장(글의 이어진 일부 — 고치지 않는다). FE 는 이 문장을 같이 보여 어디서 나온 후보인지 알게 한다.
 - `candidates[].content` · `actor` — AI 가 옮긴 경험 문장(「~했다」)과 수행 주체 제안. **AI 해석**이다 — FE 는 고칠 수 있는 칸으로 보이고, 저장할 때 사용자가 고친 값을 보낸다. 원래 문장에 없는 사실 · 수치는 들어 있지 않다(ai-api 응답 규칙).
-- `candidates[].activityId` · `activityName` — 붙일 활동 제안(AI 해석). 맞는 활동이 없어 보이면 둘 다 `null` — FE 는 활동을 고르게 한다. `activityName` 은 BE 가 응답 때 지금 이름으로 채운다. 그새 활동이 지워지거나 합쳐져 사라졌으면 둘 다 `null` 로 돌린다.
+- `candidates[].activityId` · `activityName` — 붙일 활동 제안(AI 해석). 맞는 활동이 없어 보이면 둘 다 `null` — FE 는 기존 활동을 고르거나 새 활동을 만들게 한다(아래 「후보를 경험으로 저장」 `newActivity`). `activityName` 은 BE 가 응답 때 지금 이름으로 채운다. 그새 활동이 지워지거나 합쳐져 사라졌으면 둘 다 `null` 로 돌린다.
 - `candidates[].status` — README 「값 목록」 `newFactStatus`: `PENDING`(아직 정하지 않음) · `SAVED`(경험으로 저장 — `experienceId` 에 그 경험) · `DISMISSED`(저장 안 함). `SAVED` · `DISMISSED` 는 다시 바뀌지 않는다. 저장한 경험을 그 뒤 지워도 후보는 `SAVED` 그대로이고 `experienceId` 만 `null` 이 된다.
 - 예시 읽는 법: 앞 두 문장은 저장된 초안 문장과 글자가 같아 AI 서버 코드가 뺐다(AI 제안 복사 — 근거가 있든 지워졌든 새 사실로 보지 않는다). 셋째(확인한 방법)는 자료 · 보완에 없던 새 사실이라 후보가 되고, 사용자가 활동 7 에 저장해 경험 108 이 생겼다. 넷째는 사용자가 새로 쓴 결과 · 수치 — 「1,200」이 원래 문장에 있으니 경험 문장에 남을 수 있다. 다섯째 「배포까지 제가 맡아」는 경험 103(`TEAM`, 「배포는 팀원이 맡아」)과 어긋나 후보가 아니다. 여섯째는 자기 칭찬 · 포장, 일곱째는 포부(생각)라 뺀다(초안 문장과 같아서도 빠진다).
 
@@ -973,7 +973,8 @@ BE 가 AI 에 보내는 것(ai-api 「POST /new-facts」):
 
 | 필드 | 값 |
 | --- | --- |
-| `activityId` | 붙일 활동(필수) — 그 사용자의 기존 활동 |
+| `activityId` | 붙일 기존 활동 — 그 사용자의 활동. `newActivity` 와 **정확히 하나만** 보낸다 |
+| `newActivity` | 새 활동을 만들어 붙일 때(ETC#260) — `{ "name", "period" }`. `name` 은 비지 않은 문자열(앞뒤 공백을 걷는다), `period` 는 README 「기간」 세 칸 통째로(선택 — 빼면 `{ "start": null, "end": null, "ongoing": false }`). 분류 · 계기는 받지 않는다 — 활동 세부에서 `PATCH /api/activities/{id}` 로 고친다 |
 | `content` | 경험 문장(필수, 비지 않은 문자열) — 사용자가 고친 값 |
 | `actor` | `ME` · `TEAM` · `UNKNOWN`(필수) |
 | `competencies` | 역량 값 배열(선택 — 빼면 `[]`). 「경험 직접 추가」와 같은 규칙 |
@@ -995,7 +996,17 @@ BE 가 AI 에 보내는 것(ai-api 「POST /new-facts」):
 }
 ```
 
-오류: 400 `INVALID_REQUEST`(빈 `content` · 틀린 `actor` · `competencies` 규칙 위반 · `activityId` 없음) · 404 `NEW_FACT_NOT_FOUND`(없는 후보 · 다시 확정 · 다시 찾기로 지워진 후보) · 404 `ACTIVITY_NOT_FOUND` · 409 `NEW_FACT_ALREADY_DECIDED`(이미 `SAVED` · `DISMISSED` — 경험을 또 만들지 않는다).
+새 활동에 저장할 때 — `POST /api/new-fact-candidates/803/save`
+
+```json
+{ "newActivity": { "name": "결제 서버 운영", "period": { "start": "2024", "end": null, "ongoing": true } }, "content": "1000건의 대형 트랜잭션을 수행하는 서버를 운영했다", "actor": "ME", "competencies": [] }
+```
+
+- 활동과 경험을 **한 트랜잭션**에서 만든다 — 어느 쪽이든 실패하면 둘 다 생기지 않는다(빈 활동이 남지 않는다). 응답은 위와 같은 `Experience` — `activityId` 가 새 활동이다. FE 는 새 활동 이름을 이미 알고 있다.
+- 새 활동은 보통 `Activity` 와 같다 — `category` · `categoryBy` · `note` · `mergeSuggestion` 은 `null`, 원본 자료가 없다. 타임라인 · 세부 · 고치기 · 합치기 · 지우기 규칙이 그대로다. `mergeSuggestion` 은 분석 작업만 붙이므로 이 활동에는 생기지 않는다(나중에 자료로 생긴 활동이 이 활동을 가리킬 수는 있다).
+- 같은 이름 활동이 이미 있어도 막지 않는다 — 새로 만든다(합치기는 사용자 — S-13).
+
+오류: 400 `INVALID_REQUEST`(빈 `content` · 틀린 `actor` · `competencies` 규칙 위반 · `activityId` · `newActivity` 가 둘 다 없거나 둘 다 있음 · `newActivity.name` 이 비었음 · 날짜 형식이 README 「기간」과 다름) · 400 `INVALID_PERIOD`(`start` 가 `end` 보다 늦음 · `ongoing: true` 인데 `end` 가 있음 — 「활동 수정」과 같다) · 404 `NEW_FACT_NOT_FOUND`(없는 후보 · 다시 확정 · 다시 찾기로 지워진 후보) · 404 `ACTIVITY_NOT_FOUND` · 409 `NEW_FACT_ALREADY_DECIDED`(이미 `SAVED` · `DISMISSED` — 경험을 또 만들지 않는다).
 
 ## POST /api/new-fact-candidates/{candidateId}/dismiss — 저장 안 함
 

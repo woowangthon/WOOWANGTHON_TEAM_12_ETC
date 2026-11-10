@@ -17,6 +17,7 @@ FE ─GET /api/questions/{id} (폴링)───▶ BE  ANALYZING → COMPLETED(�
 FE ─POST /api/clarifications/{id}/answer ▶ BE  답 → 그 경험의 보완
 FE ─GET /api/questions──────────────▶ BE  넣었던 문항 목록(「내가 넣었던 문항」 다시 고르기 — S-40)
 FE ─PATCH /api/applications/{id}────▶ BE  지원처 종류 · 직무 바꾸기(S-42) · 지원 상태 · 낸 달 바꾸기(S-36)
+FE ─POST /api/questions/{id}/retry──▶ BE  실패한 추천 다시 시도(S-18) · 끝난 문항에서 경험 다시 찾기(S-90) → 202
 FE ─PATCH /api/questions/{id}───────▶ BE  문항 유형 고치기(S-41) · 문항 글 고치기(S-89 — 글이 바뀌면 추천 다시 → 202)
 FE ─DELETE /api/applications/{id} · /api/questions/{id} ▶ BE  지원 · 문항 지우기(S-89)
 FE ─POST /api/questions/{id}/grounding-check ▶ BE  내가 쓴 답 근거 점검 시작(S-45) → 202
@@ -382,16 +383,39 @@ FE ─PUT /api/questions/{id}/answer-draft ▶ BE  쓰는 중인 답 임시 저�
 
 오류: 404 `QUESTION_NOT_FOUND`
 
-## POST /api/questions/{questionId}/retry — 다시 시도
+## POST /api/questions/{questionId}/retry — 다시 시도 · 경험 다시 찾기
 
-- 쓰는 곳: FE 추천 실패의 「다시 시도」
-- SPEC: `F-06` / `S-18`
+- 쓰는 곳: FE 추천 실패의 「다시 시도」 · 추천이 끝난 문항의 「경험 다시 찾기」(문항 화면 · 문항 화면에서 연 차곡이의 경험 결과 아래 — S-90)
+- SPEC: `F-06` / `S-18` · `S-90`(`P1` — ETC#298)
 
-같은 문항으로 추천을 다시 돌린다(새 문항을 만들지 않는다). 그때의 경험 · 보완을 다시 싣는다. 요청 본문 없음.
+같은 문항 · 같은 글로 추천을 다시 돌린다(새 문항을 만들지 않는다). **그때의** 경험 · 보완을 다시 싣는다 — 문항을 넣은 뒤에 쌓인 경험도 후보가 된다. 요청 본문 없음. 분석 1회를 센다(실패든 완료든 같다).
 
-응답 202 — `GET /api/questions/{questionId}` 와 같은 모양, `status: "ANALYZING"` · `error: null` · 결과 배열은 `[]`.
+응답 202 — `GET /api/questions/{questionId}` 와 같은 모양, `status: "ANALYZING"` · `error: null` · `requirements` · `recommendations` · `clarifications` 는 `[]`.
 
-오류: 404 `QUESTION_NOT_FOUND` · 409 `QUESTION_NOT_FAILED` 실패 상태가 아닌 문항 · 429 `DAILY_LIMIT_EXCEEDED` 오늘 분석 횟수를 다 씀
+문항 상태마다
+
+| 지금 `status` | 동작 |
+| --- | --- |
+| `FAILED` | 다시 시도 — 지금까지와 같다 |
+| `COMPLETED` | 경험 다시 찾기(S-90 · 2026-11-10 — 전에는 409 `QUESTION_NOT_FAILED` 였다). 추천이 0개든 있든 받는다 |
+| `ANALYZING` | 409 `QUESTION_ANALYZING` — 아무것도 바꾸지 않는다 |
+
+`COMPLETED` 문항을 다시 찾으면
+
+- 같은 트랜잭션에서 옛 요구사항 · 추천 · 추천의 되묻기(`clarifications`)를 지우고 `ANALYZING` 으로 둔다. 실패하면 `FAILED` 다 — 옛 추천을 되살리거나 정해진 결과로 채우지 않는다(대회 규칙 2). 그 뒤는 실패한 문항의 다시 시도와 같다.
+- **남기는 것**: 초안(`draft`) · 근거 점검 · 확정 답(`answer`) · 임시 글(`answerDraft`) · 확정 답의 새 경험 후보 — 문항 글이 그대로라 여전히 이 문항의 것이다(문항 글 고치기와 다른 점 — 거기선 초안 · 근거 점검을 지운다). 초안의 `omitted[].clarificationId` 는 초안에 속한 되묻기라 그대로 살아 있다. 초안에 쓰인 경험이 새 추천에 없어도 초안은 그대로다 — FE 는 초안을 추천 목록 없이 그린다(`sentences[].evidence` · `omitted[]` 의 값).
+- 되묻기에 답해 생긴 보완은 남는다(경험의 것 — `questionId` 그대로). 새 매칭에 근거로 실린다.
+- `questionTypeBy` 가 `AI` 면 새 매칭 값으로 바뀐다. `USER` 면 그대로(S-41).
+- 그 문항의 초안 · 근거 점검이 `ANALYZING` 이어도 409 `QUESTION_ANALYZING`(문항 글 고치기와 같은 조건) — 끝난 뒤 다시.
+- 오늘 분석 횟수를 다 썼으면 429 `DAILY_LIMIT_EXCEEDED` — 옛 추천을 지우지 않는다.
+
+오류
+
+| HTTP | `code` | 언제 |
+| --- | --- | --- |
+| 404 | `QUESTION_NOT_FOUND` | 없는 문항 · 남의 문항 |
+| 409 | `QUESTION_ANALYZING` | 그 문항의 추천 · 초안 · 근거 점검이 분석 중. `QUESTION_NOT_FAILED` 는 없어졌다(2026-11-10) |
+| 429 | `DAILY_LIMIT_EXCEEDED` | 오늘 분석 횟수를 다 씀 |
 
 ## PATCH /api/applications/{applicationId} — 지원처 종류 · 직무 · 지원 상태 · 낸 달 바꾸기
 
@@ -1138,6 +1162,7 @@ BE 가 AI 에 보내는 것(ai-api 「POST /new-facts」):
 
 ## 이 계약에 없는 것
 
+- 지원의 문항 전체를 한 번에 다시 찾기 · 경험을 넣으면 저절로 다시 찾기 · 추천 0개 문항의 무료 재매칭 · 추천에 없는 경험을 직접 골라 문항에 묶기(ETC#242) — 없다(S-90 범위 제외). 차곡이용 재매칭 도구도 없다 — 차곡이 화면의 버튼은 FE 가 이 API 를 부른다
 - 지운 지원 · 문항 복구 · 문항 순서 바꾸기 · 여러 지원 한 번에 지우기 · 문항 글을 고쳐도 추천을 그대로 두는 선택 — 없다(S-89 범위 제외)
 - 지원 상태(S-36)의 바뀐 이력 · 상태별 개수 · 합격률 · 상태로 거르기 — 없다. 상태는 꼬리표 하나다. 받은 피드백(면접 질문 · 탈락 사유 · 멘토 의견)을 경험에 쌓기는 ETC#30. 타임라인(`GET /api/activities`)에 지원을 섞어 주는 API 도 없다 — FE 가 `GET /api/applications` 의 `submittedMonth` 로 합친다(S-37) 넣기 전엔 FE 에서 자유롭게 고치고, 넣은 뒤엔 문항 글 고치기 · 지우기(S-89)
 - 「자주 나오는 문항」 목록(S-26) — FE 에 둔다. API 없음. 「내가 넣었던 문항」(S-40)은 `GET /api/questions` 를 FE 가 묶어 보인다 — 새 API 없음

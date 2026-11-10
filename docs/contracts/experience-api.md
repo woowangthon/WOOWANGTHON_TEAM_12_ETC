@@ -1,6 +1,6 @@
 # experience-api — FE → BE
 
-> 스프린트 1 「경험 관리」(SPEC R-01) · 스프린트 2 보완(SPEC R-03 — 「보완 `Supplement`」 · 보완 고치기 · 지우기). 활동 분류(SPEC S-57 `P1` — `category` · `categoryBy`). 같은 활동 제안(SPEC S-44 `P1` — `mergeSuggestion` · 따로 두기). 그때의 나 · 이어짐(SPEC R-05 F-13 `P1` — 활동 `note` · `ActivityLink` · 이어짐 제안 받기 · 정하기). 경험마다 쓰인 지원(SPEC R-05 F-14 `P1` — 활동 세부의 `usedIn`, S-38). 경험 찾기(SPEC S-58 `P1` — `GET /api/experiences`). 자료 여러 개 한 번에 · 활동에 자료 더하기(SPEC S-59 · S-60 `P2` — `POST /api/sources/batch` · `POST /api/sources` 의 `activityId` · 작업 `QUEUED` · `targetActivityId` · `targetMatched`). 폴더 · Notion ZIP · GitHub 가져오기(SPEC S-62 ~ S-64 `P2` — 새 API · 필드 없음, `name` 에 경로). 같은 자료 알아보기(SPEC S-69 `P2` — `allowDuplicate` · 409 `SOURCE_DUPLICATE`). 경험 합치기(SPEC S-70 `P2` — `POST /api/experiences/{keepId}/merge`). 공개 프로필에 넣기(SPEC S-65 `P2` — `Experience` 의 `shared`, API 는 [`share-api.md`](share-api.md)). 이름 규칙 · 값 목록 · 기간 · 오류 모양은 [README 「공통」](README.md#공통--모든-계약이-같이-쓰는-것).
+> 스프린트 1 「경험 관리」(SPEC R-01) · 스프린트 2 보완(SPEC R-03 — 「보완 `Supplement`」 · 보완 고치기 · 지우기). 활동 분류(SPEC S-57 `P1` — `category` · `categoryBy`). 같은 활동 제안(SPEC S-44 `P1` — `mergeSuggestion` · 따로 두기). 그때의 나 · 이어짐(SPEC R-05 F-13 `P1` — 활동 `note` · `ActivityLink` · 이어짐 제안 받기 · 정하기). 경험마다 쓰인 지원(SPEC R-05 F-14 `P1` — 활동 세부의 `usedIn`, S-38). 경험 찾기(SPEC S-58 `P1` — `GET /api/experiences`). 자료 여러 개 한 번에 · 활동에 자료 더하기(SPEC S-59 · S-60 `P2` — `POST /api/sources/batch` · `POST /api/sources` 의 `activityId` · 작업 `QUEUED` · `targetActivityId` · `targetMatched`). 폴더 · Notion ZIP · GitHub 가져오기(SPEC S-62 ~ S-64 `P2` — 새 API · 필드 없음, `name` 에 경로). 같은 자료 알아보기(SPEC S-69 `P2` — `allowDuplicate` · 409 `SOURCE_DUPLICATE`). 경험 합치기(SPEC S-70 `P2` — `POST /api/experiences/{keepId}/merge`). 활동 지우기(SPEC S-88 `P1` — `DELETE /api/activities/{activityId}`). 공개 프로필에 넣기(SPEC S-65 `P2` — `Experience` 의 `shared`, API 는 [`share-api.md`](share-api.md)). 이름 규칙 · 값 목록 · 기간 · 오류 모양은 [README 「공통」](README.md#공통--모든-계약이-같이-쓰는-것).
 > 예시는 가상의 팀 프로젝트 회고 하나(「바꿔요」 · 알고리즘 스터디)로 이어진다 — [`ai-api.md`](ai-api.md) 예시와 같은 자료다.
 
 ## 흐름
@@ -13,6 +13,7 @@ FE ─GET /api/activities─────────▶ BE  타임라인
 FE ─GET /api/activities/{id}────▶ BE  세부(경험 · 근거)
 FE ─GET /api/experiences?query=…▶ BE  경험 찾기 · 거르기(S-58 — MCP search_experiences 와 같은 검색)
 FE ─PATCH · POST · DELETE …─────▶ BE  고치기 · 더하기 · 지우기 · 옮기기 · 합치기
+FE ─DELETE /api/activities/{id}──▶ BE  활동 지우기 — 경험 · 근거 · 보완까지(S-88)
 FE ─PUT /api/experiences/{id}/saved▶ BE  저장 켜기 · 끄기(S-71)
 
 자료 여러 개 한 번에 · 활동에 자료 더하기 (S-59 · S-60, P2)
@@ -851,7 +852,7 @@ FE 는 `jobId` 를 들고 있다가(새로고침 대비 주소 · 브라우저 �
 - 쓰는 곳: FE 활동 세부의 경험 메뉴 「지우기」
 - SPEC: `F-04` / `S-11`
 
-경험과 그 경험의 근거 · 보완을 지운다. **원본은 남는다**(다른 경험의 근거일 수 있다). 경험이 다 빠진 활동도 남는다 — 없애려면 합치기를 쓴다. 요청 본문 없음.
+경험과 그 경험의 근거 · 보완을 지운다. **원본은 남는다**(다른 경험의 근거일 수 있다). 경험이 다 빠진 활동도 남는다 — 없애려면 활동 지우기(아래 `DELETE /api/activities/{activityId}`)나 합치기를 쓴다. 요청 본문 없음.
 
 응답 204 — 본문 없음
 
@@ -864,7 +865,7 @@ FE 는 `jobId` 를 들고 있다가(새로고침 대비 주소 · 브라우저 �
 - 쓰는 곳: FE 활동 세부 — 끌어다 놓기 · 메뉴
 - SPEC: `F-04` / `S-12`
 
-경험이 속한 활동만 바꾼다. **내용 · 근거 · 출처 상태는 그대로**다(묶음을 바꾼 것이지 내용을 고친 게 아니다). 경험이 다 빠진 활동도 남는다 — 지우려면 합치기를 쓴다.
+경험이 속한 활동만 바꾼다. **내용 · 근거 · 출처 상태는 그대로**다(묶음을 바꾼 것이지 내용을 고친 게 아니다). 경험이 다 빠진 활동도 남는다 — 없애려면 활동 지우기(아래 `DELETE /api/activities/{activityId}`)나 합치기를 쓴다.
 
 요청
 
@@ -1034,6 +1035,25 @@ FE 는 `jobId` 를 들고 있다가(새로고침 대비 주소 · 브라우저 �
 - `note`(S-34): 남길 활동의 계기가 그대로 남는다. 남길 활동에 계기가 없고 `fromActivityId` 에 있으면 그것을 옮겨 온다(계기를 잃지 않게). 둘을 이어 붙이지 않는다.
 - `links`(S-35): `fromActivityId` 에 걸린 이어짐은 남길 활동으로 옮긴다(같은 트랜잭션에서). 옮긴 뒤 자기 자신을 가리키면(`from` = `to`) 지운다. 같은 쌍이 둘이 되면 하나만 남긴다 — `REJECTED` 가 있으면 그것(다시 제안하지 않게), 없으면 `CONFIRMED`, 그다음 먼저 생긴 것.
 
+## DELETE /api/activities/{activityId} — 활동 지우기 (`P1`)
+
+- 쓰는 곳: FE 활동 세부 · 타임라인의 활동 메뉴 「지우기」 → 확인 창
+- SPEC: `F-04` / `S-88`(ETC#290)
+
+활동과 그 활동의 **경험 전부 · 근거 · 보완**을 한 번에 지운다(중간에 실패하면 아무것도 바뀌지 않는다). 경험마다는 경험 지우기(위 `DELETE /api/experiences/{experienceId}`)와 같다. **원본은 남는다** — 다른 활동이 같은 원본에서 나왔을 수 있다(원본 지우기는 ETC#180). 요청 본문 없음.
+
+응답 204 — 본문 없음
+
+오류: 404 `ACTIVITY_NOT_FOUND`(없음 · 남의 활동 · 이미 지워졌거나 합쳐진 활동)
+
+- **확인 창의 개수는 FE 가 센다** — 활동 세부(`GET /api/activities/{activityId}`)의 `experiences` 개수 · 그 `citations` 개수 합. 새 API 는 없다. 지운 것을 되살리는 API 도 없다 — 그래서 경험 지우기의 「되돌리기」 알림 대신 지우기 전에 확인을 받는다.
+- 지운 경험을 가리키던 것(지원 추천 · 요구사항 · 되묻기 · 초안 · 근거 점검 · 확정 답변의 새 경험 후보)은 **경험 지우기와 같이** 다룬다 — 조회할 때 빠진다(`question-api.md` 「그새 지워진 경험은 빠진다」). 공개 프로필(`share-api.md`)에서도 빠진다. `mcpChange`(S-53)도 경험을 지웠을 때와 같다.
+- `mergeSuggestion`(S-44): 지운 활동을 가리키던 다른 활동의 제안은 `null` 이 된다(같은 트랜잭션에서 — 활동 합치기와 같다).
+- `links`(S-35): 지운 활동에 걸린 이어짐은 같이 지운다.
+- 분석 중인 「자료 더하기」(S-60)의 대상이면, 그 작업은 대상 없이 보통 자료 넣기로 끝나고 `targetMatched: false` 다(위 「자료 더하기」 — 대상이 사라졌을 때와 같다).
+- 수정 이력(S-80): 지운 활동 · 경험의 이력은 남고 `target.deleted: true` 다(`revision-api.md`). 「활동을 지웠다」는 기록은 따로 남기지 않는다.
+- 외부 AI(MCP)에는 열지 않는다 — 경험 지우기와 같다(`mcp-api.md`).
+
 ## DELETE /api/activities/{activityId}/merge-suggestion — 같은 활동 제안 따로 두기 (`P1`)
 
 - 쓰는 곳: FE 활동 세부 · 분석 완료 뒤의 「따로 두기」
@@ -1164,6 +1184,7 @@ AI 에 싣는 것: 활동마다 `id` · 이름 · 기간 · 계기(`note`, 후�
 
 - 원본 목록 · 원본 다시 보기 — 근거에 `sourceName` · `quote` 가 실려 오므로 스프린트 1 엔 따로 두지 않는다
 - 자료 빼기(원본을 지우면 그 원본에서만 나온 경험을 어떻게 하나) — 백로그
+- 지운 활동 복구 · 여러 활동 한 번에 지우기(S-88 범위 제외)
 - 바뀐 부분만 다시 분석 · 다른 사용자의 같은 자료 알아보기 · 묶음 · 자료 더하기 · 차곡이 · MCP 에서 같은 자료 알아보기(S-69 범위 제외, ETC#114 큰 판)
 - 경험 셋 이상을 한 번에 합치기 · 다른 활동의 경험끼리 합치기 · 합치기 되돌리기 · AI 가 겹치는 경험 찾기(S-70 범위 제외)
 - 묶음으로 「자료 더하기」(`sources[].activityId`) · 묶음 전체의 ID · 묶음 그만두기 — 자료 더하기는 하나씩, 묶음은 작업마다 본다(S-59 · S-60)

@@ -17,7 +17,8 @@ FE ─GET /api/questions/{id} (폴링)───▶ BE  ANALYZING → COMPLETED(�
 FE ─POST /api/clarifications/{id}/answer ▶ BE  답 → 그 경험의 보완
 FE ─GET /api/questions──────────────▶ BE  넣었던 문항 목록(「내가 넣었던 문항」 다시 고르기 — S-40)
 FE ─PATCH /api/applications/{id}────▶ BE  지원처 종류 · 직무 바꾸기(S-42) · 지원 상태 · 낸 달 바꾸기(S-36)
-FE ─PATCH /api/questions/{id}───────▶ BE  문항 유형 고치기(S-41)
+FE ─PATCH /api/questions/{id}───────▶ BE  문항 유형 고치기(S-41) · 문항 글 고치기(S-89 — 글이 바뀌면 추천 다시 → 202)
+FE ─DELETE /api/applications/{id} · /api/questions/{id} ▶ BE  지원 · 문항 지우기(S-89)
 FE ─POST /api/questions/{id}/grounding-check ▶ BE  내가 쓴 답 근거 점검 시작(S-45) → 202
                                        BE ─POST /ground-check──▶ AI  (답 + 사용자 경험 전부 + 보완)
 FE ─GET /api/questions/{id}/grounding-check (폴링) ▶ BE  ANALYZING → COMPLETED(문장마다 판정) / FAILED
@@ -32,7 +33,7 @@ FE ─PUT /api/questions/{id}/answer-draft ▶ BE  쓰는 중인 답 임시 저�
 
 - **지원**(SPEC R-03 용어 · 2026-11-03 PM) = 지원처 하나 + 문항 여러 개. 문항은 늘 어느 지원에 딸린다(`applicationId`). 추천은 지금처럼 **문항마다 따로** 돈다 — AI 는 문항 사이를 같이 보지 않는다(SPEC 미결정 15). 한 지원 안에서 같은 경험이 여러 문항에 추천됐는지는 FE 가 문항들의 `recommendations` 로 계산해 표시한다(S-21).
 - 문항 하나 = 추천 작업 하나다. 상태(`status` · `error`)는 문항에 붙는다 — `/api/jobs` 를 쓰지 않는다. 폴링 간격은 자료 넣기와 같이 FE 가 정한다.
-- 추천은 **문항을 넣을 때 한 번** 돈다. 되묻기에 답해도 저절로 다시 돌지 않는다(AI#21 기본값). 보완을 반영한 추천을 보려면 새 문항을 넣는다 — 그게 데모 6 이다.
+- 추천은 **문항을 넣을 때 한 번** 돈다(문항 글을 고치면 한 번 더 — S-89). 되묻기에 답해도 저절로 다시 돌지 않는다(AI#21 기본값). 보완을 반영한 추천을 보려면 새 문항을 넣는다 — 그게 데모 6 이다.
 
 ## 모양
 
@@ -432,12 +433,12 @@ FE ─PUT /api/questions/{id}/answer-draft ▶ BE  쓰는 중인 답 임시 저�
 | 400 | `INVALID_REQUEST` | 목록에 없는 값 · 바꿀 필드가 하나도 없음 · `applicationStatus` 가 `null` · `submittedMonth` 가 `null` 이거나 `YYYY-MM` 이 아님(`2025-2` · `2025` 안 됨) · 바꾼 뒤 상태가 `WRITING` 인데 `submittedMonth` 를 보냄 |
 | 404 | `APPLICATION_NOT_FOUND` | 없는 지원 |
 
-## PATCH /api/questions/{questionId} — 문항 유형 · 목표 글자 수 고치기
+## PATCH /api/questions/{questionId} — 문항 고치기(글 · 유형 · 목표 글자 수)
 
 - 쓰는 곳: FE 추천 결과의 문항 유형 · 문항의 목표 글자 수 칸
-- SPEC: `R-03` / `S-41` — 우선순위 `P1` · `S-77` — 우선순위 `P0`
+- SPEC: `R-03` / `S-41` — 우선순위 `P1` · `S-77` — 우선순위 `P0` · `S-89`(문항 글) — 우선순위 `P1`
 
-문항 텍스트는 바꾸지 않는다(S-18) — 유형 · 목표 글자 수만. **보낸 필드만 바꾸고**, 둘 중 하나 이상을 보낸다. 추천은 다시 돌지 않는다.
+**보낸 필드만 바꾸고**, 셋 중 하나 이상을 보낸다. 유형 · 목표 글자 수만 바꾸면 추천은 다시 돌지 않는다. 글(`text`)이 바뀌면 아래 「문항 글을 고치면」대로 추천이 다시 돈다.
 
 요청 — `PATCH /api/questions/41`
 
@@ -449,19 +450,78 @@ FE ─PUT /api/questions/{id}/answer-draft ▶ BE  쓰는 중인 답 임시 저�
 { "targetLength": 500 }
 ```
 
+```json
+{ "text": "기술적인 문제를 해결한 경험을 한 가지 골라 과정과 결과를 적어 주세요." }
+```
+
 | 필드 | 값 |
 | --- | --- |
+| `text` | 선택. 문항 글(S-89). `POST /api/questions` 의 `text` 와 같은 규칙(공백만 안 됨 · 최대 5000자). 앞뒤 공백을 걷은 값이 지금 글과 같으면 바뀐 것 없음 — 추천도 다시 돌지 않는다 |
 | `questionType` | 선택. README 「값 목록」 문항 유형 하나. `null` 은 받지 않는다(AI 값으로 되돌리기는 없다 — 다시 고른다) |
 | `targetLength` | 선택. 목표 글자 수 100 ~ 5000 정수(S-77). `null` 이면 비운다 |
 
 응답 200 — `GET /api/questions/{questionId}` 와 같은 모양. `questionType` 을 보냈으면 `questionTypeBy: "USER"`(`targetLength` 만 보내면 그대로). 분석 중 · 실패한 문항도 고칠 수 있다 — 그 뒤 매칭이 끝나도 덮어쓰지 않는다.
 
+문항 글을 고치면(`text` 가 바뀜 — S-89)
+
+- 응답 **202** — `GET /api/questions/{questionId}` 와 같은 모양, `status: "ANALYZING"` · `error: null` · `requirements` · `recommendations` · `clarifications` 는 `[]`. 새 글로 `/match` 를 다시 부른다(다시 시도와 같은 작업 — 그때의 경험 · 보완을 싣는다). 분석 1회를 센다.
+- 같은 트랜잭션에서 옛 요구사항 · 추천 · 되묻기를 지우고, **초안(`draft`) · 근거 점검**도 지운다 — 옛 글 기준이다(`null` 이 된다).
+- **남기는 것**: 확정 답(`answer`) · 임시 글(`answerDraft`) · 확정 답의 새 경험 후보 — 사용자가 쓴 글이다. 되묻기에 답해 생긴 보완도 남는다(경험의 것 — `questionId` 그대로).
+- `questionTypeBy` 가 `AI` 면 새 매칭 값으로 바뀐다. `USER` 면 그대로(다시 시도와 같다).
+- 같이 보낸 `questionType` · `targetLength` 도 바꾼다.
+- 그 문항의 추천 · 초안 · 근거 점검 중 하나라도 `ANALYZING` 이면 409 `QUESTION_ANALYZING` — 아무것도 바꾸지 않는다(끝난 뒤 다시).
+- 오늘 분석 횟수를 다 썼으면 429 `DAILY_LIMIT_EXCEEDED` — 글도 바꾸지 않는다.
+- 수정 이력(S-80)은 남기지 않는다 — 이력은 경험 · 활동 · 답만이다.
+
 오류
 
 | HTTP | `code` | 언제 |
 | --- | --- | --- |
-| 400 | `INVALID_REQUEST` | 두 필드가 모두 없음 · `questionType` 이 `null` 이거나 목록에 없는 값 · `targetLength` 가 정수가 아님 · 100 ~ 5000 밖 |
+| 400 | `INVALID_REQUEST` | 세 필드가 모두 없음 · `questionType` 이 `null` 이거나 목록에 없는 값 · `targetLength` 가 정수가 아님 · 100 ~ 5000 밖 · `text` 가 `null` |
+| 400 | `EMPTY_TEXT` | `text` 가 비었거나 공백뿐 |
+| 413 | `TEXT_TOO_LONG` | `text` 가 5000자를 넘음 |
 | 404 | `QUESTION_NOT_FOUND` | 없는 문항 |
+| 409 | `QUESTION_ANALYZING` | 글을 바꾸려는데 그 문항의 추천 · 초안 · 근거 점검이 분석 중 |
+| 429 | `DAILY_LIMIT_EXCEEDED` | 글을 바꾸려는데 오늘 분석 횟수를 다 씀 |
+
+## DELETE /api/applications/{applicationId} — 지원 지우기 (`P1`)
+
+- 쓰는 곳: FE 지원 화면 · 「내 지원서」 목록의 지원 메뉴 「지우기」 → 확인 창
+- SPEC: `R-03` / `S-89`(ETC#253)
+
+지원과 그 **문항 전부**를 한 번에 지운다(중간에 실패하면 아무것도 바뀌지 않는다). 문항마다 아래 「문항 지우기」와 같다. 요청 본문 없음.
+
+응답 204 — 본문 없음
+
+오류: 404 `APPLICATION_NOT_FOUND`(없음 · 남의 지원 · 이미 지운 지원)
+
+- **확인 창의 문항 수는 FE 가 센다** — `Application.questions` 개수. 문항마다 확정 답이 있는지는 요약에 없으므로 세지 않고 「다 쓴 답도 같이 지워져요」를 늘 보인다. 문항 지우기는 FE 가 이미 읽은 `GET /api/questions/{questionId}` 의 `answer` 로 안다. 새 API 는 없다. 지운 것을 되살리는 API 도 없다.
+
+## DELETE /api/questions/{questionId} — 문항 지우기 (`P1`)
+
+- 쓰는 곳: FE 지원 화면의 문항 메뉴 「지우기」 → 확인 창
+- SPEC: `R-03` / `S-89`(ETC#253)
+
+문항 하나와 거기 딸린 것을 지운다. 요청 본문 없음.
+
+응답 204 — 본문 없음
+
+오류: 404 `QUESTION_NOT_FOUND`(없음 · 남의 문항 · 이미 지운 문항) · 409 `LAST_QUESTION` 지원의 마지막 문항 — 지원 지우기(`DELETE /api/applications/{applicationId}`)를 쓴다(문항 없는 지원을 두지 않는다)
+
+**같이 지우는 것** — 요구사항 · 추천 · 되묻기 · 초안 · 근거 점검 · 확정 답 · 임시 글 · 저장 안 한 새 경험 후보(`PENDING` · `DISMISSED`).
+
+**남기는 것** — 경험 쪽에 쌓인 것은 사용자의 기록이다.
+
+- 되묻기에 답해 생긴 **보완**은 남는다. 그 보완의 `questionId` 는 `null` 이 된다(`experience-api.md` 「보완」 — 문항이 없어진 때와 같다).
+- 새 경험 후보로 **이미 만든 경험**은 남는다. `origin` 은 그대로(`type` · `questionId` · `applicationId`)이고, 응답 때 지금 값으로 채우는 `organization` · `questionText` 는 `null` 이 된다 — FE 는 「내가 쓴 지원서(지운 지원)」로 보인다.
+- 원본 자료 · 다른 문항은 그대로다.
+
+**지운 것이 빠지는 곳**
+
+- 경험의 쓰인 지원 `usedIn`(S-38) · 비슷한 확정 답변(S-43) · 「내가 넣었던 문항」(S-40) · 지원 목록 — 조회할 때 빠진다.
+- 분석 중이던 추천 · 초안 · 근거 점검은 끝나도 버린다. 쓴 분석 횟수는 돌아오지 않는다.
+- 수정 이력(S-80): 그 답의 이력은 남고 `target.deleted: true` 다(`revision-api.md`). 지운 것 자체는 기록하지 않는다.
+- 외부 AI(MCP)에는 열지 않는다 — 웹에서만 지운다. MCP 읽기 도구에서는 빠진다.
 
 ## POST /api/clarifications/{clarificationId}/answer — 되묻기에 답하기
 
@@ -1067,8 +1127,8 @@ BE 가 AI 에 보내는 것(ai-api 「POST /new-facts」):
 
 ## 이 계약에 없는 것
 
-- 지원 · 문항 지우기, 문항 텍스트 고치기 — 없다(지원처 이름 · 종류 · 직무 · 상태 · 낸 달 · 문항 유형 · 목표 글자 수만 `PATCH`). 백로그 #253.
-- 지원 상태(S-36)의 바뀐 이력 · 상태별 개수 · 합격률 · 상태로 거르기 — 없다. 상태는 꼬리표 하나다. 받은 피드백(면접 질문 · 탈락 사유 · 멘토 의견)을 경험에 쌓기는 ETC#30. 타임라인(`GET /api/activities`)에 지원을 섞어 주는 API 도 없다 — FE 가 `GET /api/applications` 의 `submittedMonth` 로 합친다(S-37) 넣기 전엔 FE 에서 자유롭게 고치고, 넣은 뒤 잘못 넣었으면 그 지원에 새로 더한다(SPEC S-18)
+- 지운 지원 · 문항 복구 · 문항 순서 바꾸기 · 여러 지원 한 번에 지우기 · 문항 글을 고쳐도 추천을 그대로 두는 선택 — 없다(S-89 범위 제외)
+- 지원 상태(S-36)의 바뀐 이력 · 상태별 개수 · 합격률 · 상태로 거르기 — 없다. 상태는 꼬리표 하나다. 받은 피드백(면접 질문 · 탈락 사유 · 멘토 의견)을 경험에 쌓기는 ETC#30. 타임라인(`GET /api/activities`)에 지원을 섞어 주는 API 도 없다 — FE 가 `GET /api/applications` 의 `submittedMonth` 로 합친다(S-37) 넣기 전엔 FE 에서 자유롭게 고치고, 넣은 뒤엔 문항 글 고치기 · 지우기(S-89)
 - 「자주 나오는 문항」 목록(S-26) — FE 에 둔다. API 없음. 「내가 넣었던 문항」(S-40)은 `GET /api/questions` 를 FE 가 묶어 보인다 — 새 API 없음
 - 예전 답변을 근거로 쓰기 · 글을 비교한 유사도(LLM · 임베딩) · 예전 답을 「내가 쓴 답」 칸에 채워 넣기 · 지원처 이름 바꿔 주기 — 없다(S-43). 비슷함은 유형 · 직무 · 종류 세 값으로만 고른다
 - 공고 링크에서 본문 가져오기 — entrance-api `parse-application` 의 `url`(S-46). 여기는 원문 링크 `postingUrl` 을 남기기만 한다 · 넣은 뒤 링크 고치기 없음

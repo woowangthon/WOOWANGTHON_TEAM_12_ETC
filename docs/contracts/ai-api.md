@@ -457,7 +457,7 @@ BE 는 어떤 오류든 점검을 `FAILED`(`AI_FAILED`, `message` 에 위 `code`
 - 부르는 곳: BE 초안 작업(question-api `POST /api/questions/{questionId}/draft` 뒤)
 - SPEC: `F-09` / `S-27` · `S-05` · `S-20` — 우선순위 `P1`
 
-사용자가 고른 경험(1 ~ 3개)으로 그 문항의 답변 초안을 **문장 배열**로 쓴다. 사실 문장(`FACT`)마다 받치는 근거 · 보완을 붙이고, 받칠 게 없는 사실은 쓰지 않고 `omitted` 로 돌려준다. 연결 · 직무 관련성 · 포부는 `OPINION` 으로 구분해 제안한다. 지어낸 ID · 문장 속 숫자는 **코드가** 막는다 — 숫자 대조는 `/ground-check` 와 같은 코드를 쓴다.
+사용자가 고른 경험(1 ~ 3개)으로 그 문항의 답변 초안을 **문장 배열**로 쓴다. 사실 문장(`FACT`)마다 받치는 근거 · 보완을 붙이고, 받칠 게 없는 장면 · 단계는 `SUPPOSED`(AI 가정)로 쓰고 짝이 되는 `omitted` 에 확인 질문을 붙인다(ADR-014 · 2026-11-10 — 전에는 쓰지 않고 `omitted` 로만 돌려줬다). 연결 · 직무 관련성 · 포부는 `OPINION` 으로 구분해 제안한다. 지어낸 ID · 문장 속 숫자는 **코드가** 막는다 — 숫자 대조는 `/ground-check` 와 같은 코드를 쓴다.
 
 요청 — question-api 「답변 초안」 예시(문항 A + 경험 101). 경험은 `/match` 와 같은 모양이고 **고른 경험만** 싣는다. 문항 A 의 매칭 결과(요구사항 · 추천 101 의 이유 · 강조점 · 부족한 점)와 지원의 직무를 함께 싣는다(ETC#141).
 
@@ -508,8 +508,8 @@ BE 는 어떤 오류든 점검을 `FAILED`(`AI_FAILED`, `message` 에 위 `code`
 | `experiences[].supplements` | 보완 `{ id, question, answer }` 전부. 사용자가 직접 말한 사실이다(「내가 입력」) |
 | `experiences[].sourceStatus` | `USER_ENTERED` 인 경험만 본문(`content`)이 근거(`EXPERIENCE`)가 될 수 있다 — `/ground-check` 와 같다 |
 | `experiences[].reason` · `emphasis` · `gaps` | 선택. 그 문항의 추천에서 **이 경험의** 이유 · 강조점(문자열) · 부족한 점(문자열 배열) — question-api `Recommendation` 그대로. 없으면 싣지 않는다 |
-| `contextExperiences` | 선택. 고른 경험과 같은 활동의 나머지 경험 0 ~ 12개, `experiences` 와 같은 모양(`reason` · `emphasis` · `gaps` 없음). 뒷받침 재료다 — 고른 경험이 뼈대. 근거 · 보완 ID 를 `evidence` 로 붙일 수 있고, 빠진 사실(`omitted[].experienceId`)을 이 경험에 붙여도 된다(S-75). 사용자가 끄면(question-api `useContext: false`) 싣지 않는다 |
-| `question.targetLength` | 선택. 목표 글자 수 100 ~ 5000(S-77). 목표의 80 ~ 100% 를 노리되 못 채워도 실패가 아니다 — 지어내지 않고 빈칸 · `omitted` 로 남긴다. 15문장 상한은 그대로 |
+| `contextExperiences` | 선택. 고른 경험과 같은 활동의 나머지 경험 0 ~ 12개, `experiences` 와 같은 모양(`reason` · `emphasis` · `gaps` 없음). 뒷받침 재료다 — 고른 경험이 뼈대. 근거 · 보완 ID 를 `evidence` 로 붙일 수 있고, 빠진 사실(`omitted[].experienceId`)을 이 경험에 붙여도 된다(S-75). 사용자가 끄면(question-api `useContext: false`) 싣지 않는다 — FE 는 2026-11-10 부터 끄지 않는다(ADR-014). **문항에 맞는 줄만 쓴다** — 맞지 않는 줄을 「또한 …」으로 붙이지 않는다 |
+| `question.targetLength` | 선택. 목표 글자 수 100 ~ 5000(S-77). 목표의 80 ~ 100% 를 노리되 모자라면 `SUPPOSED` 로 채운다(ADR-014). 15문장 상한은 그대로 |
 | `guidelines` | 선택. 사용자가 켜 둔 작성 지침 `{ id, text }` **0 ~ 10개**(S-49 — guideline-api), `id` 중복 없음. 없거나 `[]` 면 지침 없이 쓴다 |
 
 **매칭 결과 · 직무는 AI 해석이라 근거가 아니다**(ETC#141). 무엇을 앞세우고 무엇을 빈칸으로 볼지 정하는 **단서**로만 쓴다.
@@ -522,7 +522,7 @@ BE 는 어떤 오류든 점검을 `FAILED`(`AI_FAILED`, `message` 에 위 `code`
 
 **구성 틀 · 작성 지침은 문체 · 구성 · 강조만 바꾼다 — 근거 규칙이 우선이다**(SPEC S-49 · S-50 · 미결정 16).
 
-- `frame` 은 사실 문장을 세우는 **순서**다(단계는 README 「구성 틀」). 단계마다 받칠 근거 · 보완 · 본문이 있는 사실만 쓴다. 받칠 게 없는 단계는 지어내지 않고 건너뛰며, 문항에 필요한 것이면 `omitted` 로 보낸다 — 예: `CARL` 의 「배운 점」이 자료에 없으면 쓰지 않고 `omitted`. `PREP` 의 첫 · 끝 「결론」은 받치는 사실의 요약(`FACT`, 근거를 붙인다)이나 연결 · 포부(`OPINION` — 최대 3개 규칙 안)로 쓴다. 틀 때문에 문장 수 · `OPINION` 수 규칙이 바뀌지 않는다. `NONE` 이나 없으면 기본 순서(상황 → 판단 → 행동 → 결과 → 배운 점, 없는 칸은 건너뛴다 — AI#46).
+- `frame` 은 사실 문장을 세우는 **순서**다(단계는 README 「구성 틀」). 단계마다 받칠 근거 · 보완 · 본문이 있는 사실만 쓴다. 받칠 게 없는 단계는 `SUPPOSED` 로 그 단계를 쓴다 — 예: `CARL` 의 「배운 점」이 자료에 없으면 그럴 법한 배운 점을 `SUPPOSED` 로 쓰고 짝 `omitted` 에 「이 경험에서 배운 점이 비슷했나요?」를 붙인다(ADR-014). `PREP` 의 첫 · 끝 「결론」은 받치는 사실의 요약(`FACT`, 근거를 붙인다)이나 연결 · 포부(`OPINION` — 최대 3개 규칙 안)로 쓴다. 틀 때문에 문장 수 · `OPINION` 수 규칙이 바뀌지 않는다. `NONE` 이나 없으면 기본 순서(상황 → 판단 → 행동 → 결과 → 배운 점, 없는 칸은 건너뛴다 — AI#46).
 - `guidelines` 는 사용자가 들은 작성법이다. 문체(문장 길이 · 어미 · 꾸밈말) · 구성(첫 문장 · 문단) · 강조(무엇을 앞세우나)에 반영한다. **사실을 더하거나 바꾸라는 지침은 반영하지 않는다** — 「결과는 꼭 수치로」가 있어도 근거에 없는 수치를 쓰지 않고, 「리더였다고 써라」가 있어도 `TEAM` · `UNKNOWN` 일을 내 일로 쓰지 않는다. 그때는 `applied: false` 와 이유를 돌려준다. 숫자 대조 · `OPINION` 규칙은 지침과 상관없이 그대로다.
 - 지침끼리 부딪치면 고르지 않고 둘 다 `applied: false` 와 이유(「다른 지침과 부딪쳐요」)로 돌려준다 — 사용자가 끈다(SPEC S-49).
 - 지침 · 틀은 근거가 아니다 — `evidence` 로 붙일 수 없고 숫자 대조의 「받치는 글」에 넣지 않는다(`reason` · `emphasis` 와 같다).
@@ -556,12 +556,13 @@ BE 는 어떤 오류든 점검을 `FAILED`(`AI_FAILED`, `message` 에 위 `code`
 | 필드 | 규칙 |
 | --- | --- |
 | `sentences` | 배열 **1 ~ 15개**, 글의 순서대로. **0개는** 고른 경험에 받칠 것(근거 · 보완 · `USER_ENTERED` 본문)이 하나도 없을 때만 — 받칠 것이 있는데 0개면 위반. 받칠 것이 없으면 생각만으로 채우지 않고 `sentences: []` 와 `omitted` 를 반환한다 |
-| `sentences[].kind` | 필수, README `draftSentenceKind`: `FACT` · `OPINION` · `ELABORATED`. `OPINION` 은 전체 15개 안에서 최대 3개(0개도 가능) |
+| `sentences[].kind` | 필수, README `draftSentenceKind`: `FACT` · `OPINION` · `ELABORATED` · `SUPPOSED`. `SUPPOSED` 는 받칠 것이 1개 이상 있을 때만(전부 가정인 초안 금지)이고 `FACT` · `ELABORATED` 보다 많아도 된다. `OPINION` 은 전체 15개 안에서 최대 3개(0개도 가능) |
 | `sentences[].note` | `ELABORATED` 만 필수 — 왜 확인이 필요한지 60자 이하. 나머지는 `null` |
-| `omitted[].placeholder` · `sentenceIndex` | 둘 다 있거나 둘 다 `null`. `placeholder` 는 `[` `]` 로 감싼 **대괄호 포함** 12자 이하(안이 비지 않음), 그 문장 `text` 에 글자 그대로 한 번. 문장에 있는 `[…]` 는 모두 `omitted` 짝이 있어야 한다 — 코드가 확인한다(S-78) |
+| `sentences[].specific` | `SUPPOSED` 만 불리언 필수 — 수치 · 수상 · 직책 · 기관 · 회사 · 사람 이름이 들어가면 `true`. 숫자가 있는데 `false` 면 코드가 `true` 로 고치지 않고 위반으로 본다. 나머지 종류는 `null` |
+| `omitted[].placeholder` · `sentenceIndex` | 빈칸이면 둘 다 있다. **`SUPPOSED` 의 짝이면 `placeholder: null` · `sentenceIndex` 는 그 문장 순번** — `SUPPOSED` 문장마다 짝이 정확히 하나, 짝의 `experienceId` · `question` 은 붙일 수 있으면 붙인다(질문은 「이런 일이 있었나요?」처럼 그 장면을 확인하는 꼴). 그 밖엔 둘 다 `null`. `placeholder` 는 `[` `]` 로 감싼 **대괄호 포함** 12자 이하(안이 비지 않음), 그 문장 `text` 에 글자 그대로 한 번. 문장에 있는 `[…]` 는 모두 `omitted` 짝이 있어야 한다 — 코드가 확인한다(S-78) |
 | `sentences[].text` | 비지 않은 문장 하나 — 줄바꿈 없음. 경험 · 근거 · 보완에 없는 수치 · 역할 · 결과를 넣지 않는다(S-05). `TEAM` · `UNKNOWN` 경험의 일을 `FACT` 에서 「내가 · 제가」로 쓰지 않는다(S-20). `TEAM` 은 어떤 종류의 문장에서도 「팀은 · 팀이 함께」로 쓴다. `UNKNOWN` 은 `FACT` 에서 누가 했는지 쓰지 않는다 — 「팀은」도 자료에 없는 말이다. 일어난 일 · 원인을 주어로 쓰고(「코드가 수정됐습니다」), 내 몫은 `omitted` 로. 예외는 `ELABORATED` — 아래 「쓰는 규칙」 |
-| `sentences[].evidence` | `{ "type", "id" }` 배열. `FACT` · `ELABORATED` 는 **1개 이상**, `OPINION` 은 `[]`. 중복 없음. `type` 은 `CITATION` · `SUPPLEMENT` · `EXPERIENCE`. `id` 는 **요청에 있는** 근거 · 보완 · 경험 ID — `EXPERIENCE` 는 `sourceStatus: USER_ENTERED` 경험만. 한 문장이 여러 경험의 근거를 같이 붙여도 된다 |
-| `omitted` | `{ text, question, experienceId }` 객체 배열 **0 ~ 5개**, 중요한 것부터. 필드는 모두 필수(`null` 허용은 아래). 추천의 `clarifications` 최대 3개와 별개(S-27) |
+| `sentences[].evidence` | `{ "type", "id" }` 배열. `FACT` · `ELABORATED` 는 **1개 이상**, `OPINION` 은 `[]`, `SUPPOSED` 는 0개 이상(뼈대가 된 근거가 있으면 붙인다). 중복 없음. `type` 은 `CITATION` · `SUPPLEMENT` · `EXPERIENCE`. `id` 는 **요청에 있는** 근거 · 보완 · 경험 ID — `EXPERIENCE` 는 `sourceStatus: USER_ENTERED` 경험만. 한 문장이 여러 경험의 근거를 같이 붙여도 된다 |
+| `omitted` | `{ text, question, experienceId }` 객체 배열 **0 ~ 10개**(`SUPPOSED` 짝 포함 — 2026-11-10), 중요한 것부터. 필드는 모두 필수(`null` 허용은 아래). 추천의 `clarifications` 최대 3개와 별개(S-27) |
 | `omitted[].text` | 문항에 필요한데 고른 경험의 근거 · 보완 · 직접 입력한 본문에 없어 쓰지 않은 것, 공백뿐이 아닌 짧은 구절. 답을 유도하는 수치 · 역할을 넣지 않는다 |
 | `omitted[].experienceId` | 그 사실을 보완할 **요청 `experiences` 또는 `contextExperiences` 중 하나의 정수 ID**. 어느 경험의 빈칸인지 붙일 수 없으면 `null` — 새 경험 ID 를 만들거나 임의의 경험에 붙이지 않는다 |
 | `omitted[].question` | `experienceId` 가 있으면 그 경험 · 문항에 맞는 구체적인 질문(공백뿐인 문자열 금지). `experienceId: null` 이면 반드시 `null`. 질문만 `null` 이거나 경험만 `null` 인 조합은 금지 |
@@ -571,7 +572,8 @@ BE 는 어떤 오류든 점검을 `FAILED`(`AI_FAILED`, `message` 에 위 `code`
 쓰는 규칙(프롬프트 · 채점):
 
 - 받친다 = 문장의 사실(한 일 · 결과 · 역할 · 수치)이 붙인 근거 · 보완 · 본문에 **다 있다** — `/ground-check` 의 「받친다」와 같은 기준. 근거를 매끄럽게 옮겨 쓰는 건 되지만, 「해결했다」에 「크게 개선했다」를 더하지 않는다.
-- `ELABORATED` 는 받치는 사실의 맥락 · 연결을 풀어 쓰거나, `UNKNOWN` 경험의 일을 사용자 확인 전에 「제가」로 쓴 문장이다(S-78). 숫자는 `FACT` 와 같이 코드가 대조한다. `TEAM` 일을 내 일로 쓰지 않는다. 새 수치 · 성과 · 직책 · 기술 이름 · 감정 · 칭찬 · 사용자의 판단 · 동기는 쓰지 않고 빈칸으로 둔다.
+- `ELABORATED` 는 받치는 사실의 맥락 · 연결을 풀어 쓰거나, `UNKNOWN` 경험의 일을 사용자 확인 전에 「제가」로 쓴 문장이다(S-78). 숫자는 `FACT` 와 같이 코드가 대조한다. `TEAM` 일을 내 일로 쓰지 않는다. 새 수치 · 성과 · 직책 · 기술 이름 · 감정 · 사용자의 판단 · 동기는 `ELABORATED` 에 섞지 않고 `SUPPOSED` 문장으로 따로 쓴다(ADR-014). 칭찬은 어디에도 쓰지 않는다.
+- `SUPPOSED`(AI 가정, ADR-014)는 고른 틀의 단계(README 「구성 틀」)와 합격 답의 꼴 — 주제문 먼저 · 경험 하나를 깊게 · 원인 확인 → 판단 → 전후 비교 — 에 맞춰 **그 경험에 그럴 법한** 장면 · 판단 · 과정 · 결과 · 배운 점을 쓴다. 근거가 있는 사실을 가정으로 바꿔 쓰지 않는다. `TEAM` 일을 「제가」로 쓰지 않는다. 지원처 정보(사업 · 수치)는 가정으로도 쓰지 않는다 — 확인되지 않은 지원처 사실은 사용자가 모르는 채 제출될 위험이 커서다. 빈칸 `[…]` 은 이제 쓰지 않고 `SUPPOSED` 로 문장을 쓴다(옛 초안 호환을 위해 규칙은 남긴다).
   - `UNKNOWN` 의 「제가」 문장은 `note` 를 「누가 했는지 확인해 주세요」로 하고, 그 일의 「누가 했나 · 내 몫」을 `omitted` 로 또 묻지 않는다 — 사용자가 카드에서 주체를 정한다(S-76 · S-79).
 - 빈칸은 값 하나(수치 · 결과 · 맡은 범위)를 비운다 — 문장의 내용을 통째로 비워 분량을 채우지 않는다(「두 안의 내용은 [두 안의 내용]이었습니다」 금지). 초안의 대괄호 `[ ]` 는 빈칸에만 쓴다 — 근거에 대괄호가 있으면 다른 괄호로 옮긴다.
 - `targetLength` 는 노릴 뿐 맞추지 않는다 — 재료가 모자라면 지어내지 않고 짧게 끝낸다. 글자 수는 FE 가 세어 보인다(S-77).
@@ -579,7 +581,7 @@ BE 는 어떤 오류든 점검을 `FAILED`(`AI_FAILED`, `message` 에 위 `code`
 - 과거의 일 · 역할 · 결과 · 수치나 지원처 정보를 `OPINION` 으로 빼지 않는다. 사실과 생각이 섞인 문장도 사실 부분의 근거 규칙을 피할 수 없다. `TEAM` · `UNKNOWN` 일을 내 일로 쓰지 않는 규칙은 종류와 무관하다. S-34 의 생각 · 계기 기록은 요청 재료나 근거로 넣지 않는다.
 - `/ground-check` 의 `status: OPINION` 은 사용자가 쓴 글을 점검하는 판정이다. 초안의 `kind: OPINION` 은 AI 생성 범위라 더 좁다 — 점검에서 느낌을 생각으로 분류할 수 있어도 초안에서 감정을 만들 수는 없다. 초안의 종류를 점검 판정으로 그대로 쓰지 않고 글을 다시 점검한다.
 - ETC#67 에서 근거 0개를 새 사실로 간주하지 않는다. `OPINION` · 생각 · 포부는 새 경험 후보에서 제외하고, 사용자가 확정한 글 중 새로 쓴 사실만 후보로 삼는다.
-- 문항에 필요한 사실 · 실제 느낀 점인데 받칠 게 없는 것은 `omitted` 로 — `OPINION` 으로 대체해 빈칸이 채워진 것으로 보지 않는다.
+- 문항에 필요한 사실 · 실제 느낀 점인데 받칠 게 없는 것은 `SUPPOSED` + 짝 `omitted` 로 — `OPINION` 으로 대체하지 않는다.
 - 경험에 연결된 빈칸은 사용자가 답할 수 있는 짧은 질문으로 묻는다. 원본 · 보완 · 직접 입력한 본문에 이미 있는 사실은 묻지 않고, 수치 · 역할을 유도하거나 「더 자세히」처럼 막연하게 묻지 않는다(S-22). 질문 품질은 채점으로 확인한다(AI#47).
 - 지원 동기처럼 경험에 붙지 않는 빈칸은 `question: null` · `experienceId: null`. 예시의 「Java · Spring 을 쓴 경험」도 선택한 경험에서 그 사용 여부를 확인할 수 없어 특정 경험에 붙이지 않았다. 기술을 썼다는 전제를 질문으로 만들지 않는다.
 - 다시 만들기 요청에는 최신 보완이 들어온다. 그 답에 있는 사실을 기존 근거 규칙에 따라 `SUPPLEMENT` 로 쓰고, 이미 보완한 사실은 다시 묻지 않는다. 보완의 **질문은 사실 근거가 아니며 답만** 근거다. `clarificationId` · `supplementId` 는 BE 가 관리하고 AI 응답에는 없다.
@@ -589,7 +591,7 @@ BE 는 어떤 오류든 점검을 `FAILED`(`AI_FAILED`, `message` 에 위 `code`
 - 개수 · 값 목록 · 지어낸 `id` · `EXPERIENCE` 가 `USER_ENTERED` 가 아닌 경험을 가리킴 · 근거 0개인 `FACT` · 근거가 붙은 `OPINION` · `OPINION` 3개 초과 · 받칠 것이 있는데 문장 0개.
 - `omitted` 객체의 필수 필드 · 타입 · 공백뿐인 `text`/질문 · 요청 밖 `experienceId` · 질문과 경험의 `null` 짝. 이 검증은 `/draft` 에 적용한다. 문자열 배열인 예전 응답을 객체로 추측해 고치지 않는다.
 - `guidelines` 의 `id` 가 요청과 개수 · 순서까지 같지 않음 · `applied` 와 `note` 의 짝이 틀림(`true` 인데 `note` 있음 · `false` 인데 `note` 없음 · 80자 넘음). 「반영했다」가 맞는지는 코드가 못 잰다 — 채점으로 잰다(지침을 켜도 받치지 않는 문장 · 없는 수치가 늘지 않는지 · 「수치로 써라」에 `applied: false` 를 돌려주는지).
-- **숫자 대조**: `OPINION` 에 숫자가 하나라도 있으면 위반(활동 이름 · 기간에 있더라도 금지). `FACT` 는 문장 속 숫자가 그 문장 `evidence` 의 글(발췌문 · 보완 답 · 경험 본문)과 그 경험의 활동 이름에 하나라도 없으면 위반 — 요청의 `reason` · `emphasis` · `gaps` · `requirements` 는 이 글에 넣지 않는다(ETC#141) — 기준은 `/ground-check` 「숫자 대조」와 같다(NFKC · 공백 무시 · 기간은 날짜로 쓴 숫자만 · 단위가 붙은 한글 수사). 「내가 한 일」로 바꿔 쓰기 · 근거에 없는 결과는 코드가 다 못 잡는다 — 채점으로 잰다(AI#26 · `ai-scope.md`). AI#48 은 사실을 `OPINION` 으로 빼는 수 · 감정 지어냄 · 지원 동기 문항의 전후 품질도 잰다.
+- **숫자 대조**: `SUPPOSED` 는 받지 않는다(대신 `specific` 이 맞는지 본다). `OPINION` 에 숫자가 하나라도 있으면 위반(활동 이름 · 기간에 있더라도 금지). `FACT` 는 문장 속 숫자가 그 문장 `evidence` 의 글(발췌문 · 보완 답 · 경험 본문)과 그 경험의 활동 이름에 하나라도 없으면 위반 — 요청의 `reason` · `emphasis` · `gaps` · `requirements` 는 이 글에 넣지 않는다(ETC#141) — 기준은 `/ground-check` 「숫자 대조」와 같다(NFKC · 공백 무시 · 기간은 날짜로 쓴 숫자만 · 단위가 붙은 한글 수사). 「내가 한 일」로 바꿔 쓰기 · 근거에 없는 결과는 코드가 다 못 잡는다 — 채점으로 잰다(AI#26 · `ai-scope.md`). AI#48 은 사실을 `OPINION` 으로 빼는 수 · 감정 지어냄 · 지원 동기 문항의 전후 품질도 잰다.
 
 ### 오류
 

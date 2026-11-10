@@ -98,7 +98,7 @@ FE ─POST /api/chagok/runs/{runId}/cancel───────────▶ B
 
 ## POST /api/chagok/runs — 일 시작
 
-- 쓰는 곳: FE 차곡이 패널의 부탁 입력 · 미리 정한 부탁 버튼(「근거 찾기」 「다른 경험으로」 — 같은 API 에 정한 글을 `text` 로)
+- 쓰는 곳: FE 차곡이 패널의 부탁 입력 · 미리 정한 부탁 버튼(「근거 찾기」 — 같은 API 에 정한 글을 `text` 로). 「다른 경험으로」는 두지 않는다 — 문항에 맞는 다른 경험은 「경험 다시 찾기」(`question-api.md` retry · S-90)가 `/match` 로 찾는다(ETC#300)
 - SPEC: `F-10` / `S-31`
 
 요청
@@ -110,7 +110,7 @@ FE ─POST /api/chagok/runs/{runId}/cancel───────────▶ B
 | 필드 | 값 |
 | --- | --- |
 | `text` | 부탁. 공백만 안 됨 · 최대 **50000**자(자료를 붙여 넣고 「이거 쌓아 줘」 할 수 있게 — `POST /api/sources` 한도와 같다) |
-| `questionId` | 선택. 지원 화면에서 열었으면 그 문항 — BE 가 문항 글 · 지원처를 AI 에 맥락으로 싣는다. 남의 문항이면 404 |
+| `questionId` | 선택. 지원 화면에서 열었으면 그 문항 — BE 가 문항 글 · 지원처와 그 문항의 **추천 경험 · 초안에 쓴 경험**을 AI 에 맥락으로 싣는다(`ai-api.md` 「POST /agent」 `context.question.experiences` · ETC#300). 남의 문항이면 404 |
 
 응답 202
 

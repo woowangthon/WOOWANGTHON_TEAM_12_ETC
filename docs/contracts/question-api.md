@@ -645,9 +645,9 @@ FE ─GET /api/questions/{id}/similar-answers ▶ BE  비슷한 문항의 확정
     }
   ],
   "omitted": [
-    { "text": "바꾼 뒤 메시지가 제때 오는지 확인한 방법", "question": "WebSocket 으로 바꾼 뒤 메시지가 제때 오는지 어떻게 확인했나요?", "experienceId": 101, "clarificationId": 64, "supplementId": null },
-    { "text": "Java · Spring 을 쓴 경험", "question": null, "experienceId": null, "clarificationId": null, "supplementId": null },
-    { "text": "이 경험에서 배운 점 · 느낀 점", "question": "채팅 방식을 바꾸며 배운 점이나 느낀 점이 있나요?", "experienceId": 101, "clarificationId": 65, "supplementId": null }
+    { "text": "바꾼 뒤 메시지가 제때 오는지 확인한 방법", "question": "WebSocket 으로 바꾼 뒤 메시지가 제때 오는지 어떻게 확인했나요?", "experienceId": 101, "activityId": 7, "activityName": "바꿔요 — 캠퍼스 중고거래 앱", "experienceContent": "채팅 메시지가 늦게 도착하는 문제를 폴링에서 WebSocket 으로 바꿔 해결했다", "clarificationId": 64, "supplementId": null, "supplement": null },
+    { "text": "Java · Spring 을 쓴 경험", "question": null, "experienceId": null, "activityId": null, "activityName": null, "experienceContent": null, "clarificationId": null, "supplementId": null, "supplement": null },
+    { "text": "이 경험에서 배운 점 · 느낀 점", "question": "채팅 방식을 바꾸며 배운 점이나 느낀 점이 있나요?", "experienceId": 101, "activityId": 7, "activityName": "바꿔요 — 캠퍼스 중고거래 앱", "experienceContent": "채팅 메시지가 늦게 도착하는 문제를 폴링에서 WebSocket 으로 바꿔 해결했다", "clarificationId": 65, "supplementId": null, "supplement": null }
   ],
   "frame": "STAR",
   "useContext": true,
@@ -675,12 +675,13 @@ FE ─GET /api/questions/{id}/similar-answers ▶ BE  비슷한 문항의 확정
 - `omitted[].placeholder` · `sentenceIndex` — 문장 속 빈칸(S-78). `placeholder` 는 `[결과]` 처럼 그 문장 `text` 에 글자 그대로 한 번 있는 자리 표시(대괄호 포함 12자 이하 — 초안의 대괄호는 빈칸에만 쓴다), `sentenceIndex` 는 `sentences` 순번. 빈칸이 아니면 둘 다 `null`. FE 는 답하면 자리 표시를 답으로 바꿔 보이고 보완으로 저장한다. 다음 다시 만들기 전까지 `sentences` 는 저장된 그대로다.
 - `omitted[].clarificationId` — BE 가 초안 완료 시 질문마다 새로 붙여 저장하는 되묻기 ID. 추천 되묻기와 같은 ID 공간을 쓰되 초안에 속한 것으로 구분한다. 경험이 `null` 이면 이 값도 `null` 이고 되묻기를 만들지 않는다. 새로고침해도 같은 ID 다. FE 는 배열 순번 · 문구 · 추천 되묻기 ID 로 대신 답하지 않는다.
 - `omitted[].supplementId` — 아직 답하지 않았으면 `null`, 답했으면 만든 보완 ID. BE 가 현재 연결을 조회해 응답하므로 새로고침해도 답한 상태가 유지된다. 답은 활동 세부의 보완에서 확인 · 수정한다(S-24). 보완을 지우면 `null` 로 돌아가 다시 답할 수 있다. 경험을 지우면 해당 `omitted` 항목은 응답에서 빠진다.
+- `omitted[].activityId` · `activityName` · `experienceContent` · `supplement` — BE 가 `experienceId` 로 붙이는 값(ETC#261). `experienceId` 의 경험이 고른 경험이든 보조 재료 경험(S-75)이든 같은 모양이다 — 보조 재료 경험은 추천(`recommendations`)에 없으므로 **FE 는 추천 목록에서 찾지 않고 이 값으로** 활동 칩 · 활동 세부(S-08)로 가는 길 · 경험 문장 · 답한 보완을 그린다(`sentences[].evidence` 와 같은 방식). `activityName` · `experienceContent` 는 그 활동 이름 · 경험 `content`, `supplement` 는 `supplementId` 의 보완 — `experience-api.md` 의 `Supplement` 와 같은 모양(`answer` · `mcpChange` 포함)이다. 모두 **지금 상태로** — 고친 답 · 바뀐 활동 이름이 보인다. 안 답했거나 보완을 지웠으면 `supplement` 는 `null`. `experienceId` 가 `null` 이면 넷 다 `null`.
 - `useContext` — 이 초안에 같은 활동의 다른 경험을 뒷받침 재료로 썼나(요청 값 그대로, S-75). `ANALYZING` · `FAILED` 에도 있다. 이 값이 생기기 전 초안은 BE 가 `true` 로 채운다.
 - `freeRegenerate` — 지금 「다시 만들기」를 누르면 분석 횟수를 쓰지 않는가(아래 `POST /api/questions/{questionId}/draft` 의 미차감 조건 — 빠진 사실에 답함 · 재료 경험의 주체를 정하거나 바꿈, S-77). BE 가 응답할 때 계산한다. `ANALYZING` 이면 `false`. FE 는 `true` 면 다시 만들기 버튼 옆 「분석 1회」를 숨긴다 — 판단을 FE 가 따로 하지 않는다.
 - `frame` — 이 초안을 쓴 구성 틀(README 「값 목록」 `draftFrame`, S-50). 요청한 값 그대로 — `NONE` 은 「틀 없이」. `ANALYZING` · `FAILED` 에도 있다(실패한 초안의 「다시 만들기」가 같은 틀을 보낸다). 틀이 생기기 전에 저장된 초안은 BE 가 `NONE` 으로 채운다. FE 는 틀 이름 · 출처(README 「구성 틀」)를 초안 옆에 보인다.
 - `guidelines` — 이 초안에 실은 작성 지침(S-49), 실은 순서대로. 켜 둔 지침이 없었으면 `[]`. `ANALYZING` · `FAILED` 면 `[]`. `source` 는 출처가 없는 지침이면 `null`(guideline-api). `id` · `text` · `source` 는 **초안을 만들 때의 것**을 BE 가 저장해 둔다 — 그 뒤 지침을 고치거나 지워도 바뀌지 않는다(`id` 가 지금 없는 지침일 수 있다). 틀이 생기기 전에 저장된 초안은 `[]`.
 - `guidelines[].applied` · `note` — AI 가 그 지침을 이번 초안에 반영했다고 보는지(**AI 해석** — ai-api `/draft` 응답 그대로). `applied: true` 면 `note: null`, `false` 면 `note` 에 왜 못 했는지 한 줄(근거 규칙과 부딪침 · 이 문항에 맞지 않음 등). FE 는 「적용한 지침」과 「이번엔 반영 못 함 — `note`」를 나눠 보인다. 지침은 문체 · 구성 · 강조만 바꾼다 — 반영했다고 근거 규칙이 느슨해지지 않는다.
-- 필드 7개는 모두 응답한다. 경험에 붙지 않는 빈칸은 `text` 만 문자열이고 `question` · `experienceId` · `clarificationId` · `supplementId` 는 `null` 이다(`placeholder` · `sentenceIndex` 는 있을 수 있다). 건너뛰기는 요청하지 않는 것 — 보완이 생기지 않고 초안의 표시 · 복사를 막지 않는다.
+- 필드 11개는 모두 응답한다. 경험에 붙지 않는 빈칸은 `text` 만 문자열이고 `question` · `experienceId` · `activityId` · `activityName` · `experienceContent` · `clarificationId` · `supplementId` · `supplement` 는 `null` 이다(`placeholder` · `sentenceIndex` 는 있을 수 있다). 건너뛰기는 요청하지 않는 것 — 보완이 생기지 않고 초안의 표시 · 복사를 막지 않는다.
 - 예시 읽는 법: 첫 문장은 회고 발췌 201 이 받친다(원문 — 101 이 `ME` 라 「제가」로 쓸 수 있다). 둘째는 되묻기 61 에 답한 보완 301 만 받친다(내가 입력) — 「3초」의 3 이 301 에 있어 숫자 확인을 지난다. 되묻기 62(확인한 방법)는 건너뛰어 받칠 게 없으니 쓰지 않고 `omitted` 로 간다. 「Java · Spring」은 문항 A 요구사항에서 `NOT_FOUND` 였던 것, 「배운 점 · 느낀 점」은 자료에 없어 지어내지 않은 것이다. `TEAM` 경험 102 를 같이 골랐다면 「팀은 매주 금요일 스프린트 회고를 했습니다」로 쓰고 「제가」로 바꾸지 않는다.
 
 - 셋째 예시 문장은 사용자의 실제 마음으로 확인한 사실이 아니라 포부 제안이다. 자료에 없는 「뿌듯했습니다」 같은 감정은 생성하지 않는다. S-34 의 생각 · 계기 기록은 초안 재료로 쓰지 않는다.
@@ -693,7 +694,7 @@ AI#48 · BE#72 · FE#104 에서 함께 맞춘다. 새 AI 응답에는 모든 문
 ### 빠진 사실에 답하기 · 저장된 초안 전환
 
 1. 위 예시에서 FE 는 `POST /api/clarifications/64/answer` 에 `{ "answer": "두 기기로 메시지를 보내고 양쪽 화면에 도착하는지 확인했다" }` 를 보낸다. 기존 답 저장과 같은 201 응답으로 경험 101 의 보완(예: 302)이 생긴다. 질문은 저장된 `omitted.question`, `questionId` 는 41 이다.
-2. `GET /api/questions/41` 의 같은 항목은 `clarificationId: 64` · `supplementId: 302` 로 온다. 문장 · 빠진 사실의 문구는 아직 바뀌지 않는다. 같은 ID 에 다시 답하면 409 `CLARIFICATION_ALREADY_ANSWERED` — 새 보완을 중복 생성하지 않는다.
+2. `GET /api/questions/41` 의 같은 항목은 `clarificationId: 64` · `supplementId: 302` 와 그 보완 `supplement`(`answer` 는 방금 보낸 답)로 온다. 문장 · 빠진 사실의 문구는 아직 바뀌지 않는다. 같은 ID 에 다시 답하면 409 `CLARIFICATION_ALREADY_ANSWERED` — 새 보완을 중복 생성하지 않는다.
 3. 사용자가 다시 만들기를 누르면 아래 `POST /api/questions/41/draft` 에 `{ "experienceIds": [101] }` 을 보낸다. AI 요청의 경험 101 `supplements` 에 302 를 포함한다. 성공한 초안은 해당 답을 근거로 쓸 수 있고, 이미 답한 사실은 다시 묻지 않는다.
 
 문자열 배열에서 객체 배열로 **AI · BE · FE 를 함께 전환**한다(ETC#139). 옛 문자열을 보고 경험이나 질문을 추측하지 않는다. BE 에 저장된 옛 형식 초안은 `draft: null` 로 반환해 사용자가 다시 만들게 한다 — 추천 · 기존 보완은 유지하고 자동 재생성 · 자동 과금은 하지 않는다. 새로 만든 초안부터 이 계약을 적용하며 혼합 배열은 반환하지 않는다. 서비스 구현은 AI#47 · BE#71 · FE#103 에서 함께 맞춘다.

@@ -532,6 +532,7 @@ BE 는 어떤 오류든 점검을 `FAILED`(`AI_FAILED`, `message` 에 위 `code`
 
 ```json
 {
+  "title": "폴링을 구독으로 바꿔 푼 채팅 지연",
   "sentences": [
     { "kind": "FACT", "text": "「바꿔요」 프로젝트에서 채팅 메시지가 늦게 도착하는 문제가 있었고, 제가 폴링을 WebSocket 으로 바꿔 해결했습니다.", "evidence": [{ "type": "CITATION", "id": 201 }] },
     { "kind": "FACT", "text": "서버에 STOMP 엔드포인트를 만들고, 앱의 3초 폴링 코드를 구독 방식으로 바꿨습니다.", "evidence": [{ "type": "SUPPLEMENT", "id": 301 }] },
@@ -557,6 +558,7 @@ BE 는 어떤 오류든 점검을 `FAILED`(`AI_FAILED`, `message` 에 위 `code`
 | 필드 | 규칙 |
 | --- | --- |
 | `sentences` | 배열 **1 ~ 15개**, 글의 순서대로. **0개는** 고른 경험에 받칠 것(근거 · 보완 · `USER_ENTERED` 본문)이 하나도 없을 때만 — 받칠 것이 있는데 0개면 위반. 받칠 것이 없으면 생각만으로 채우지 않고 `sentences: []` 와 `omitted` 를 반환한다 |
+| `title` | 첫 줄 소제목(S-86) — 그 답이 보여 주는 것을 한 줄로. `sentences` 가 1개 이상이면 필수 문자열(공백뿐 · 줄바꿈 금지, 40자 이하), 0개면 `null`. `OPINION` 과 같은 규칙 — 숫자가 하나라도 있으면 위반(코드가 막는다), 자료에 없는 사실 · 칭찬 · 의미 단정 금지. 따옴표 · 대괄호로 감싸지 않는다(모양은 FE 가 정한다) |
 | `sentences[].kind` | 필수, README `draftSentenceKind`: `FACT` · `OPINION` · `ELABORATED` · `SUPPOSED`. `SUPPOSED` 는 받칠 것이 1개 이상 있을 때만(전부 가정인 초안 금지)이고 `FACT` · `ELABORATED` 보다 많아도 된다. `OPINION` 은 전체 15개 안에서 최대 3개(0개도 가능) |
 | `sentences[].note` | `ELABORATED` 만 필수 — 왜 확인이 필요한지 60자 이하. 나머지는 `null` |
 | `sentences[].specific` | `SUPPOSED` 만 불리언 필수 — 수치 · 수상 · 직책 · 기관 · 회사 · 사람 이름이 들어가면 `true`. 숫자가 있는데 `false` 면 코드가 `true` 로 고치지 않고 위반으로 본다. 나머지 종류는 `null` |
@@ -589,6 +591,7 @@ BE 는 어떤 오류든 점검을 `FAILED`(`AI_FAILED`, `message` 에 위 `code`
 
 코드가 확인하는 것 — 어기면 다시 시도한 뒤 `LLM_INVALID_OUTPUT`. 규칙에 맞게 문장을 빼거나 근거를 바꿔서 돌려주지 않는다.
 
+- `title` — 문장이 있는데 없음 · 문장 0개인데 있음 · 40자 넘음 · 줄바꿈 · 숫자(S-86).
 - 개수 · 값 목록 · 지어낸 `id` · `EXPERIENCE` 가 `USER_ENTERED` 가 아닌 경험을 가리킴 · 근거 0개인 `FACT` · 근거가 붙은 `OPINION` · `OPINION` 3개 초과 · 받칠 것이 있는데 문장 0개.
 - `omitted` 객체의 필수 필드 · 타입 · 공백뿐인 `text`/질문 · 요청 밖 `experienceId` · 질문과 경험의 `null` 짝. 이 검증은 `/draft` 에 적용한다. 문자열 배열인 예전 응답을 객체로 추측해 고치지 않는다.
 - `guidelines` 의 `id` 가 요청과 개수 · 순서까지 같지 않음 · `applied` 와 `note` 의 짝이 틀림(`true` 인데 `note` 있음 · `false` 인데 `note` 없음 · 80자 넘음). 「반영했다」가 맞는지는 코드가 못 잰다 — 채점으로 잰다(지침을 켜도 받치지 않는 문장 · 없는 수치가 늘지 않는지 · 「수치로 써라」에 `applied: false` 를 돌려주는지).

@@ -619,6 +619,7 @@ FE ─PUT /api/questions/{id}/answer-draft ▶ BE  쓰는 중인 답 임시 저�
   "status": "COMPLETED",
   "error": null,
   "experienceIds": [101],
+  "title": "폴링을 구독으로 바꿔 푼 채팅 지연",
   "sentences": [
     {
       "id": 801,
@@ -667,6 +668,7 @@ FE ─PUT /api/questions/{id}/answer-draft ▶ BE  쓰는 중인 답 임시 저�
 
 - `status` · `error` — 작업 상태(README 「값 목록」). `ANALYZING` · `FAILED` 면 `sentences` · `omitted` 는 `[]`. `FAILED` 의 `error.code` 는 문항과 같은 값(`AI_TIMEOUT` · `AI_UNAVAILABLE` · `AI_FAILED` · `INTERNAL_ERROR`) — 정해진 문장으로 채우지 않는다(대회 규칙 2). 서버가 재시작돼 끊긴 초안도 `FAILED` 로 정리한다(추천과 같다).
 - `experienceIds` — 사용자가 고른 경험, 보낸 순서대로. 실패했을 때 「다시 만들기」는 이 값으로 같은 `POST` 를 부른다. 그새 지워진 경험은 빠진다.
+- `title` — AI 가 제안한 첫 줄 소제목(S-86 · ai-api `/draft` 응답 그대로, 40자 이하 · 숫자 없음). 문장이 0개 · `ANALYZING` · `FAILED` · 소제목이 생기기 전 초안은 `null`. FE 는 문장 위에 「AI 초안 · 소제목」으로 보이고 답칸 글의 첫 줄로 넣는다. 「텍스트로 복사」는 첫 줄에 소제목, 다음 줄부터 문장. 사용자가 지우거나 고친 것은 답칸 글이 원본이다(BE 에 따로 저장하지 않는다).
 - `sentences` — 초안 문장, **글의 순서대로**. 한 문장에 줄바꿈이 없다. FE 는 차례로 이어 보이고, 「텍스트로 복사」는 모든 종류를 순서대로 `text` 만 이어 붙인다 — 확인 안 한 `SUPPOSED` 가 남았으면 복사 전에 한 번 알린다(S-79 · ADR-014). 근거 칩과 「AI 초안 · 생각」 표시는 화면에만 두고 복사하지 않는다. 0개일 수 있다 — 고른 경험에 받칠 근거 · 보완 · 본문이 하나도 없을 때(그때는 `omitted` 만 있다).
 - `sentences[].note` — `ELABORATED` 만 문자열(왜 확인이 필요한지 한 줄 · 60자 이하), 나머지는 `null`(S-78). 옛 초안은 BE 가 `null` 로 채운다.
 - `sentences[].id` — 문장 ID. 「맞아요」(아래 `POST /api/draft-sentences/{sentenceId}/confirm`)에 쓴다. 다시 만들면 문장이 새로 생겨 ID 도 바뀐다.

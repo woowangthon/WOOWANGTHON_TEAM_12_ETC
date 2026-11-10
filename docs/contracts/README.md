@@ -21,6 +21,7 @@
 | [`work-api.md`](work-api.md) | FE → BE | 진행 중인 일 · 막 끝난 일을 한 번에 읽기 · 소식 읽음 (S-47) |
 | [`guideline-api.md`](guideline-api.md) | FE → BE | 작성 지침 목록 · 붙여 넣은 글 정리(동기 · 저장 안 함) · 저장 · 켜고 끄기 · 지우기 (S-49) |
 | [`share-api.md`](share-api.md) | FE · 로그인 없는 사람 → BE | 공개 프로필 링크 — 프로필에 넣기 · 내 공개 설정 · 링크 켜기 · 끄기 · 로그인 없는 공개 읽기 (S-65 · S-66) |
+| [`revision-api.md`](revision-api.md) | FE → BE | 수정 이력 — 경험 · 활동 · 답의 최근 수정 · 항목 이력(커서) · 이 수정 전으로 되돌리기 (S-80) |
 | [`ai-api.md`](ai-api.md) | BE → AI | 추출 `/extract` (스프린트 1) · 매칭 `/match` (스프린트 2) · 근거 점검 `/ground-check` (S-45) · 답변 초안 `/draft` (S-27) · 입구 `/route` · `/ask` · `/parse-application` (스프린트 3) · 이어짐 제안 `/link-suggestions` (S-35) · 차곡이 도구 루프 `/agent` (S-31) · 작성 지침 정리 `/guidelines` (S-49) |
 | [`mcp-api.md`](mcp-api.md) | 외부 AI(MCP) · 차곡이(AI) · FE → BE | 연결 주소 만들기 · 끊기, MCP 읽기 도구 `search_experiences` · `list_activities` · `get_activity` (스프린트 3 — S-32) · 토큰 범위 READ / CHAGOK · 차곡이 쓰기 도구 `create_application` · `add_source` (S-31) |
 
@@ -125,6 +126,15 @@
 | | `MARKETING` | 마케팅 · 홍보 · 콘텐츠 |
 | | `BUSINESS` | 경영 · 사무 · 영업 |
 | | `OTHER` | 기타 |
+| `revisionTargetType` 수정 이력 대상 (S-80) | `EXPERIENCE` | 경험 |
+| | `ACTIVITY` | 활동 |
+| | `ANSWER` | 지원서 답 — `targetId` 는 문항 ID |
+| `revisionKind` 수정 이력 종류 (S-80) | `EDIT` | 고침 — 웹 · 외부 AI 의 경험 고치기, 활동 이름 · 기간 고치기 |
+| | `CONFIRM` | 답 확정(「다 썼어요」) |
+| | `DRAFT_OVERWRITE` | 초안을 답칸에 넣음 |
+| | `RESTORE` | 수정 이력에서 되돌림 |
+| `revisionBy` 누가 고쳤나 (S-80) | `USER` | 나(웹) |
+| | `EXTERNAL_AI` | 외부 AI(MCP 쓰기 도구) |
 | `linkStatus` 이어짐 상태 (S-35) | `SUGGESTED` | AI 제안 — 사용자가 아직 정하지 않았다 |
 | | `CONFIRMED` | 맞아요 — 사용자가 이어졌다고 확인했다 |
 | | `REJECTED` | 아니에요 — 다시 제안하지 않는다. 화면 · 활동 세부 응답엔 나오지 않는다 |

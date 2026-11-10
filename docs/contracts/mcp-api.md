@@ -403,6 +403,8 @@ FE ─DELETE /api/mcp/connection──────▶ BE  연결 끊기 → 그 
 
 외부 쓰기 도구가 성공할 때마다 한 건 남긴다. 웹 고치기 · 차곡이는 남기지 않는다. 쿠키 로그인으로 부르는 FE API 다.
 
+경험 고치기(`UPDATE_EXPERIENCE`)와 그 맞아요 · 되돌리기는 수정 이력(S-80 · [`revision-api.md`](revision-api.md))에도 같은 트랜잭션에서 한 줄 남는다(`mcpChangeId`). 수정 이력에서 그 경험을 되돌리면 이 변경은 `CHANGED_AFTER` 가 된다. 수정 이력 읽기 · 되돌리기는 MCP 도구로 열지 않는다.
+
 ### `McpChange`
 
 ```json
@@ -522,7 +524,7 @@ FE ─DELETE /api/mcp/connection──────▶ BE  연결 끊기 → 그 
 ## 이 계약에 없는 것
 
 - 외부 AI 의 경험 지우기 · 수행 주체 · 역량 고치기 · 초안 · 근거 점검 — 웹 · 차곡이에서만 한다(ADR-010 · ADR-011). 저장 없이 결과만 돌려주는 매칭도 만들지 않는다. 고친 글이 「내가 입력」에 섞이지 않게, 외부 AI 가 고친 본문은 사용자가 맞아요를 누르기 전까지 `NEEDS_REVIEW` 다
-- 같은 글을 두 번 넣기 막기 — S-69 는 웹의 하나씩 넣기만 본다(`add_source` 는 입력에 `allowDuplicate` 가 없다). 웹 고치기 · 차곡이 변경의 되돌리기 · 전체 버전 관리
+- 같은 글을 두 번 넣기 막기 — S-69 는 웹의 하나씩 넣기만 본다(`add_source` 는 입력에 `allowDuplicate` 가 없다). 차곡이 변경의 되돌리기(웹 고치기의 되돌리기는 수정 이력 — [`revision-api.md`](revision-api.md))
 - 원본 전문 읽기(`get_source`) — 근거에 `sourceName` · `quote` 가 실려 오므로 데모 7 엔 두지 않는다. 기획의 `get_evidence` 도 같은 이유로 `search_experiences` · `get_activity` 결과에 합쳤다
 - 차곡이(`CHAGOK`)의 지원 · 문항 · 추천 읽기 · 근거 점검 · 초안 도구 — 차곡이(S-31)가 필요할 때 더한다(S-45 · S-27 이 선 뒤)
 - 의미 검색(임베딩) — 앱 경험 찾기(S-58)도 낱말 맞추기로 시작했다. 뜻으로 묻기는 꺼내기(S-29 `/ask`)가 맡는다

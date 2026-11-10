@@ -106,6 +106,7 @@
 | | `FAILURE` | 실패 · 극복 · 아쉬움 |
 | | `GROWTH` | 성장 과정 · 배운 점 · 피드백 |
 | | `IDEA` | 아이디어 · 기획 제안 |
+| | `JOB_SKILL` | 직무 역량 · 직무 준비 · 다룰 수 있는 기술(S-85) |
 | | `OTHER` | 기타 — 맞는 유형이 없다 |
 | `questionTypeBy` 문항 유형 출처 | `AI` | AI 가 매칭 때 붙인 해석 |
 | | `USER` | 사용자가 골랐다. **BE 만** 붙인다 |
@@ -201,6 +202,7 @@
 | `COLLABORATION` · `CONFLICT` | `ALIGN` |
 | `IDEA` | `CHANGE` |
 | `GROWTH` | `ORIGIN` |
+| `JOB_SKILL` | `SKILL_STEPS` |
 | `ACHIEVEMENT` | `STAR` |
 | `FAILURE` | `CARL` |
 | `SELF_INTRO` · `STRENGTH_WEAKNESS` | `PREP` |
@@ -217,9 +219,10 @@
 | `FAILURE` | `PERSEVERANCE` · `LEARNING` |
 | `GROWTH` | `LEARNING` |
 | `IDEA` | `PLANNING` · `INITIATIVE` |
+| `JOB_SKILL` | `IMPLEMENTATION` · `LEARNING` · `ANALYSIS` |
 | `MOTIVATION` · `SELF_INTRO` · `STRENGTH_WEAKNESS` · `OTHER` · 없음 | 없음 — 최근 순만 |
 
-`SKILL_STEPS` 는 지금 미리 골라지는 유형이 없다 — 직무 역량 · 직무 준비 문항(읽은 답의 21%로 가장 많았다)이 지금 유형 목록에 없어서다. 사용자가 고를 수는 있다. 유형을 더할지는 SPEC 미결정에서 정한다.
+`SKILL_STEPS` 는 2026-11-10 PM 부터 `JOB_SKILL` 에서 미리 골라진다(S-85) — 전엔 직무 역량 문항(읽은 답의 21%)이 유형 목록에 없어 사용자가 고를 때만 쓰였다.
 
 ### 기간 `period`
 

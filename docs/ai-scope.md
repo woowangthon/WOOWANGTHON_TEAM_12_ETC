@@ -478,7 +478,7 @@
 
 | 항목 | 출처 (URL) | 라이선스 · 이용 조건 | 어디에 썼나 |
 | --- | --- | --- | --- |
-| 초안 구조 카드 (S-82) | 공개된 자기소개서 몇 편을 팀원이 읽고 구조만 손으로 정리 | 원문은 레포 · 서비스 · 학습 데이터에 넣지 않음 | contracts README `draftFrame` |
+| 초안 구조 카드 (S-82) | 공개된 자기소개서 몇 편을 코딩 에이전트(Claude Code)가 읽고 구조만 정리 → 팀원이 점검 | 원문은 레포 · 서비스 · 학습 데이터에 넣지 않음(읽은 사람의 레포 밖 로컬에만) · 구조에 원문 문장 · 고유명사 · 수치 없음 | contracts README `draftFrame` |
 | Airbnb DESIGN.md (디자인 방식 참고) | https://getdesign.md | 공개 분석 문서 — 방식만 참고, 색값 · 글꼴 · 로고는 쓰지 않음 | ETC `docs/design/DESIGN.md` 출발점 |
 | Pretendard | https://github.com/orioncactus/pretendard | SIL OFL 1.1 | 디자인 시안 · DESIGN.md 글꼴 · FE 본문 글꼴(jsDelivr CDN) |
 | Phosphor Icons | https://phosphoricons.com | MIT | 디자인 시안 · DESIGN.md 아이콘 · FE 아이콘(`@phosphor-icons/react`) |

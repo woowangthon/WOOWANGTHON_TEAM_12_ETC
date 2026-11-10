@@ -180,7 +180,7 @@ BE 는 어떤 오류든 작업을 `FAILED`(`AI_FAILED`, `message` 에 위 `code`
 - 부르는 곳: BE 추천 작업(question-api `POST /api/questions` · `retry` 뒤)
 - SPEC: `F-06` · `F-07` · `F-08` / `S-19` · `S-20` · `S-22` · `S-25` · `S-41`(`P1`)
 
-BE 가 문항과 **그 사용자의 경험 전부**를 후보로 보낸다([ADR-003](../decisions/ADR-003-stack-and-ai-boundary.md) — 임베딩 · 후보 줄이기는 넘칠 때). AI 서버는 문항을 요구사항으로 쪼개고, 요구사항마다 근거를 판정하고, 경험을 0 ~ 3개 추천하고, 부족한 사실을 0 ~ 3개 묻고, 문항 유형을 하나 붙인다. LLM 을 안에서 몇 번 부를지는 AI 서버가 정한다 — 응답은 하나다.
+BE 가 문항과 **그 사용자의 경험 전부**를 후보로 보낸다([ADR-003](../decisions/ADR-003-stack-and-ai-boundary.md) — 임베딩 · 후보 줄이기는 넘칠 때). AI 서버는 문항을 요구사항으로 쪼개고, 요구사항마다 근거를 판정하고, 경험을 0 ~ 8개(활동은 5개까지 — S-84) 추천하고, 부족한 사실을 0 ~ 3개 묻고, 문항 유형을 하나 붙인다. LLM 을 안에서 몇 번 부를지는 AI 서버가 정한다 — 응답은 하나다.
 
 요청 — 문항 B(question-api 예시). 경험 101 엔 문항 A 에서 답한 보완 301 이 실려 있다.
 
@@ -193,6 +193,7 @@ BE 가 문항과 **그 사용자의 경험 전부**를 후보로 보낸다([ADR-
   "experiences": [
     {
       "id": 101,
+      "activityId": 7,
       "activityName": "바꿔요 — 캠퍼스 중고거래 앱",
       "period": { "start": "2025-03", "end": "2025-06", "ongoing": false },
       "content": "채팅 메시지가 늦게 도착하는 문제를 폴링에서 WebSocket 으로 바꿔 해결했다",
@@ -259,7 +260,7 @@ BE 가 문항과 **그 사용자의 경험 전부**를 후보로 보낸다([ADR-
 | `question.organization` | 지원처 이름. `null` 가능 — 문항 의도를 읽는 단서로만 쓴다 |
 | `question.text` | 문항 텍스트(BE 한도 5000자). 비지 않은 문자열 |
 | `experiences` | 사용자의 경험 전부. **0개면 `[]`** — 오류가 아니다. `id` 는 BE 의 경험 ID, 중복 없음 |
-| `experiences[].activityName` · `period` | 그 경험이 속한 활동 — 문맥 단서 |
+| `experiences[].activityId` · `activityName` · `period` | 그 경험이 속한 활동 — 문맥 단서. `activityId` 는 추천의 활동 수를 세는 데 쓴다(S-84 · ETC#274). 다른 예시에선 줄였다 |
 | `experiences[].content` · `competencies` · `actor` · `sourceStatus` | `experience-api.md` 「Experience」 그대로 |
 | `experiences[].citations` | `{ id, quote }` 만. 원본에서 확인 못 한 근거(`matched: false`)도 싣는다 — 경험의 `sourceStatus` 가 그걸 말해 준다 |
 | `experiences[].supplements` | 보완 `{ id, question, answer }`. 사용자가 직접 말한 사실이다(「내가 입력」). 없으면 `[]` |
@@ -307,7 +308,7 @@ BE 가 문항과 **그 사용자의 경험 전부**를 후보로 보낸다([ADR-
 | `requirements[].text` | 비지 않은 문자열 — 문항이 보려는 것 하나(도구 「Python · SQL」 또는 능력 서술 「데이터 정합성 검증」) |
 | `requirements[].status` | `requirementStatus` 값(README) — `SUPPORTED` 근거가 받친다 · `PARTIAL` 일부만 받친다 · `NOT_FOUND` 자료에서 확인 안 됨 |
 | `requirements[].experienceIds` | `NOT_FOUND` 면 `[]`, 아니면 1개 이상. 전부 **요청에 있는** 경험 ID |
-| `recommendations` | 배열 **0 ~ 3개**, 더 잘 맞는 것부터. 맞는 게 없으면 `[]` — 억지로 채우지 않는다 |
+| `recommendations` | 배열 **0 ~ 8개**, 더 잘 맞는 것부터. 서로 다른 활동(`activityId`)은 **5개까지**(S-84 · ETC#274). 같은 활동의 경험은 그 활동에서 문항에 쓸 만한 줄만 고른다 — 활동의 경험을 다 싣지 않는다(나머지는 초안 때 BE 가 재료로 싣는다). 맞는 게 없으면 `[]` — 억지로 채우지 않는다 |
 | `recommendations[].experienceId` | 요청에 있는 경험 ID · 추천끼리 중복 없음 |
 | `recommendations[].reason` · `emphasis` | 비지 않은 문자열. AI 해석이다. 경험 · 근거 · 보완에 없는 수치 · 역할 · 결과를 넣지 않는다(S-05). `actor` 가 `TEAM` · `UNKNOWN` 이면 「내가 한 일」로 바꿔 말하지 않는다(S-20) |
 | `recommendations[].evidence` | 배열(0개 가능 — 근거 · 보완이 없는 경험). `{ "type": "CITATION" \| "SUPPLEMENT", "id" }` — `id` 는 **같은 경험의** `citations[].id` · `supplements[].id` 중 하나. 중복 없음 |
@@ -457,7 +458,7 @@ BE 는 어떤 오류든 점검을 `FAILED`(`AI_FAILED`, `message` 에 위 `code`
 - 부르는 곳: BE 초안 작업(question-api `POST /api/questions/{questionId}/draft` 뒤)
 - SPEC: `F-09` / `S-27` · `S-05` · `S-20` — 우선순위 `P1`
 
-사용자가 고른 경험(1 ~ 3개)으로 그 문항의 답변 초안을 **문장 배열**로 쓴다. 사실 문장(`FACT`)마다 받치는 근거 · 보완을 붙이고, 받칠 게 없는 장면 · 단계는 `SUPPOSED`(AI 가정)로 쓰고 짝이 되는 `omitted` 에 확인 질문을 붙인다(ADR-014 · 2026-11-10 — 전에는 쓰지 않고 `omitted` 로만 돌려줬다). 연결 · 직무 관련성 · 포부는 `OPINION` 으로 구분해 제안한다. 지어낸 ID · 문장 속 숫자는 **코드가** 막는다 — 숫자 대조는 `/ground-check` 와 같은 코드를 쓴다.
+사용자가 고른 경험(1 ~ 8개 — 체크한 활동의 추천 경험, S-84)으로 그 문항의 답변 초안을 **문장 배열**로 쓴다. 사실 문장(`FACT`)마다 받치는 근거 · 보완을 붙이고, 받칠 게 없는 장면 · 단계는 `SUPPOSED`(AI 가정)로 쓰고 짝이 되는 `omitted` 에 확인 질문을 붙인다(ADR-014 · 2026-11-10 — 전에는 쓰지 않고 `omitted` 로만 돌려줬다). 연결 · 직무 관련성 · 포부는 `OPINION` 으로 구분해 제안한다. 지어낸 ID · 문장 속 숫자는 **코드가** 막는다 — 숫자 대조는 `/ground-check` 와 같은 코드를 쓴다.
 
 요청 — question-api 「답변 초안」 예시(문항 A + 경험 101). 경험은 `/match` 와 같은 모양이고 **고른 경험만** 싣는다. 문항 A 의 매칭 결과(요구사항 · 추천 101 의 이유 · 강조점 · 부족한 점)와 지원의 직무를 함께 싣는다(ETC#141).
 
@@ -503,7 +504,7 @@ BE 는 어떤 오류든 점검을 `FAILED`(`AI_FAILED`, `message` 에 위 `code`
 | `question.jobRole` | 선택. 그 문항이 속한 지원의 직무 — README 「값 목록」 `jobRole` 값 하나(S-42). 지원에 직무가 없으면(동아리 · 비교과 등) **싣지 않는다**(`null` 도 같게 읽는다) |
 | `question.frame` | 선택. 구성 틀 — README 「값 목록」 `draftFrame` 값 하나(S-50). 없거나 `NONE` 이면 기본 순서로 쓴다(아래 「구성 틀 · 작성 지침」) |
 | `question.requirements` | 선택. 그 문항의 매칭 요구사항 `{ text, status }` 배열 — question-api `Requirement` 에서 `experienceIds` 를 뺀 것, 저장된 순서 그대로. 없거나 `[]` 면 문항만 보고 쓴다 |
-| `experiences` | 사용자가 고른 경험 **1 ~ 3개**, 고른 순서대로 — `/match` 요청과 같은 모양. `id` 중복 없음 |
+| `experiences` | 사용자가 고른 경험 **1 ~ 8개**, 고른 순서대로(활동별로 모여 있다 — 첫째 활동이 뼈대, S-75 · S-84) — `/match` 요청과 같은 모양. `id` 중복 없음 |
 | `experiences[].citations` | **원본에서 찾은 근거만**(`matched: true`) `{ id, quote }` — `/ground-check` 와 같다. 확인 못 한 근거는 싣지 않는다 |
 | `experiences[].supplements` | 보완 `{ id, question, answer }` 전부. 사용자가 직접 말한 사실이다(「내가 입력」) |
 | `experiences[].sourceStatus` | `USER_ENTERED` 인 경험만 본문(`content`)이 근거(`EXPERIENCE`)가 될 수 있다 — `/ground-check` 와 같다 |

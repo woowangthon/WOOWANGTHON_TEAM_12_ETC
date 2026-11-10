@@ -206,6 +206,19 @@
 | `SELF_INTRO` · `STRENGTH_WEAKNESS` | `PREP` |
 | `OTHER` · 유형 없음(`null`) | `NONE` |
 
+문항 유형 → 겹치는 역량 — BE 가 초안의 보조 재료(`contextExperiences`)를 고르는 순서에만 쓰는 **코드 표**다(S-75 · ETC#274). 매칭 후보를 거르는 데 쓰지 않는다 — 역량은 AI 해석이라 거르면 맞는 경험이 소리 없이 빠진다.
+
+| `questionType` | 겹치는 역량 |
+| --- | --- |
+| `PROBLEM_SOLVING` | `PROBLEM_SOLVING` · `IMPLEMENTATION` · `ANALYSIS` |
+| `COLLABORATION` | `COLLABORATION` · `COMMUNICATION` · `LEADERSHIP` |
+| `CONFLICT` | `COLLABORATION` · `COMMUNICATION` |
+| `ACHIEVEMENT` | `INITIATIVE` · `PERSEVERANCE` · `RESPONSIBILITY` |
+| `FAILURE` | `PERSEVERANCE` · `LEARNING` |
+| `GROWTH` | `LEARNING` |
+| `IDEA` | `PLANNING` · `INITIATIVE` |
+| `MOTIVATION` · `SELF_INTRO` · `STRENGTH_WEAKNESS` · `OTHER` · 없음 | 없음 — 최근 순만 |
+
 `SKILL_STEPS` 는 지금 미리 골라지는 유형이 없다 — 직무 역량 · 직무 준비 문항(읽은 답의 21%로 가장 많았다)이 지금 유형 목록에 없어서다. 사용자가 고를 수는 있다. 유형을 더할지는 SPEC 미결정에서 정한다.
 
 ### 기간 `period`

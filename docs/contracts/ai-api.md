@@ -1057,7 +1057,14 @@ AI 서버는 받은 `mcpUrl` 로 MCP 에 붙어(`initialize` → `tools/list`) �
 {
   "text": "WebSocket 경험으로 OO 부트캠프 지원 만들어 줘",
   "context": {
-    "question": { "id": 41, "text": "기술적인 문제를 해결한 경험을 구체적으로 적어 주세요.", "organization": "OO 백엔드 부트캠프" }
+    "question": {
+      "id": 41,
+      "text": "기술적인 문제를 해결한 경험을 구체적으로 적어 주세요.",
+      "organization": "OO 백엔드 부트캠프",
+      "experiences": [
+        { "id": 101, "activityName": "바꿔요 — 캠퍼스 중고거래 앱", "content": "채팅 메시지가 늦게 도착하는 문제를 폴링에서 WebSocket 으로 바꿔 해결했다", "recommended": true, "inDraft": true }
+      ]
+    }
   },
   "mcpUrl": "http://backend:8080/mcp/k3Jx…(이 일의 CHAGOK 토큰)",
   "maxToolCalls": 8
@@ -1068,6 +1075,7 @@ AI 서버는 받은 `mcpUrl` 로 MCP 에 붙어(`initialize` → `tools/list`) �
 | --- | --- |
 | `text` | 사용자 부탁 그대로(50000자 이하). 자료를 붙여 넣은 부탁이면 `add_source` 의 `text` 는 이 안의 글을 **그대로** 잘라 쓴다 — 요약 · 고쳐 쓰지 않는다 |
 | `context.question` | 지원 화면에서 열었을 때 그 문항 — 아니면 `context: { "question": null }` |
+| `context.question.experiences` | 그 문항에 **지금 걸린 경험**(ETC#300) — 추천 순서대로 추천 경험, 그 뒤 추천엔 없고 초안에만 쓴 경험(S-90 재매칭 뒤 생긴다). 하나는 `{ id, activityName, content, recommended, inDraft }`. 없으면 `[]` · 빼도 `[]` 와 같다(이전 BE 와 맞물리게). 차곡이는 「다른 경험 · 지금 것 말고」 부탁에서 이것을 「지금 고른 경험」으로 보고 되묻지 않는다. 말의 근거(`message` 규칙)에 넣어도 된다. FE 에서 체크한 활동은 BE 가 모르니 싣지 않는다 — 초안에 쓴 경험이 대신한다 |
 | `mcpUrl` | 이 일에만 쓰는 MCP 주소. **내부망 주소**(BE 설정 `MCP_INTERNAL_BASE_URL`) + CHAGOK 토큰. 일이 끝나면 401 이 된다. 로그에 남기지 않는다 |
 | `maxToolCalls` | 도구를 부를 수 있는 최대 횟수(BE 설정, 기본 8). 넘으면 `error` `TOO_MANY_STEPS` |
 

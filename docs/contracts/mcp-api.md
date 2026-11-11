@@ -183,6 +183,7 @@ FE ─DELETE /api/mcp/connection──────▶ BE  연결 끊기 → 그 
 - 순서: 맞은 낱말 수가 많은 것 → 활동 `period.start` 최근 것(`null` 은 뒤) → 경험 `id`.
 - 앱 경험 찾기(`experience-api.md` 「GET /api/experiences」 · S-58)와 같은 코드다 — 규칙 · 순서를 바꾸면 둘이 같이 바뀐다.
 - 낱말 맞추기다(의미 검색 아님) — AI 를 쓰지 않는다. 외부 AI 가 낱말을 바꿔 여러 번 부르거나, 조건 없이 불러 전부 읽고 고르면 된다(도구 설명에 이렇게 적는다).
+- 「협업」 · 「리더십」 같은 개념어는 경험 본문에 그 낱말이 없으면 0건이다 — 도구 설명에 「개념어로 0건이면 `competencies`(예: 협업 → `COLLABORATION`)로 다시 찾는다」를 적는다. 역량 동의어를 낱말로 맞추지는 않는다 — 앱 검색(S-58)이 같이 바뀌어서(ETC#316, 2026-11-11).
 
 응답
 
@@ -274,6 +275,15 @@ FE ─DELETE /api/mcp/connection──────▶ BE  연결 끊기 → 그 
 
 `READ_WRITE` 토큰에만 보이고 `tools/call` 로 **바로 실행**한다 — `CONFIRM_REQUIRED` 가 없다. 사용자 확인은 뒤에서 한다(「변경 기록」, ADR-010 · ADR-011). 읽기 도구 `get_question` 도 이 범위에만 보인다. 저장과 변경 기록은 한 트랜잭션이고, 분석은 커밋 뒤에 시작한다.
 
+- `notice` — 아래 네 쓰기 도구의 결과에 싣는 **고정 문구** 한 줄. 외부 AI 가 사용자에게 그대로 전할 말이다(웹에서 확인해야 반영된다는 것을 학생이 모르는 일을 막는다 — ETC#316). 도구마다 아래 문장 그대로이고 BE 가 다듬어도 뜻은 바꾸지 않는다. 차곡이(`CHAGOK`) 실행 결과에는 싣지 않는다.
+
+| 도구 | `notice` |
+| --- | --- |
+| `add_source` | 분석 중이에요 — 끝나면 search_experiences 로 볼 수 있어요. 웹 ‘변경 기록’에서 되돌릴 수 있어요. |
+| `update_experience` | 고친 글은 ‘확인 필요’ 상태예요. 웹에서 ‘맞아요’를 누르면 확정되고, 되돌릴 수도 있어요. |
+| `create_application` | 추천을 만드는 중이에요 — 끝나면 get_question 으로 볼 수 있어요. 웹 ‘변경 기록’에서 되돌릴 수 있어요. |
+| `answer_clarification` | 이 답은 웹에서 ‘맞아요’를 누르기 전까지 추천 · 초안의 근거로 쓰이지 않아요. |
+
 - `client` — 그 연결의 `initialize` 가 보낸 `clientInfo.name`(제어 문자를 빼고 앞 40자). 요청마다 상태가 없으므로 BE 가 토큰 행의 `name` 에 둔다. 없으면 「외부 AI」. 클라이언트가 보낸 값이라 **표시용**이다 — 권한 · 식별에 쓰지 않는다.
 
 #### `add_source` — 자료 넣기 (외부)
@@ -283,7 +293,7 @@ FE ─DELETE /api/mcp/connection──────▶ BE  연결 끊기 → 그 
 결과
 
 ```json
-{ "changeId": 55, "sourceId": 12, "jobId": 34, "status": "ANALYZING" }
+{ "changeId": 55, "sourceId": 12, "jobId": 34, "status": "ANALYZING", "notice": "분석 중이에요 — …" }
 ```
 
 - `POST /api/sources` 와 같은 코드로 저장하고 같은 하루 분석 한도를 쓴다. 같은 자료 알아보기(S-69)는 하지 않는다 — 해시만 남긴다. 다른 점은 BE 가 붙이는 것 둘이다 — 원본 `kind` 를 `MCP` 로 저장하고(`POST /api/sources` 는 이 값을 받지 않는다 · API 응답에 싣지 않는다), 이름을 `<client> 에서 보냄 — yyyy-MM-dd HH:mm`(한국 시간)으로 붙인다. 근거의 `sourceName` 으로 사용자가 직접 넣은 자료와 구분된다.
@@ -317,7 +327,7 @@ FE ─DELETE /api/mcp/connection──────▶ BE  연결 끊기 → 그 
 결과
 
 ```json
-{ "changeId": 56, "experienceId": 104, "sourceStatus": "NEEDS_REVIEW" }
+{ "changeId": 56, "experienceId": 104, "sourceStatus": "NEEDS_REVIEW", "notice": "고친 글은 ‘확인 필요’ 상태예요. …" }
 ```
 
 - 본문만 바뀐다. `sourceStatus` 는 **`NEEDS_REVIEW`**, 나머지(`citations` · `supplements` · `competencies` · `competenciesBy` · `actor`)는 그대로다. `USER_ENTERED` 로 바꾸지 않는다 — `NEEDS_REVIEW` 본문은 초안 · 근거 점검의 근거가 되지 않는다(`README` `evidenceType` · S-53).
@@ -330,7 +340,7 @@ FE ─DELETE /api/mcp/connection──────▶ BE  연결 끊기 → 그 
 결과
 
 ```json
-{ "changeId": 58, "applicationId": 21, "questionIds": [41, 43], "status": "ANALYZING" }
+{ "changeId": 58, "applicationId": 21, "questionIds": [41, 43], "status": "ANALYZING", "notice": "추천을 만드는 중이에요 — …" }
 ```
 
 - `POST /api/applications` 와 같은 코드 · 검사 · 한도다 — 문항마다 분석 1회, 남은 횟수가 모자라면 아무것도 저장하지 않는다. 추천은 커밋 뒤 뒤에서 돈다.
@@ -346,7 +356,7 @@ FE ─DELETE /api/mcp/connection──────▶ BE  연결 끊기 → 그 
 { "questionId": 41 }
 ```
 
-결과 — `question-api.md` `GET /api/questions/{questionId}` 와 같다. 단 `draft` · `answer` 는 싣지 않는다(S-55). `ANALYZING` · `FAILED` 면 그 API 대로 목록이 비어 있고, `FAILED` 는 `error` 가 그대로 온다 — 추천을 대신 채우지 않는다.
+결과 — `question-api.md` `GET /api/questions/{questionId}` 와 같다. 단 `draft` · `answer` · `answerDraft`(쓰는 중인 답 · S-72)는 싣지 않는다(S-55) — 사용자가 웹에서 쓰는 글은 외부 AI 로 나가지 않는다(ETC#316 — 2026-11-11 점검 때 `answerDraft` 가 실려 나가던 것을 고침). `ANALYZING` · `FAILED` 면 그 API 대로 목록이 비어 있고, `FAILED` 는 `error` 가 그대로 온다 — 추천을 대신 채우지 않는다.
 
 #### `answer_clarification` — 되묻기 답 전하기
 
@@ -366,7 +376,7 @@ FE ─DELETE /api/mcp/connection──────▶ BE  연결 끊기 → 그 
 결과
 
 ```json
-{ "changeId": 57, "supplementId": 302, "experienceId": 101 }
+{ "changeId": 57, "supplementId": 302, "experienceId": 101, "notice": "이 답은 웹에서 ‘맞아요’를 누르기 전까지 …" }
 ```
 
 - `POST /api/clarifications/{clarificationId}/answer` 와 같은 코드로 보완을 저장하고, 그 보완에 `mcpChange` 를 붙인다(`experience-api.md`). 경험의 `content` · `citations` · `sourceStatus` 는 그대로다.

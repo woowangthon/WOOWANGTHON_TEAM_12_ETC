@@ -158,7 +158,7 @@ Pretendard 하나. 크기는 Tailwind 단계(`xs` 12 · `sm` 14 · `base` 16 · 
 | 가운데 상태 | `center-state.tsx` | 빈 상태 · 오류 — 아이콘 하나 · 제목 · 한 줄 · 버튼 |
 | 활동 칩 | `experience/activity-category.tsx` `ActivityTag` | 분류색 칩은 이것 하나. 색을 따로 주지 않는다 |
 | 분석 버튼 | `AnalysisButton` · `AnalysisMark` | ✦ 가 붙는 버튼 — 분석 횟수를 쓴다(S-15) |
-| 수정 이력 | `revisions/` `RevisionDialog` | 헤더 「최근 수정」 · 항목의 「수정 이력」이 같이 쓴다 |
+| 수정 이력 | `revisions/` `RevisionDialog` | 헤더 「최근 수정」(전체) · 활동 메뉴(그 활동과 속한 경험) · 답칸(그 답)이 같이 쓴다 |
 | AI 표시 | `ui/ai-mark.tsx` `AiMark` | AI 가 붙인 해석 배지 — 규칙은 「AI 표시」 |
 | 메뉴 | `ui/menu.ts` | 떠 있는 메뉴의 상자 · 항목 · 구분선(`MENU_CONTENT` · `MENU_ITEM` · `MENU_SEPARATOR`) — 폭 · 정렬만 쓰는 곳이 더한다 |
 
@@ -318,7 +318,6 @@ FE 의 시안 비교(`npm run design:diff`, FE#185) 표에서 「의도」로 �
 
 | 어디 | 지금 | 이 문서 | 이슈 |
 | --- | --- | --- | --- |
-| 수정 이력 | 활동 메뉴와 경험 메뉴에 따로 — 활동 쪽은 거의 비어 있음 | 같은 기능의 입구는 하나 | FE#467 · BE#168 |
 | 「서랍」 | 상단 경로 「내 서랍」 · 내 경험의 「서랍」 탭 · 「활동 서랍」 구역 — 세 겹 | 「말투」 같은 이름 | 디자인 담당이 정한다(FE#462 댓글) |
 | 모서리 값 | `rounded-[18px]` · `[14px]` 같은 직접 값 20곳 | 「배치」 토큰만 | 손대는 화면부터 |
 

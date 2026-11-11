@@ -128,6 +128,16 @@
 | | `MARKETING` | 마케팅 · 홍보 · 콘텐츠 |
 | | `BUSINESS` | 경영 · 사무 · 영업 |
 | | `OTHER` | 기타 |
+| `postingSection` 공고 요건 줄 칸 (S-91) | `DUTY` | 담당업무 |
+| | `REQUIRED` | 자격요건 |
+| | `PREFERRED` | 우대사항 |
+| | `STACK` | 기술스택 |
+| `ksa` 지식 · 기술 · 태도 (S-91 — AI 해석, 없을 수 있다) | `KNOWLEDGE` | 지식 — 이론 · 자격증 · 교육 |
+| | `SKILL` | 기술 — 해 본 일 · 다룰 줄 아는 것 |
+| | `ATTITUDE` | 태도 — 협업 · 주도성 · 책임감 같은 일하는 방식 |
+| `readFrom` 공고를 어디서 읽었나 (S-91 · S-92) | `TEXT` | 붙여 넣은 글 |
+| | `URL` | 공고 링크 |
+| | `IMAGE` | 캡처 — 대조할 원문이 없어 「캡처에서 읽음 — 확인해 주세요」 |
 | `revisionTargetType` 수정 이력 대상 (S-80) | `EXPERIENCE` | 경험 |
 | | `ACTIVITY` | 활동 |
 | | `ANSWER` | 지원서 답 — `targetId` 는 문항 ID |

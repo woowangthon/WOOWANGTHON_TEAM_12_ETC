@@ -178,7 +178,7 @@ BE 는 어떤 오류든 작업을 `FAILED`(`AI_FAILED`, `message` 에 위 `code`
 ## POST /match — 지원 문항에 맞는 경험 추천 · 되묻기
 
 - 부르는 곳: BE 추천 작업(question-api `POST /api/questions` · `retry` 뒤)
-- SPEC: `F-06` · `F-07` · `F-08` / `S-19` · `S-20` · `S-22` · `S-25` · `S-41`(`P1`)
+- SPEC: `F-06` · `F-07` · `F-08` / `S-19` · `S-20` · `S-22` · `S-25` · `S-41`(`P1`) · `S-42` · `S-91`(직무 · 공고 맥락 — ETC#326)
 
 BE 가 문항과 **그 사용자의 경험 전부**를 후보로 보낸다([ADR-003](../decisions/ADR-003-stack-and-ai-boundary.md) — 임베딩 · 후보 줄이기는 넘칠 때). AI 서버는 문항을 요구사항으로 쪼개고, 요구사항마다 근거를 판정하고, 경험을 0 ~ 8개(활동은 5개까지 — S-84) 추천하고, 부족한 사실을 0 ~ 3개 묻고, 문항 유형을 하나 붙인다. LLM 을 안에서 몇 번 부를지는 AI 서버가 정한다 — 응답은 하나다.
 
@@ -259,6 +259,8 @@ BE 가 문항과 **그 사용자의 경험 전부**를 후보로 보낸다([ADR-
 | --- | --- |
 | `question.organization` | 지원처 이름. `null` 가능 — 문항 의도를 읽는 단서로만 쓴다 |
 | `question.text` | 문항 텍스트(BE 한도 5000자). 비지 않은 문자열 |
+| `question.jobRole` | 선택. 그 문항이 속한 지원의 직무 — README `jobRole` 값 하나(S-42). 없으면 싣지 않는다(`null` 도 같게 읽는다) — `/draft` 와 같다 |
+| `question.postingLines` | 선택. 그 지원의 공고 요건 줄 전부 `[{ "section", "text", "ksa" }]`(S-91 — question-api `Application.postingLines` 에서 `id` · `readFrom` 을 뺀 것, 저장 순서 그대로), 0 ~ 40줄. 없거나 `[]` 면 문항만 본다 |
 | `experiences` | 사용자의 경험 전부. **0개면 `[]`** — 오류가 아니다. `id` 는 BE 의 경험 ID, 중복 없음 |
 | `experiences[].activityId` · `activityName` · `period` | 그 경험이 속한 활동 — 문맥 단서. `activityId` 는 추천의 활동 수를 세는 데 쓴다(S-84 · ETC#274). 다른 예시에선 줄였다 |
 | `experiences[].content` · `competencies` · `actor` · `sourceStatus` | `experience-api.md` 「Experience」 그대로 |
@@ -320,13 +322,13 @@ BE 가 문항과 **그 사용자의 경험 전부**를 후보로 보낸다([ADR-
 
 - 코드가 확인하는 것: 개수 · 값 목록 · **ID 가 요청에 있는지**(경험 · 근거 · 보완 — 지어낸 ID 면 위반). 이유 · 질문의 내용(수치 유도 · 같은 사실 다시 묻기)은 코드로 다 막을 수 없어 채점으로 잰다(AI#21 · `ai-scope.md`).
 - 경험이 `[]` 면 `requirements` 는 전부 `NOT_FOUND`, `recommendations` · `clarifications` 는 `[]`.
-- `questionType` 은 문항 쪽 해석이다 — 추천 · 되묻기를 고르는 데 쓰지 않아도 되고, 경험에 저장하지 않는다(SPEC 미결정 8 · 13). BE 는 문항에 `questionTypeBy: "AI"` 로 저장하되, 사용자가 이미 고른(`USER`) 문항이면 덮어쓰지 않는다. 지원처 종류 · 직무(S-42)는 요청에 싣지 않는다.
+- `questionType` 은 문항 쪽 해석이다 — 추천 · 되묻기를 고르는 데 쓰지 않아도 되고, 경험에 저장하지 않는다(SPEC 미결정 8 · 13). BE 는 문항에 `questionTypeBy: "AI"` 로 저장하되, 사용자가 이미 고른(`USER`) 문항이면 덮어쓰지 않는다. 지원처 종류는 요청에 싣지 않는다. **직무 · 공고 요건 줄**(선택 칸)은 추천 순서와 요구사항 말을 고르는 **맥락**이다 — 받았다고 그 직무 · 그 일을 해 봤다고 쓰지 않는다(`/draft` 의 `jobRole` 규칙과 같다). 요구사항은 여전히 **문항 글에서** 나온다 — 공고 줄을 요구사항으로 옮겨 싣지 않는다(공고 줄 판정은 「POST /posting-match」). 2026-11-11 전에는 직무도 싣지 않았다(ETC#326).
 
 ### 오류
 
 | HTTP | `code` | 언제 |
 | --- | --- | --- |
-| 400 | `INVALID_REQUEST` | `question.text` 가 없거나 비었음 · `experiences` 가 없음(`null`) · 경험 `id` 중복 |
+| 400 | `INVALID_REQUEST` | `question.text` 가 없거나 비었음 · `experiences` 가 없음(`null`) · 경험 `id` 중복 · 선택 칸 모양이 틀림(`jobRole` 이 목록 밖 · `postingLines` 41줄 이상 · 줄 `text` 가 비었거나 300자 넘음 · `section` · `ksa` 가 목록 밖) |
 | 413 | `TEXT_TOO_LONG` | 문항 텍스트와 경험의 `content` · `quote` · 보완 `question` · `answer` 를 합친 글자 수(코드 포인트)가 **100000** 을 넘음(AI 서버 `MAX_MATCH_CHARS`) — 경험 수백 개 분량. 넘치면 그때 후보 줄이기(ADR-003) |
 | 502 | `LLM_ERROR` | LLM API 호출이 실패함 |
 | 502 | `LLM_INVALID_OUTPUT` | LLM 출력이 위 규칙을 벗어남(다시 시도한 뒤에도). 규칙에 맞게 잘라 내거나 고쳐서 돌려주지 않는다 |
@@ -884,9 +886,9 @@ BE 는 어떤 오류든 502 `AI_FAILED`(`message` 에 위 `code`), 60초를 넘�
 
 ## POST /parse-application — 문항 · 공고에서 지원처 · 종류 · 직무 · 문항 나누기
 
-- SPEC: `F-10` / `S-30`(`P1`) · `S-46`(링크, `P1` — ETC#126) · `S-42`
+- SPEC: `F-10` / `S-30`(`P1`) · `S-46`(링크, `P1` — ETC#126) · `S-42` · `F-17` / `S-91`(공고 요건 줄) · `S-92`(캡처) — ETC#326 · ADR-016
 
-요청 — `text` 와 `url` 중 **하나만**.
+요청 — `text` · `url` · `images` 중 **하나만**.
 
 ```json
 { "text": "[OO 백엔드 부트캠프 4기 모집]\n모집 분야: 백엔드(Spring)\n\n자기소개서 문항\n1. 기술적인 문제를 해결한 경험을 구체적으로 적어 주세요. (500자)\n2. 지원 동기와 수료 후 목표를 적어 주세요. (500자)" }
@@ -900,6 +902,7 @@ BE 는 어떤 오류든 502 `AI_FAILED`(`message` 에 위 `code`), 60초를 넘�
 | --- | --- |
 | `text` | 붙여 넣은 문항 · 공고 글 그대로(BE 한도 20000자). 비지 않은 문자열 |
 | `url` | 공고 링크(S-46). BE 가 `http(s)://` · 2000자 이하만 넘긴다. AI 서버가 아래 「링크 받기」대로 받아 본문을 뽑은 뒤, 그 글을 `text` 로 받은 것과 **똑같이** 나눈다 — 아래 「적혀 있나」의 기준도 뽑은 글이다 |
+| `images` | 공고 · 문항 캡처(S-92) `[{ "mediaType", "data" }]` **1 ~ 5장** — 모양 · 한도는 entrance-api 와 같다. 아래 「캡처 받기」 |
 
 ### 링크 받기 (S-46)
 
@@ -917,6 +920,14 @@ BE 는 어떤 오류든 502 `AI_FAILED`(`message` 에 위 `code`), 60초를 넘�
 - 시간: 받기 15초를 포함해 전체 50초(`LLM_SYNC_TIMEOUT_SECONDS`) 안 — 넘으면 `LLM_TIMEOUT` 그대로.
 - 시험: 사람인 · 잡코리아 · 원티드 · 링커리어 · SW마에스트로 · 학교 비교과 공지 · 회사 채용 페이지(그리팅 등) 링크로 **읽힌 수 · 못 읽은 이유**를 PR 과 `ai-scope.md` 에 남긴다(S-46).
 
+### 캡처 받기 (S-92)
+
+- **비전 모델**로 이미지를 읽는다(어느 모델인지 · 채점은 `ai-scope.md` — AI#121). 이미지는 base64 데이터 그대로 모델에 넘긴다 — 파일 저장 · 외부 URL · 파일 업로드 API 를 쓰지 않는다. 이미지 · 읽은 글을 로그에 남기지 않는다.
+- 규칙: **이미지에 보이는 글자를 그대로 옮긴다** — 다듬지 않는다 · 안 보이는 글자를 채우지 않는다 · 문항 · 줄 · 지원처를 만들지 않는다. 메뉴 · 광고 · 버튼 글자는 뺀다. 구글폼 문항 캡처면 문항만 나온다.
+- 대조할 원문 글이 없으므로 아래 「적혀 있나」 코드 검사는 하지 않는다 — 응답 `readFrom: IMAGE` 로 알린다.
+- 글자를 거의 못 읽으면(모든 칸이 비었음 — 지원처 · 문항 · 줄 모두 없음) LLM 결과로 채우지 않고 422 `IMAGE_UNREADABLE`(`message` 한국어 한 줄 — 예: 「캡처에서 글자를 거의 읽지 못했어요 — 더 크게 찍거나 글로 붙여 넣어 주세요」).
+- 시간: 전체 50초(`LLM_SYNC_TIMEOUT_SECONDS`) 안 — 넘으면 `LLM_TIMEOUT`.
+
 응답 200
 
 ```json
@@ -928,6 +939,14 @@ BE 는 어떤 오류든 502 `AI_FAILED`(`message` 에 위 `code`), 60초를 넘�
     "기술적인 문제를 해결한 경험을 구체적으로 적어 주세요. (500자)",
     "지원 동기와 수료 후 목표를 적어 주세요. (500자)"
   ],
+  "postingLines": [
+    { "section": "DUTY", "text": "Spring 기반 결제 서버 설계 · 개발", "ksa": "SKILL" },
+    { "section": "REQUIRED", "text": "대규모 실시간 트래픽 처리 시스템 개발 경험", "ksa": "SKILL" },
+    { "section": "REQUIRED", "text": "장애 경험 및 문제 해결 경험", "ksa": "SKILL" },
+    { "section": "PREFERRED", "text": "Spring Framework 기반의 B2C 서비스 개발 경험", "ksa": "SKILL" },
+    { "section": "STACK", "text": "Kotlin, Java, Gradle", "ksa": "KNOWLEDGE" }
+  ],
+  "readFrom": "TEXT",
   "model": "<LLM 모델 이름>"
 }
 ```
@@ -937,10 +956,12 @@ BE 는 어떤 오류든 502 `AI_FAILED`(`message` 에 위 `code`), 60초를 넘�
 | `organization` | `null` 또는 비지 않은 문자열(최대 100자) — **요청 `text` 에 들어 있는 글자**여야 한다(아래 「적혀 있나」). 지어낸 이름이면 위반 |
 | `organizationType` · `jobRole` | README 「값 목록」 값 하나 또는 `null`. AI 해석 — 확실하지 않으면 `null`. 목록 밖 값은 위반 |
 | `questions` | 문자열 배열 **0 ~ 10개**, 글에 나온 순서대로, 중복 없음, 각각 비지 않고 최대 5000자. **각각 요청 `text` 에 적혀 있어야 한다** — 문항을 만들거나 다듬어 쓰지 않는다(R-03 범위 제외). 앞 번호(「1.」)는 빼도 된다. 글이 문항 하나뿐이면 그 하나. 못 찾으면 `[]` |
+| `postingLines` | 배열 **0 ~ 40줄**, 공고에 나온 순서, 중복 없음. `section` — README `postingSection` 값(공고의 제목 구조를 따른다 — 「담당업무」 `DUTY` · 「자격요건」 `REQUIRED` · 「우대」 `PREFERRED` · 「기술스택」 `STACK`, 제목이 없으면 고르되 확실하지 않으면 `REQUIRED`). `text` — 비지 않고 300자 이하, **요청 글에 적혀 있어야 한다**(아래 「적혀 있나」 — 글 · 링크일 때). 메뉴 · 전형 절차 · 회사 소개 · 복지 · 지원 방법은 줄로 내지 않는다. `ksa` — README `ksa` 값 또는 `null`(AI 해석 — 확실하지 않으면 `null`) |
+| `readFrom` | `TEXT` · `URL` · `IMAGE` — 요청이 무엇이었나. AI 서버가 붙인다(LLM 이 아니다) |
 | `model` | 실제로 답한 LLM 이름. 선택 |
 
-- **적혀 있나** — 코드로 확인한다: 양쪽의 연속 공백(줄바꿈 포함)을 공백 하나로 줄인 뒤 요청 `text` 의 부분 문자열이면 적혀 있다.
-- `/parse-application` 400: `text` 가 비었음 · `text` · `url` 이 둘 다 있거나 둘 다 없음 · `url` 이 `http(s)://` 가 아님. 413 `TEXT_TOO_LONG`: `text` 가 20000자를 넘음(링크에서 뽑은 글은 자르고 오류로 보지 않는다). 422: 위 「링크 받기」.
+- **적혀 있나** — 코드로 확인한다: 양쪽의 연속 공백(줄바꿈 포함)을 공백 하나로 줄인 뒤 요청 `text` 의 부분 문자열이면 적혀 있다. `organization` · `questions` · `postingLines[].text` 모두 같다 — 줄 앞 글머리(「·」 「-」 「•」 「1.」)는 빼도 된다. `images` 로 받았으면 대조할 글이 없어 확인하지 않는다(`readFrom: IMAGE`).
+- `/parse-application` 400: `text` 가 비었음 · `text` · `url` · `images` 가 둘 이상이거나 하나도 없음 · `url` 이 `http(s)://` 가 아님. 413 `TEXT_TOO_LONG`: `text` 가 20000자를 넘음(링크에서 뽑은 글은 자르고 오류로 보지 않는다). 422: 위 「링크 받기」. 400 `INVALID_IMAGE`: `images` 가 0장 · 5장 넘음 · 형식 · 크기(entrance-api 와 같다). 422 `IMAGE_UNREADABLE`: 위 「캡처 받기」.
 
 ### 오류 — 입구 셋 공통
 
@@ -950,10 +971,86 @@ BE 는 어떤 오류든 502 `AI_FAILED`(`message` 에 위 `code`), 60초를 넘�
 | 413 | `TEXT_TOO_LONG` | 위 엔드포인트마다 적은 경우 |
 | 422 | `URL_BLOCKED` | `/parse-application` `url` — robots.txt 가 막음 |
 | 422 | `URL_UNREADABLE` | `/parse-application` `url` — 위 「링크 받기」에서 못 읽음 |
+| 400 | `INVALID_IMAGE` | `/parse-application` `images` — 장 수 · 형식 · 크기 |
+| 422 | `IMAGE_UNREADABLE` | `/parse-application` `images` — 글자를 거의 못 읽음 |
 | 502 | `LLM_ERROR` | LLM API 호출이 실패함 |
 | 502 | `LLM_INVALID_OUTPUT` | LLM 출력이 응답 규칙을 벗어남(다시 시도한 뒤에도) |
 | 504 | `LLM_TIMEOUT` | 50초 안에 답하지 않음 |
 | 500 | `INTERNAL_ERROR` | 그 밖 |
+
+## POST /posting-match — 공고 요건 줄마다 내 근거 (S-93)
+
+- 부르는 곳: BE 공고 기준 경험 찾기 작업(question-api `POST /api/applications` · `…/posting-match/retry` 뒤)
+- SPEC: `F-17` / `S-93`(`P0`) · `S-19` · `S-22` — ETC#326 · ADR-016
+
+지원의 **공고 요건 줄**과 **그 사용자의 경험 전부**(「POST /match」와 같은 모양)를 받아, 줄마다 근거 있음 / 일부 / 자료에서 확인 안 됨과 받치는 경험을 고르고, **일부(`PARTIAL`)인 줄의 경험에만** 되묻기를 0 ~ 3개 만든다. 문항이 없는 지원(채용 공고 대부분)도 이걸로 「공고 줄 → 내 근거」가 생긴다. 문항 매칭(`/match`)과 따로 부른다 — 지원 하나에 한 번.
+
+요청
+
+```json
+{
+  "jobRole": "BACKEND",
+  "lines": [
+    { "id": 901, "section": "REQUIRED", "text": "대규모 실시간 트래픽 처리 시스템 개발 경험", "ksa": "SKILL" },
+    { "id": 902, "section": "REQUIRED", "text": "장애 경험 및 문제 해결 경험", "ksa": "SKILL" },
+    { "id": 903, "section": "PREFERRED", "text": "Spring Framework 기반의 B2C 서비스 개발 경험", "ksa": "SKILL" }
+  ],
+  "experiences": [ "…「POST /match」 요청의 experiences 와 같은 모양 — 101(바꿔요 WebSocket) · 102 · 104 …" ]
+}
+```
+
+| 필드 | 값 |
+| --- | --- |
+| `jobRole` | 지원의 직무(README `jobRole`) 또는 `null` — 판정 맥락일 뿐이다 |
+| `lines` | 공고 요건 줄 **1 ~ 40줄**. `id` 는 BE 의 줄 ID(중복 없음), `section` · `ksa` 는 README 값(`ksa` 는 `null` 가능), `text` 비지 않고 300자 이하 |
+| `experiences` | 「POST /match」와 같다 — 사용자의 경험 전부, **0개면 `[]`**(오류 아님) |
+
+응답 200
+
+```json
+{
+  "lines": [
+    { "id": 901, "status": "NOT_FOUND", "experienceIds": [] },
+    { "id": 902, "status": "PARTIAL", "experienceIds": [101] },
+    { "id": 903, "status": "SUPPORTED", "experienceIds": [101, 104] }
+  ],
+  "clarifications": [
+    { "lineId": 902, "experienceId": 101, "question": "채팅이 늦게 도착하던 문제를 처음 어떻게 알아차렸나요?" }
+  ],
+  "model": "<LLM 모델 이름>"
+}
+```
+
+### 응답 규칙 — 어기면 AI 서버가 다시 시도한 뒤 `LLM_INVALID_OUTPUT` 으로 돌려준다
+
+| 필드 | 규칙 |
+| --- | --- |
+| `lines` | 요청의 줄마다 **하나씩**(빠짐 · 중복 · 요청에 없는 `id` 금지). 순서는 상관없다 |
+| `lines[].status` | `requirementStatus` 값 — 「POST /match」의 요구사항 판정과 같은 뜻. `DUTY`(담당업무) 줄은 「그 일을 해 본 적이 있나」로 읽는다. `jobRole` · 줄 글만으로 해 봤다고 보지 않는다 |
+| `lines[].experienceIds` | `NOT_FOUND` 면 `[]`, 아니면 **1 ~ 3개**, 더 잘 받치는 것부터. 전부 요청에 있는 경험 ID. `actor` 가 `TEAM` · `UNKNOWN` 인 경험만으로는 `SUPPORTED` 가 아니다(`PARTIAL` — 내 몫이 되묻기 거리) |
+| `clarifications` | 배열 **0 ~ 3개** |
+| `clarifications[].lineId` | `status` 가 `PARTIAL` 인 줄 |
+| `clarifications[].experienceId` | 그 줄의 `experienceIds` 중 하나 — 답이 그 경험의 보완이 된다 |
+| `clarifications[].question` | 비지 않은 문자열 · 80자 이하. 그 줄 · 경험에 맞게 구체적으로. 근거 · 보완에 이미 있는 사실은 묻지 않는다 · 원문에 없는 사실을 전제하지 않는다 · 답을 유도하는 수치 · 역할을 넣지 않는다(S-22 와 같다) |
+| `model` | 실제로 답한 LLM 이름. 선택 |
+
+- 코드가 확인하는 것: 줄 하나씩 · 개수 · 값 목록 · ID 가 요청에 있는지 · 되묻기가 `PARTIAL` 줄 · 그 줄의 경험인지. 판정 · 질문의 내용은 채점으로 잰다(AI#122 · `ai-scope.md`).
+- 경험이 `[]` 면 모든 줄이 `NOT_FOUND`, `clarifications` 는 `[]`.
+- `NOT_FOUND` 줄엔 되묻기를 만들지 않는다 — 받을 경험이 없다. FE 가 「직접 기록하기」(S-01)로 잇는다.
+- 모델 순서 · 시간 · 글자 한도는 「POST /match」와 같다(`MAX_MATCH_CHARS` 에 줄 글도 센다).
+
+### 오류
+
+| HTTP | `code` | 언제 |
+| --- | --- | --- |
+| 400 | `INVALID_REQUEST` | `lines` 가 없거나 0개 · 41줄 이상 · 줄 `id` 중복 · `text` 가 비었거나 300자 넘음 · `section` · `ksa` · `jobRole` 이 목록 밖 · `experiences` 가 없음(`null`) · 경험 `id` 중복 |
+| 413 | `TEXT_TOO_LONG` | 줄 글과 경험 글을 합친 글자 수가 **100000** 을 넘음(`MAX_MATCH_CHARS`) |
+| 502 | `LLM_ERROR` | LLM API 호출이 실패함 |
+| 502 | `LLM_INVALID_OUTPUT` | LLM 출력이 위 규칙을 벗어남(다시 시도한 뒤에도) |
+| 504 | `LLM_TIMEOUT` | 제한 시간 안에 답하지 않음 |
+| 500 | `INTERNAL_ERROR` | 그 밖 |
+
+BE 는 어떤 오류든 공고 기준 경험 찾기를 `FAILED`(`AI_FAILED`, `message` 에 위 `code`)로 둔다 — `/match` 와 같다.
 
 ## POST /link-suggestions — 활동 사이 이어짐 제안
 

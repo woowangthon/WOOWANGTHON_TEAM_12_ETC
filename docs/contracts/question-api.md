@@ -96,6 +96,7 @@ FE ─PUT /api/questions/{id}/answer-draft ▶ BE  쓰는 중인 답 임시 저�
 
 - `experienceId` — 이 질문이 묻는 경험. 늘 이 문항 `recommendations` 의 경험 중 하나다.
 - `supplementId` — 답했으면 그 보완의 ID(`experience.supplements[]` 에 있다), 아직이면 `null`. 건너뛰기는 서버에 아무것도 보내지 않는 것이라 따로 표시가 없다(SPEC S-23).
+- `postingLineId` — 공고 기준 경험 찾기(S-93)의 되묻기면 그 공고 줄 ID, 문항 되묻기면 `null`(ETC#326). 공고 되묻기의 `experienceId` 는 그 줄을 받치는 경험이다(문항 추천이 아니다). 답하기는 같은 `POST /api/clarifications/{clarificationId}/answer`.
 - 문항 하나에 0 ~ 3개(SPEC S-22). 경험이 그새 지워졌으면 빠진다.
 
 지원 `Application`
@@ -107,6 +108,8 @@ FE ─PUT /api/questions/{id}/answer-draft ▶ BE  쓰는 중인 답 임시 저�
   "organizationType": "BOOTCAMP",
   "jobRole": "BACKEND",
   "postingUrl": "https://example.com/recruit/1234",
+  "postingLines": [],
+  "postingMatch": null,
   "applicationStatus": "SUBMITTED",
   "submittedMonth": "2026-11",
   "questions": [
@@ -119,6 +122,8 @@ FE ─PUT /api/questions/{id}/answer-draft ▶ BE  쓰는 중인 답 임시 저�
 
 - `organizationType` · `jobRole` — README 「값 목록」 지원처 종류 · 직무(S-42). 사용자가 고른다 · 선택이라 `null` 일 수 있다. 문항 요약에는 싣지 않는다 — 지원의 것이다.
 - `postingUrl` — 공고 원문 링크(S-46 · `P1`). 넣을 때 사용자가 확인한 값 · 없으면 `null`. FE 는 지원 화면에서 새 탭으로 연다. 서버는 이 링크를 다시 읽지 않는다(본문 · 요약을 저장하지 않는다). 넣은 뒤엔 고치지 않는다.
+- `postingLines` — **공고 요건 줄**(S-91 · ETC#326) `[{ "id", "section", "text", "ksa", "readFrom" }]`, 넣은 순서. 넣을 때 사용자가 확인 · 고친 값 그대로(원문 그대로가 원칙이지만 사용자가 고친 줄도 그대로 저장한다). 없으면 `[]`. 넣은 뒤엔 고치지 않는다. 그 사용자에게만 보인다 — 공개 프로필 · 외부 AI(MCP)에 싣지 않는다. 아래 「공고 기준 경험 찾기」.
+- `postingMatch` — 공고 기준 경험 찾기 결과(S-93). `postingLines` 가 `[]` 면 `null`. 모양은 아래 「공고 기준 경험 찾기」.
 - `applicationStatus` — README 「값 목록」 지원 상태(S-36 · `P1`). **늘 값이 있다** — 새 지원은 `WRITING`(넣을 때 요청에 싣지 않는다). 사용자가 `PATCH` 로만 바꾼다 — 추천 · 초안이 끝나도 저절로 바뀌지 않는다. FE 는 목록의 **꼬리표**로 보인다(보드 · 칸 옮기기가 아니다). 합격률 · 상태별 개수로 모아 보이지 않고, 합격 · 불합격을 점수처럼 칠하지 않는다(SPEC 범위 제외).
 - `submittedMonth` — 낸 달 `"YYYY-MM"`(S-37). 타임라인 「지원도 같이 보기」에서 이 달에 한 줄로 놓인다. 규칙:
   - `applicationStatus` 가 `WRITING` 이면 늘 `null` — 타임라인에 놓이지 않는다.
@@ -142,6 +147,9 @@ FE ─PUT /api/questions/{id}/answer-draft ▶ BE  쓰는 중인 답 임시 저�
   "organizationType": "BOOTCAMP",
   "jobRole": "BACKEND",
   "postingUrl": "https://example.com/recruit/1234",
+  "postingLines": [
+    { "section": "REQUIRED", "text": "대규모 실시간 트래픽 처리 시스템 개발 경험", "ksa": "SKILL", "readFrom": "URL" }
+  ],
   "questions": [
     { "text": "기술적인 문제를 해결한 경험을 구체적으로 적어 주세요." },
     { "text": "지원 동기와 수료 후 목표를 적어 주세요." }
@@ -154,7 +162,8 @@ FE ─PUT /api/questions/{id}/answer-draft ▶ BE  쓰는 중인 답 임시 저�
 | `organization` | 지원처 이름(선택 — 없으면 `null`). 최대 100자 |
 | `organizationType` · `jobRole` | 지원처 종류 · 직무(선택 — 없거나 `null` 이면 비움). README 「값 목록」 값만(S-42) |
 | `postingUrl` | 공고 원문 링크(선택 — 없거나 `null` 이면 비움, S-46). `http://` · `https://` 만, 최대 2000자. 빼고 보내면 `null` 과 같다(S-46 전 FE 와 맞물리게) |
-| `questions` | 문항 **1 ~ 10개**, 넣은 순서가 지원서의 문항 순서. 각 `text` 는 `POST /api/questions` 의 `text` 와 같은 규칙(공백만 안 됨 · 최대 5000자) |
+| `questions` | 문항 **0 ~ 10개**(S-18 — 2026-11-11 전엔 1개 이상), 넣은 순서가 지원서의 문항 순서. 각 `text` 는 `POST /api/questions` 의 `text` 와 같은 규칙(공백만 안 됨 · 최대 5000자). `postingLines` 와 **둘 다 비면 400** |
+| `postingLines` | 공고 요건 줄(선택 — 없으면 `[]`, S-91) **0 ~ 40줄**. 각 `{ "section", "text", "ksa", "readFrom" }` — `section` · `ksa` · `readFrom` 은 README 값(`ksa` 는 `null` 가능), `text` 는 비지 않고 300자 이하. 확인 단계(entrance-api `parse-application`)의 값을 사용자가 고친 그대로 |
 
 응답 202 — 지원과 문항을 저장하고 문항마다 추천을 뒤에서 돌린다.
 
@@ -163,14 +172,14 @@ FE ─PUT /api/questions/{id}/answer-draft ▶ BE  쓰는 중인 답 임시 저�
 ```
 
 - 새 지원은 `applicationStatus: "WRITING"` · `submittedMonth: null` 로 시작한다(S-36). 요청엔 싣지 않는다(실어도 무시한다) — 상태 · 낸 달은 `PATCH` 로만.
-- 문항마다 분석 1회로 센다([`auth-api.md`](auth-api.md) `dailyAnalysis`). 남은 횟수가 문항 수보다 적으면 **아무것도 저장하지 않고** 429 — 일부만 넣지 않는다.
+- 문항마다 분석 1회로 센다([`auth-api.md`](auth-api.md) `dailyAnalysis`). 공고 요건 줄이 1줄 이상이면 공고 기준 경험 찾기로 **1회를 더** 센다(S-93). 남은 횟수가 (문항 수 + 그 1회)보다 적으면 **아무것도 저장하지 않고** 429 — 일부만 넣지 않는다.
 
 오류
 
 | HTTP | `code` | 언제 |
 | --- | --- | --- |
 | 400 | `EMPTY_TEXT` | 어떤 문항의 `text` 가 비었거나 공백뿐 |
-| 400 | `INVALID_REQUEST` | `questions` 가 없거나 0개 · 10개를 넘음 · `text` 가 없음 · `organization` 이 100자를 넘음 · `organizationType` · `jobRole` 이 목록에 없는 값 · `postingUrl` 이 `http(s)://` 가 아니거나 2000자를 넘음 |
+| 400 | `INVALID_REQUEST` | `questions` 가 없음 · 10개를 넘음 · `questions` 와 `postingLines` 가 둘 다 비었음 · `postingLines` 가 40줄을 넘음 · 줄 `text` 가 비었거나 300자를 넘음 · `section` · `ksa` · `readFrom` 이 목록 밖 · `text` 가 없음 · `organization` 이 100자를 넘음 · `organizationType` · `jobRole` 이 목록에 없는 값 · `postingUrl` 이 `http(s)://` 가 아니거나 2000자를 넘음 |
 | 413 | `TEXT_TOO_LONG` | 어떤 문항의 `text` 가 5000자를 넘음 |
 | 429 | `DAILY_LIMIT_EXCEEDED` | 오늘 남은 분석 횟수가 문항 수보다 적음 |
 
@@ -206,6 +215,54 @@ FE ─PUT /api/questions/{id}/answer-draft ▶ BE  쓰는 중인 답 임시 저�
 응답 200 — `Application`. 오류: 404 `APPLICATION_NOT_FOUND`
 
 ---
+
+## 공고 기준 경험 찾기 (S-93 · `P0`)
+
+- SPEC: `F-17` / `S-93` · `S-18` · `S-22` — ETC#326 · ADR-016
+
+`postingLines` 가 1줄 이상인 지원을 넣으면 BE 가 뒤에서 **한 번** 돌린다 — AI `POST /posting-match`(ai-api)에 그 지원의 줄 · 직무 · 그 사용자의 경험 전부를 보내고, 결과를 지원에 저장한다. 분석 1회(위 「POST /api/applications」). 문항 매칭과 함께 돈다.
+
+`Application.postingMatch`
+
+```json
+{
+  "status": "COMPLETED",
+  "error": null,
+  "lines": [
+    { "postingLineId": 901, "status": "NOT_FOUND", "experienceIds": [] },
+    { "postingLineId": 902, "status": "PARTIAL", "experienceIds": [101] },
+    { "postingLineId": 903, "status": "SUPPORTED", "experienceIds": [101, 104] }
+  ],
+  "clarifications": [
+    { "id": 71, "experienceId": 101, "question": "채팅이 늦게 도착하던 문제를 처음 어떻게 알아차렸나요?", "supplementId": null, "postingLineId": 902 }
+  ]
+}
+```
+
+- `status` — 작업 상태(`ANALYZING` · `COMPLETED` · `FAILED`). `ANALYZING` · `FAILED` 면 `lines` · `clarifications` 는 `[]`, `FAILED` 면 `error: { "code", "message" }`(문항 추천의 `error` 와 같은 모양). 정해진 결과로 채우지 않는다(대회 규칙 2).
+- `lines` — 줄마다 하나(`DUTY` 포함). `status` 는 `requirementStatus`, `experienceIds` 는 받치는 경험(`NOT_FOUND` 면 `[]`, 아니면 1 ~ 3개). 그새 지워진 경험은 빠진다(빠져서 0개가 되어도 `status` 는 그대로 — 「경험 다시 찾기」로 갱신).
+- `clarifications` — `Clarification` 모양 + `postingLineId`, 0 ~ 3개, `PARTIAL` 줄의 경험에만. 답하기는 `POST /api/clarifications/{clarificationId}/answer` 그대로(그 경험의 보완이 된다 — S-23). `NOT_FOUND` 줄엔 되묻기가 없다 — FE 가 「직접 기록하기」(S-01)로 잇는다.
+- 지원 지우기(S-89)는 줄 · 결과 · 공고 되묻기를 같이 지운다(되묻기에 답해 생긴 보완은 경험의 것이라 남는다).
+- 문항 0개 지원에 나중에 문항을 더하면(`POST /api/applications/{applicationId}/questions`) 그 문항 매칭에도 직무 · 공고 줄이 맥락으로 실린다(ai-api `/match` 의 `question.jobRole` · `question.postingLines`). 공고 기준 경험 찾기는 다시 돌지 않는다.
+
+## POST /api/applications/{applicationId}/posting-match/retry — 다시 시도 · 경험 다시 찾기
+
+- 쓰는 곳: FE 지원 화면 「공고」 탭의 「다시 시도」 · 「경험 다시 찾기」
+- SPEC: `F-17` / `S-93` · `S-90`(같은 규칙)
+
+요청 본문 없음. **그때의** 경험 · 보완으로 다시 돈다. 분석 1회. 응답 202 — `Application`(`postingMatch.status: "ANALYZING"`).
+
+- `postingMatch.status` 가 `FAILED` · `COMPLETED` 면 받는다 — 같은 트랜잭션에서 옛 결과 · 공고 되묻기를 지우고 `ANALYZING`. 되묻기에 답해 생긴 보완은 남는다.
+- 오늘 분석 횟수를 다 썼으면 429 — 옛 결과를 지우지 않는다.
+
+오류
+
+| HTTP | `code` | 언제 |
+| --- | --- | --- |
+| 404 | `APPLICATION_NOT_FOUND` | 없는 지원 · 남의 지원 |
+| 409 | `POSTING_NOT_FOUND` | 그 지원에 공고 요건 줄이 없음 |
+| 409 | `POSTING_MATCH_ANALYZING` | 이미 돌고 있음 — 아무것도 바꾸지 않는다 |
+| 429 | `DAILY_LIMIT_EXCEEDED` | 오늘 분석 횟수를 다 씀 |
 
 ## POST /api/questions — 지원 문항 넣기
 
@@ -1167,7 +1224,7 @@ BE 가 AI 에 보내는 것(ai-api 「POST /new-facts」):
 - 지원 상태(S-36)의 바뀐 이력 · 상태별 개수 · 합격률 · 상태로 거르기 — 없다. 상태는 꼬리표 하나다. 받은 피드백(면접 질문 · 탈락 사유 · 멘토 의견)을 경험에 쌓기는 ETC#30. 타임라인(`GET /api/activities`)에 지원을 섞어 주는 API 도 없다 — FE 가 `GET /api/applications` 의 `submittedMonth` 로 합친다(S-37) 넣기 전엔 FE 에서 자유롭게 고치고, 넣은 뒤엔 문항 글 고치기 · 지우기(S-89)
 - 「자주 나오는 문항」 목록(S-26) — FE 에 둔다. API 없음. 「내가 넣었던 문항」(S-40)은 `GET /api/questions` 를 FE 가 묶어 보인다 — 새 API 없음
 - 예전 답변을 근거로 쓰기 · 글을 비교한 유사도(LLM · 임베딩) · 예전 답을 「내가 쓴 답」 칸에 채워 넣기 · 지원처 이름 바꿔 주기 — 없다(S-43). 비슷함은 유형 · 직무 · 종류 세 값으로만 고른다
-- 공고 링크에서 본문 가져오기 — entrance-api `parse-application` 의 `url`(S-46). 여기는 원문 링크 `postingUrl` 을 남기기만 한다 · 넣은 뒤 링크 고치기 없음
+- 공고 링크에서 본문 가져오기 — entrance-api `parse-application` 의 `url`(S-46). 여기는 원문 링크 `postingUrl` 을 남기기만 한다 · 넣은 뒤 링크 고치기 없음. 공고 요건 줄(S-91)은 넣을 때 사용자가 확인한 것만 저장한다 — 넣은 뒤 줄 고치기 · 더하기 · 지우기, 공고 요약, 공고 줄 판정을 문항 화면에 섞기는 없다(ETC#326)
 - 답변 초안을 화면에서 고쳐 저장하기(사용자는 고친 글을 「확정」한다 — S-48), 지침 저장 · 켜고 끄기(→ [`guideline-api.md`](guideline-api.md) — 여기는 초안에 실린 지침만), 틀을 문항에 저장하기(틀은 초안 요청의 `frame`), 예전 초안 이력 · 비교, 문항 여러 개를 한 번에 초안으로, 글자 수 맞추기 — 없다. 초안은 문항마다 최신 하나다(S-27)
 - 근거 점검의 예전 결과 모아 보기 · 문장을 고쳐 주기 — 없다. 점검은 문항마다 최신 하나, 글은 사람이 고친다(S-45). 새 경험 후보는 근거 점검 결과가 아니라 확정 답변에서 따로 찾는다(S-48 — 근거 없음엔 과장 · 「팀 → 제가」도 섞인다)
 - 임시 글의 이력 · 탭 사이 충돌 막기 · 임시 글만 지우기 — 없다(S-72). 임시 글은 문항마다 최신 하나이고 확정하면 지워진다

@@ -1201,7 +1201,7 @@ AI 서버는 받은 `mcpUrl` 로 MCP 에 붙어(`initialize` → `tools/list`) �
 
 ## POST /star — 경험을 S · T · A · R 칸으로 나누기 (S-95)
 
-- 부르는 곳: BE — 새 자료 분석이 끝난 뒤(활동마다) · experience-api 「POST /api/activities/{activityId}/star」
+- 부르는 곳: BE — 새 자료 분석이 끝난 뒤(활동마다) · 아직 정리 안 한 경험이 남은 활동(BE 가 알아서 — 동시에 2개까지) · experience-api 「POST /api/activities/{activityId}/star」(실패 다시 시도)
 - SPEC: `F-18` / `S-95` · `S-04` · `S-05` · `S-06` · `S-22` — ETC#327 · ADR-017
 
 한 활동의 경험들을 받아 경험마다 **S(상황) · T(과제 · 내 몫) · A(행동과 노력) · R(결과 및 배운 점)** 칸을 나눈다. AI 는 **근거 발췌문 · 보완 글의 어느 부분이 어느 칸인지만** 고른다 — 새 글 · 다듬은 글 · 요약 금지. 못 채운 칸엔 짧은 질문을 붙인다.

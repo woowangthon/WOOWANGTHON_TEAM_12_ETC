@@ -147,6 +147,15 @@
 | | `RESTORE` | 수정 이력에서 되돌림 |
 | `revisionBy` 누가 고쳤나 (S-80) | `USER` | 나(웹) |
 | | `EXTERNAL_AI` | 외부 AI(MCP 쓰기 도구) |
+| `starSlot` STAR 칸 (S-95) | `S` | 상황 |
+| | `T` | 과제 · 내 몫 |
+| | `A` | 행동과 노력 |
+| | `R` | 결과 및 배운 점 — 배운 점은 사용자 답에서만 |
+| `starStatus` STAR 정리 상태 (S-95) | `NONE` | 아직 정리 안 함 |
+| | `ANALYZING` | 정리 중 |
+| | `READY` | 정리됨 |
+| | `STALE` | 정리한 뒤 근거 · 보완이 바뀜 — 「다시 정리」 |
+| | `FAILED` | 정리 실패 — 「다시 정리」 |
 | `linkStatus` 이어짐 상태 (S-35) | `SUGGESTED` | AI 제안 — 사용자가 아직 정하지 않았다 |
 | | `CONFIRMED` | 맞아요 — 사용자가 이어졌다고 확인했다 |
 | | `REJECTED` | 아니에요 — 다시 제안하지 않는다. 화면 · 활동 세부 응답엔 나오지 않는다 |

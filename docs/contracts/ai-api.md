@@ -1199,6 +1199,89 @@ AI 서버는 받은 `mcpUrl` 로 MCP 에 붙어(`initialize` → `tools/list`) �
 - BE 가 스트림을 끊으면(사용자가 그만둠) 그 자리에서 멈춘다.
 - **채점**: 시험 부탁(「○○ 경험 찾아 줘」 · 「이걸로 지원 만들어 줘」 · 맞는 경험이 없는 부탁)마다 — 쓰기를 `confirm` 없이 부르지 않음 · 마지막 이벤트 규칙 · `message` 에 도구 결과 밖 사실이 없음. AI 레포가 `ai-scope.md` §4 에 적는다.
 
+## POST /star — 경험을 S · T · A · R 칸으로 나누기 (S-95)
+
+- 부르는 곳: BE — 새 자료 분석이 끝난 뒤(활동마다) · experience-api 「POST /api/activities/{activityId}/star」
+- SPEC: `F-18` / `S-95` · `S-04` · `S-05` · `S-06` · `S-22` — ETC#327 · ADR-017
+
+한 활동의 경험들을 받아 경험마다 **S(상황) · T(과제 · 내 몫) · A(행동과 노력) · R(결과 및 배운 점)** 칸을 나눈다. AI 는 **근거 발췌문 · 보완 글의 어느 부분이 어느 칸인지만** 고른다 — 새 글 · 다듬은 글 · 요약 금지. 못 채운 칸엔 짧은 질문을 붙인다.
+
+요청
+
+```json
+{
+  "experiences": [
+    {
+      "id": 101,
+      "content": "채팅 메시지가 늦게 도착하는 문제를 폴링에서 WebSocket 으로 바꿔 해결했다",
+      "actor": "ME",
+      "competencies": ["PROBLEM_SOLVING", "IMPLEMENTATION"],
+      "citations": [{ "id": 201, "quote": "채팅 메시지가 늦게 도착하는 문제가 있었다. 내가 폴링을 WebSocket 으로 바꿔 해결했다." }],
+      "supplements": [{ "id": 301, "question": "폴링을 WebSocket 으로 바꿀 때 직접 고친 부분은 어디였나요?", "answer": "서버에 STOMP 엔드포인트를 만들고, 앱의 3초 폴링 코드를 구독 방식으로 바꿨다" }]
+    }
+  ]
+}
+```
+
+| 필드 | 값 |
+| --- | --- |
+| `experiences` | 한 활동의 경험 **1 ~ 30개**. `id` 중복 없음 |
+| `experiences[].content` · `actor` · `competencies` | `experience-api.md` 「Experience」 그대로 |
+| `experiences[].citations` | `{ id, quote }` — **원본에서 찾은 근거만**(`matched: true`). 확인 못 한 근거는 칸에 쓰지 않으므로 싣지 않는다 |
+| `experiences[].supplements` | `{ id, question, answer }` — 외부 AI 를 거쳐 아직 정하지 않은 보완(`mcpChange`)은 싣지 않는다 |
+
+응답 200
+
+```json
+{
+  "experiences": [
+    {
+      "id": 101,
+      "slots": [
+        { "slot": "S", "sourceType": "CITATION", "sourceId": 201, "text": "채팅 메시지가 늦게 도착하는 문제가 있었다", "question": null },
+        { "slot": "T", "sourceType": null, "sourceId": null, "text": null, "question": "이 문제를 고치는 일은 누가 맡았나요?" },
+        { "slot": "A", "sourceType": "SUPPLEMENT", "sourceId": 301, "text": "서버에 STOMP 엔드포인트를 만들고, 앱의 3초 폴링 코드를 구독 방식으로 바꿨다", "question": null },
+        { "slot": "R", "sourceType": null, "sourceId": null, "text": null, "question": "바꾼 뒤 무엇이 달라졌나요?" }
+      ]
+    }
+  ],
+  "model": "<LLM 모델 이름>"
+}
+```
+
+- 예시 읽는 법: 근거 201 은 「내가 … 바꿔 해결했다」까지 있지만 T(누가 맡았나)는 수행 주체 표시일 뿐 과제 · 몫의 서술이 아니라 빈칸으로 두고 묻는다. 「해결했다」는 결과지만 무엇이 달라졌는지는 없어 R 도 빈칸.
+
+### 응답 규칙 — 어기면 AI 서버가 다시 시도하고, 그래도면 **그 칸만 빈칸으로 내린다**
+
+| 필드 | 규칙 |
+| --- | --- |
+| `experiences` | 요청의 경험마다 **하나씩** — 빠짐 · 중복 · 요청에 없는 `id` 는 응답 전체 위반(`LLM_INVALID_OUTPUT`) |
+| `slots` | **넷** — `S` · `T` · `A` · `R`(README `starSlot`) 각각 하나 |
+| `slots[].sourceType` · `sourceId` | 둘 다 있거나 둘 다 `null`. 있으면 **같은 경험의** `citations[].id`(`CITATION`) · `supplements[].id`(`SUPPLEMENT`) |
+| `slots[].text` | 찬 칸이면 비지 않은 문자열 · 그 출처 글(`quote` · `answer`)에 **적혀 있다**(연속 공백 하나로 줄여 부분 문자열 — 「적혀 있나」). 한 출처 글을 여러 칸에 나눠 담아도 된다(서로 다른 부분). 빈칸이면 `null` |
+| `slots[].question` | 빈칸에만(찬 칸은 `null`) — `null` 또는 한국어 한 문장 80자 이하. 그 경험 · 칸에 맞게 구체적으로 · 근거 · 보완에 이미 있는 사실은 묻지 않는다 · 원문에 없는 사실을 전제하지 않는다 · 답을 유도하는 수치를 넣지 않는다(S-22). T 는 자리(리더 · 팀원)가 아니라 **업무 역할**을 묻는다 |
+| **R 의 배운 점** | 배운 점 · 느낀 점 · 교훈은 `SUPPLEMENT`(사용자 답)에서만. 근거에 결과 사실(「응답이 빨라졌다」)이 있으면 R 에 들어가도 된다 |
+| **T 와 수행 주체** | `actor` 가 `TEAM` · `UNKNOWN` 이면 T 를 `CITATION` 으로 채우지 않는다 — 빈칸 + 「이 일에서 직접 맡은 건 무엇이었나요?」 같은 질문(S-06) |
+| `model` | 실제로 답한 LLM 이름. 선택 |
+
+- 코드가 확인하는 것: 경험 하나씩 · 칸 넷 · 출처 ID 가 같은 경험의 것인지 · **칸 글이 출처 글에 적혀 있는지** · 질문 길이 · 찬 칸에 질문 없음. 경험 · 칸 단위 위반은 다시 시도한 뒤에도 남으면 **그 칸을 빈칸으로**(질문은 `null`) 내리고 수를 로그에 남긴다 — 전체를 실패로 만들지 않는다. 배운 점 출처 · T 규칙 · 질문 내용은 코드로 다 막을 수 없어 채점으로 잰다(AI#125 · `ai-scope.md`).
+- 근거 · 보완이 하나도 없는 경험은 칸 넷이 모두 빈칸이다(질문은 붙여도 된다).
+- 모델 순서 · 시간은 「POST /match」와 같다.
+
+### 오류
+
+| HTTP | `code` | 언제 |
+| --- | --- | --- |
+| 400 | `INVALID_REQUEST` | `experiences` 가 없거나 0개 · 31개 이상 · 경험 `id` 중복 |
+| 413 | `TEXT_TOO_LONG` | 경험 글을 합친 글자 수가 **100000** 을 넘음(`MAX_MATCH_CHARS`) |
+| 502 | `LLM_ERROR` | LLM API 호출이 실패함 |
+| 502 | `LLM_INVALID_OUTPUT` | 응답 전체 위반(경험 빠짐 · 중복 · 모르는 `id`)이 다시 시도한 뒤에도 남음 |
+| 504 | `LLM_TIMEOUT` | 제한 시간 안에 답하지 않음 |
+| 500 | `INTERNAL_ERROR` | 그 밖 |
+
+BE 는 오류면 그 활동 경험들의 `star.status` 를 `FAILED` 로 둔다(자료 분석 작업은 성공 그대로).
+
+
 ## GET /health — 살아 있나
 
 - 부르는 곳: Docker Compose healthcheck · BE 시작 확인

@@ -28,6 +28,6 @@ flowchart LR
 ## 배포
 
 - BE · AI · DB 는 OCI 서버 하나에 Docker Compose. Cloudflare Tunnel 로 BE 만 내보내고, AI 서버 · DB 는 내부망에만 둔다.
-- FE 는 Vercel. main 은 운영, PR 마다 미리보기 URL 이 PR 댓글에 뜬다(ADR-005).
+- FE 는 Vercel. main 만 운영으로 자동 배포한다(ADR-005). PR 미리보기는 하루 배포 한도 때문에 껐다 — UI PR 은 스크린샷(ADR-020).
 - 로그인이 붙기 전엔 Cloudflare Access 로 팀원만 들어온다. 공개 전에 로그인 · 사용 한도(SPEC R-02)를 붙이고 푼다.
 - FE · BE 는 같은 상위 도메인 아래(예: `app.` · `api.`). 도메인 · 서버 · 비밀값은 사람만.

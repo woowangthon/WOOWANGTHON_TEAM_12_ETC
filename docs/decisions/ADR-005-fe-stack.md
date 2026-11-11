@@ -1,6 +1,6 @@
 # ADR-005: FE 는 Next.js(App Router) + Vercel — PR 마다 미리보기 URL
 
-- 상태: 채택
+- 상태: 대체됨 → ADR-020 (PR 미리보기만 — 스택 · main 운영 배포는 그대로)
 - 날짜: 2026-11-02
 
 ## 배경

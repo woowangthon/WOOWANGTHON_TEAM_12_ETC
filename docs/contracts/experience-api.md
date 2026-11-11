@@ -58,8 +58,8 @@ FE ─PATCH /api/activity-links/{id} { status }────▶ BE  CONFIRMED · 
 - `category` — 활동 분류(SPEC S-57, `P1`). README 「값 목록」 `activityCategory`, 미분류면 `null`. 분석이 `/extract` 응답(`ai-api.md`)으로 **새 활동에** 붙이고, 사용자가 `PATCH /api/activities/{id}` 로 고르거나 비운다. 기존 활동은 다시 분석하지 않아 `null` 로 남는다. **모든 `ActivitySummary` · 활동 세부 응답에 실린다** — 이 파일의 다른 예시엔 줄였다. 정리용이라 매칭 · 초안 · 근거 점검 요청에 싣지 않는다.
 - `categoryBy` — 지금 `category` 를 누가 붙였나(README 「값 목록」 `categoryBy` — `AI` · `USER`). `category` 가 `null` 이면 `null`. **BE 만** 붙인다: 분석이 붙이면 `AI`, `PATCH` 에서 `category` 가 실제로 바뀌면 `USER`(같은 값을 보내면 그대로). FE 는 `AI` 일 때 「AI 해석」으로 보인다.
 - `note` — 그때의 나: 이 활동의 계기 · 그때 든 생각 **한 줄**(SPEC S-34, `P1`). 없으면 `null`. 사용자만 쓴다(`PATCH /api/activities/{id}`) — AI 가 만들거나 고치지 않으므로 늘 「내가 입력」이고 출처 칸이 따로 없다. 경험이 아니다 — 경험 · 근거 · 보완과 섞지 않고, `/match` · `/ground-check` · `/ask` 요청에 싣지 않는다(추천 · 점검 근거로 쓰지 않는다). 쓰는 AI 호출은 이어짐 제안(`/link-suggestions`) 하나다. **모든 `ActivitySummary` · 활동 세부 응답에 실린다** — 이 파일의 다른 예시엔 줄였다.
-- `starGapCount` — 이 활동 경험들의 **STAR 빈칸** 수 합(S-97 · ETC#327) — `star.status` 가 `READY` · `STALE` 인 경험의 빈칸(`text: null`)만 센다. 홈 · 서랍의 「차곡이가 물어볼 게 N개」는 없앴다(S-97 폐기 · 2026-11-11 PM · ADR-018) — 지금 화면에서 쓰지 않는다. 필드는 그대로 둔다(빼면 BE · FE 를 같이 고쳐야 해서).
-- `starUnsortedCount` — 이 활동에서 STAR 를 아직 정리하지 않았거나(`NONE`) 실패했거나(`FAILED`) 다시 정리할(`STALE`) 경험 수. 정리는 BE 가 알아서 하므로 화면이 이 수로 버튼을 띄우지 않는다(2026-11-11 PM · ETC#346 · ADR-018).
+- `starGapCount` — 이 활동 경험들의 **STAR 빈칸** 수 합(S-97 · ETC#327) — `star.status` 가 `READY` · `STALE`(지금은 생기지 않음) 인 경험의 빈칸(`text: null`)만 센다. 홈 · 서랍의 「차곡이가 물어볼 게 N개」는 없앴다(S-97 폐기 · 2026-11-11 PM · ADR-018) — 지금 화면에서 쓰지 않는다. 필드는 그대로 둔다(빼면 BE · FE 를 같이 고쳐야 해서).
+- `starUnsortedCount` — 이 활동에서 STAR 를 아직 정리하지 않았거나(`NONE`) 실패했거나(`FAILED`) 경험 수(`STALE` 은 2026-11-12 부터 생기지 않는다 — ADR-019). 정리는 BE 가 알아서 하므로 화면이 이 수로 버튼을 띄우지 않는다(2026-11-11 PM · ETC#346 · ADR-018).
 - `mergeSuggestion` — 「기존 활동 X 와 같아 보여요」 AI 제안(SPEC S-44, `P1`). 없으면 `null`. 있으면 같아 보이는 **기존** 활동의 `{ "activityId", "name", "period" }` — `name` · `period` 는 지금 그 활동의 값이다(BE 가 응답 때 채운다). **모든 `ActivitySummary` · 활동 세부 응답에 실린다** — 이 파일의 다른 예시엔 줄였다(전부 `null`).
   - 만드는 곳: 분석 작업이 `/extract` 응답의 `sameAsActivityId`(`ai-api.md`)로 **새 활동에** 붙인다. 그 밖에서는 생기지 않는다(직접 고치거나 옮겨도 새로 생기지 않는다).
   - 「붙이기」 = `POST /api/activities/{mergeSuggestion.activityId}/merge` `{ "fromActivityId": <제안이 붙은 새 활동> }` — 기존 활동이 남는다(아래 「활동 합치기」). 「따로 두기」 = `DELETE /api/activities/{activityId}/merge-suggestion`.
@@ -162,7 +162,7 @@ STAR 칸 `Star` — `P1` (SPEC F-18 · S-95 · S-96 · ETC#327 · ADR-017)
 }
 ```
 
-- `status` — README `starStatus`. `NONE`(아직 정리 안 함) · `ANALYZING`(정리 중) · `READY` · `STALE`(정리한 뒤 근거 · 보완이 바뀜 — BE 가 곧 다시 정리) · `FAILED`(정리 실패 — 「다시 시도」). `NONE` · `ANALYZING` 이면 `slots: []`. `FAILED` 면 마지막으로 `READY` 였던 칸이 있으면 그대로, 없으면 `[]`.
+- `status` — README `starStatus`. `NONE`(아직 정리 안 함) · `ANALYZING`(정리 중) · `READY` · `STALE`(**쓰지 않는다** — 2026-11-12 부터 BE 가 만들지 않고 있던 것도 `READY` 로 돌렸다 · ADR-019. 값만 남긴다) · `FAILED`(정리 실패 — 「다시 시도」). `NONE` · `ANALYZING` 이면 `slots: []`. `FAILED` 면 마지막으로 `READY` 였던 칸이 있으면 그대로, 없으면 `[]`.
 - `slots` — `READY` · `STALE` · (이전 칸이 있는) `FAILED` 에선 **늘 넷**, `S` · `T` · `A` · `R` 순(README `starSlot`). R 은 「결과 및 배운 점」.
 - **찬 칸**: `text` 는 `sourceType`(`CITATION` 근거 · `SUPPLEMENT` 보완)의 `sourceId` 글 — 근거 `quote` · 보완 `answer` — 에 **적혀 있다**(연속 공백을 하나로 줄여 부분 문자열 — ai-api 「적혀 있나」와 같다). 칸 글은 그 글의 일부이거나 전부다. 출처는 **같은 경험의** 근거 · 보완이다.
 - **빈칸**: `text` · `sourceType` · `sourceId` 가 `null`. `question` 은 차곡이가 물을 한 문장(80자 이하) 또는 `null`(질문 없음 — FE 는 칸 이름 + 「직접 쓰기」).
@@ -1212,7 +1212,8 @@ AI 에 싣는 것: 활동마다 `id` · 이름 · 기간 · 계기(`note`, 후�
 
 언제 정리되나
 - **새 자료 분석 뒤**: 분석 작업(`POST /api/sources` · `/batch` · 자료 더하기)이 만든 활동의 경험은, 작업이 `COMPLETED` 가 된 **뒤에** BE 가 활동마다 AI `POST /star` 를 불러 정리한다 — **분석 횟수를 더 세지 않는다**. 작업 상태 · 시간은 지금 그대로다(STAR 를 기다리지 않는다). 정리하는 동안 그 경험들은 `star.status: ANALYZING`, 실패하면 `FAILED`(분석은 성공 그대로).
-- **이미 있던 경험 · 근거가 바뀐 경험**: BE 가 알아서 정리한다 — `NONE` 경험이 남은 활동은 한 번 몰아서(배포 뒤, 이후 새로 생기면 그때), `STALE` 이 되면 그 활동을 다시. **분석 횟수를 세지 않는다.** 사용자 답(보완) · 사용자가 고친 칸은 다시 정리로 사라지지 않는다. 동시에 부르는 수 · 모아 부르기는 BE 가 정한다(BE#180). (2026-11-11 PM · ETC#346 · ADR-018 · 미결정 31 — 전엔 사용자가 「STAR 로 정리」를 누를 때만이었다)
+- **이미 있던 경험**: BE 가 알아서 정리한다 — `NONE` 경험이 남은 활동은 한 번 몰아서(배포 뒤), 이후 자료 분석 밖에서 생긴 경험(직접 기록 · 합치기 등)도 그때. **분석 횟수를 세지 않는다.** 그 활동의 `NONE` 경험만 보낸다. 동시에 부르는 수 · 모아 부르기는 BE 가 정한다(BE#180). (2026-11-11 PM · ETC#346 · ADR-018 · 미결정 31 — 전엔 사용자가 「STAR 로 정리」를 누를 때만이었다)
+- **한 번 정리한 경험은 다시 정리하지 않는다** — 근거 · 보완이 바뀌어도 AI 를 다시 부르지 않고 상태는 그대로다. 칸은 아래 「다른 동작과의 관계」대로 실제 글만 가리키게 맞춘다. 사용자는 칸을 그 자리에서 고친다(2026-11-12 PM · ADR-019 — 전엔 `STALE` 이 되면 BE 가 다시 정리하기로 했다)
 - 진행은 `GET /api/activities/{activityId}` 의 경험 `star.status` 로 본다(작업 ID 를 따로 주지 않는다).
 
 ### POST /api/activities/{activityId}/star — 실패한 정리 다시 시도
@@ -1220,7 +1221,7 @@ AI 에 싣는 것: 활동마다 `id` · 이름 · 기간 · 계기(`note`, 후�
 - 쓰는 곳: FE 활동 세부 — `FAILED` 경험의 「다시 시도」뿐(2026-11-11 PM · ETC#346 — 「STAR 로 정리」 · 「다시 정리」 버튼은 없앴다)
 - SPEC: `F-18` / `S-95`
 
-이 활동의 경험 **전부**를 다시 정리한다(`NONE` · `READY` · `STALE` · `FAILED` 모두 — 이미 `READY` 인 칸도 새 결과로 바뀐다). 요청 본문 없음. 분석 횟수를 **세지 않는다**(2026-11-11 PM · ETC#346 · 미결정 31 — 전엔 1회를 셌다).
+이 활동의 경험 **전부**를 다시 정리한다(`NONE` · `READY` · `FAILED` 모두 — 이미 `READY` 인 칸도 새 결과로 바뀐다). 요청 본문 없음. 분석 횟수를 **세지 않는다**(2026-11-11 PM · ETC#346 · 미결정 31 — 전엔 1회를 셌다).
 
 응답 202 — 활동 세부(`GET /api/activities/{activityId}` 와 같은 모양), 그 경험들의 `star.status: "ANALYZING"` · `slots: []`. 끝나면 `READY` 또는 `FAILED`.
 
@@ -1266,11 +1267,11 @@ AI 에 싣는 것: 활동마다 `id` · 이름 · 기간 · 계기(`note`, 후�
 
 | 동작 | STAR |
 | --- | --- |
-| 보완 고치기(`PATCH /api/supplements/{id}`) — 칸이 가리키는 보완 | 칸 글이 새 `answer` 를 따른다(보완 글 전부를 가리키는 칸이면 그대로 따라감, 일부를 가리키던 칸이면 `STALE`) |
-| 보완 지우기 · 근거가 사라짐 | 그 칸은 빈칸으로 싣고 경험은 `STALE` |
-| 경험 본문 · 수행 주체 · 역량 고치기(`PATCH /api/experiences/{id}`) | 칸은 그대로. 수행 주체가 `ME` 에서 바뀌면 `STALE`(T 칸 규칙이 달라진다) |
+| 보완 고치기(`PATCH /api/supplements/{id}`) — 칸이 가리키는 보완 | 보완 글 전부를 가리키는 칸이면 새 `answer` 를 따라간다. 일부를 가리키던 칸은 그 글이 새 `answer` 에 남아 있으면 그대로, 없으면 빈칸(질문은 남는다) |
+| 보완 지우기 · 근거가 사라짐 | 그 칸은 빈칸(질문은 남는다) |
+| 경험 본문 · 수행 주체 · 역량 고치기(`PATCH /api/experiences/{id}`) | 칸은 그대로. 수행 주체가 `ME` 에서 바뀌면 근거(`CITATION`)로 찬 T 칸은 빈칸(T 칸 규칙 — ai-api 「T 와 수행 주체」) |
 | 경험 옮기기(S-12) | 그대로 따라간다 |
-| 경험 합치기(S-70) | 남길 경험이 `STALE`(근거 · 보완이 늘었다) — 지운 경험의 STAR 는 사라진다 |
+| 경험 합치기(S-70) | 남길 경험의 칸은 그대로(늘어난 근거 · 보완은 칸에 자동으로 들어가지 않는다 — 사용자가 칸을 고친다). 지운 경험의 STAR 는 사라진다. 남길 경험이 `NONE` 이면 위 「이미 있던 경험」대로 정리된다 |
 | 활동 합치기(S-13) | 경험이 그대로 옮겨지므로 그대로 |
 | 경험 · 활동 지우기 | 같이 지운다 |
 | 수정 이력(S-80) | 칸 답 · 칸 고치기는 보완으로 남는다 — 보완 이력 규칙 그대로 |

@@ -105,12 +105,13 @@ FE ─POST /api/revisions/{id}/restore────────▶ BE  그 기록
 
 ## GET /api/revisions — 최근 수정 · 항목의 수정 이력
 
-- 쓰는 곳: FE 헤더 저장 상태의 「최근 수정」 · 경험 · 활동 메뉴와 답칸 줄의 「수정 이력」
+- 쓰는 곳: FE 헤더 저장 상태의 「최근 수정」 · 활동 메뉴와 답칸 줄의 「수정 이력」
 - SPEC: `S-80`
 
 | 쿼리 | 값 |
 | --- | --- |
 | `targetType` · `targetId` | 둘 다 주면 그 항목만, 둘 다 빼면 전체. 하나만 주면 400 |
+| `activityId` | 그 활동(`ACTIVITY`)의 기록과 **지금 그 활동에 속한 경험**(`EXPERIENCE`)의 기록을 섞어서(2026-11-11 · BE#168). 다른 활동으로 옮긴 경험의 기록은 옮겨 간 활동에서 보인다. `targetType` · `targetId` 와 같이 주면 400. 없는 활동 · 남의 활동이면 404 `ACTIVITY_NOT_FOUND` |
 | `cursor` | 앞 응답의 `nextCursor` 그대로. 처음엔 뺀다. FE 는 값을 해석하지 않는다 |
 | `limit` | 1 ~ 50, 기본 20 |
 
@@ -128,7 +129,7 @@ FE ─POST /api/revisions/{id}/restore────────▶ BE  그 기록
 
 | HTTP | `code` | 언제 |
 | --- | --- | --- |
-| 400 | `INVALID_REQUEST` | `targetType` · `targetId` 가 하나만 · 틀린 `targetType` · `limit` 범위 밖 · 읽을 수 없는 `cursor` |
+| 400 | `INVALID_REQUEST` | `targetType` · `targetId` 가 하나만 · `activityId` 를 `targetType` · `targetId` 와 같이 · 틀린 `targetType` · `limit` 범위 밖 · 읽을 수 없는 `cursor` |
 | 404 | `EXPERIENCE_NOT_FOUND` · `ACTIVITY_NOT_FOUND` · `QUESTION_NOT_FOUND` | 항목만 볼 때 없거나 남의 항목 |
 
 ## POST /api/revisions/{revisionId}/restore — 그때 값 · 수정 전 값으로 되돌리기

@@ -12,7 +12,7 @@ FE ─POST /api/mcp/connection────────▶ BE  연결 주소 만�
 Claude ─POST /mcp/{token} (JSON-RPC)──▶ BE  토큰 → 사용자 → 그 사용자의 경험만 읽는다
 FE ─PATCH /api/mcp/connection───────▶ BE  쓰기 켜기 · 끄기 (기본 꺼짐, S-52)
 FE ─GET /api/mcp/changes─────────────▶ BE  외부 AI 가 바꾼 것 보기 → 맞아요 · 되돌리기 (S-53 · S-54)
-FE ─DELETE /api/mcp/connection──────▶ BE  연결 끊기 → 그 주소는 바로 401
+FE ─DELETE /api/mcp/connection──────▶ BE  연결 끊기 → 그 주소는 바로 404
 ```
 
 - 데모는 **Claude 하나**로 확인한다(claude.ai · Claude Desktop 의 커스텀 커넥터, 또는 Claude Code `claude mcp add --transport http <이름> <주소>`). 다른 클라이언트 차이는 보지 않는다.
@@ -37,7 +37,7 @@ FE ─DELETE /api/mcp/connection──────▶ BE  연결 끊기 → 그 
 | --- | --- | --- | --- | --- |
 | `READ` | 사용자가 연결 화면에서(위 API) | 끊거나 다시 만들 때까지 | 읽기 도구 3개 | 읽기 도구 |
 | `READ_WRITE` | 사용자가 연결 화면에서 쓰기를 켤 때 — 같은 주소의 범위만 바뀐다(`PATCH /api/mcp/connection`) | 끄거나 끊거나 다시 만들 때까지 | 읽기 도구 3개 + `get_question` + `add_source` · `update_experience` · `create_application` · `answer_clarification` | 읽기 도구 · `get_question` + 그 쓰기 도구 4개 — **바로 실행** |
-| `CHAGOK` | BE 가 차곡이 일 하나마다(`chagok-api.md`) | **10분** 또는 그 일이 끝날 때까지 — 먼저 오는 쪽. 지나면 401 | 읽기 3개 + 쓰기 도구 | 읽기 도구만. 쓰기 도구는 `CONFIRM_REQUIRED` |
+| `CHAGOK` | BE 가 차곡이 일 하나마다(`chagok-api.md`) | **10분** 또는 그 일이 끝날 때까지 — 먼저 오는 쪽. 지나면 404 | 읽기 3개 + 쓰기 도구 | 읽기 도구만. 쓰기 도구는 `CONFIRM_REQUIRED` |
 
 - 차곡이(AI 서버)는 BE 가 `POST /agent` 에 실어 준 **내부망 주소**(`MCP_INTERNAL_BASE_URL` + 토큰)로 부른다 — AI 서버는 밖에 나가지 않는다(ADR-004). 「사용자 X 를 대신해」는 이 토큰이 정한다(ADR-008 에서 미룬 내부 호출 인증).
 - `CHAGOK` 토큰은 연결 화면(`GET /api/mcp/connection`)에 보이지 않고, 사용자당 연결 하나 규칙에도 세지 않는다.
@@ -112,7 +112,7 @@ FE ─DELETE /api/mcp/connection──────▶ BE  연결 끊기 → 그 
 
 요청 본문 없음. 연결이 없어도 204(같은 결과).
 
-응답 204 — 본문 없음. 그 뒤 예전 주소로 오는 MCP 요청은 401.
+응답 204 — 본문 없음. 그 뒤 예전 주소로 오는 MCP 요청은 404(본문은 아래 「MCP 엔드포인트」 인증 실패).
 
 ---
 
@@ -128,7 +128,7 @@ FE ─DELETE /api/mcp/connection──────▶ BE  연결 끊기 → 그 
 | 프로토콜 버전 | 클라이언트가 `initialize` 에 보낸 버전을 지원하면 그대로, 아니면 BE 가 지원하는 최신 버전으로 답한다 |
 | 받는 메서드 | `initialize` · `notifications/initialized`(202, 본문 없음) · `ping` · `tools/list` · `tools/call`. 그 밖엔 JSON-RPC 오류 `-32601` |
 | 서버 정보 | `serverInfo.name` = `woowang-experiences`. `instructions` 에 아래 「읽는 규칙」을 싣는다 |
-| 인증 실패 | 없는 · 끊긴 토큰이면 HTTP **401**(JSON-RPC 본문 없이). 클라이언트에 「연결 실패」로 보인다 |
+| 인증 실패 | 없는 · 끊긴 토큰이면 HTTP **404** + `Content-Type: application/json` 의 JSON-RPC 오류 `{"jsonrpc":"2.0","id":<요청 id 또는 null>,"error":{"code":-32001,"message":"연결 주소가 바뀌었거나 끊겼어요. 웹 「연결」 화면에서 새 주소를 받아 다시 연결해 주세요."}}`. 없는 토큰과 끊긴 토큰을 구분해 알려 주지 않는다. 본문 없는 401 은 클라이언트가 빈 본문을 읽다 SyntaxError 만 띄우고, 401 은 클라이언트가 OAuth 등록으로 넘어가 이유가 가려져서 404 로 한다(BE#187 — Claude Code 는 「MCP endpoint not found … Check the URL」로 보인다) |
 | 쿠키 · CORS | 쓰지 않는다. 로그인 세션과 상관없다 |
 
 라이브러리(Spring AI MCP 서버 등)를 쓸지, 위 다섯 메서드를 직접 받을지는 BE 가 정한다 — 쓰면 ETC `docs/ai-scope.md` 에 더한다(대회 규칙 3).

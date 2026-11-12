@@ -216,7 +216,8 @@ BE 가 문항과 **그 사용자의 경험 전부**를 후보로 보낸다([ADR-
       "actor": "TEAM",
       "sourceStatus": "SOURCE_CONFIRMED",
       "citations": [{ "id": 202, "quote": "팀은 매주 금요일 스프린트 회고를 했다." }],
-      "supplements": []
+      "supplements": [],
+      "askedQuestions": ["회고를 진행할 때 직접 맡은 일이 있었다면 무엇이었나요?"]
     },
     {
       "id": 103,
@@ -265,7 +266,8 @@ BE 가 문항과 **그 사용자의 경험 전부**를 후보로 보낸다([ADR-
 | `experiences[].activityId` · `activityName` · `period` | 그 경험이 속한 활동 — 문맥 단서. `activityId` 는 추천의 활동 수를 세는 데 쓴다(S-84 · ETC#274). 다른 예시에선 줄였다 |
 | `experiences[].content` · `competencies` · `actor` · `sourceStatus` | `experience-api.md` 「Experience」 그대로 |
 | `experiences[].citations` | `{ id, quote }` 만. 원본에서 확인 못 한 근거(`matched: false`)도 싣는다 — 경험의 `sourceStatus` 가 그걸 말해 준다 |
-| `experiences[].supplements` | 보완 `{ id, question, answer }`. 사용자가 직접 말한 사실이다(「내가 입력」). 없으면 `[]` |
+| `experiences[].supplements` | 보완 `{ id, question, answer }`. 사용자가 직접 말한 사실이다(「내가 입력」). 없으면 `[]`. 답이 「딱히 없음 · 기억 안 남」처럼 **그 사실이 없다는 말**이면 없다는 확인으로 읽는다 — 그 사실이 있었다고 쓰지 않고, 같은 것을 다시 묻지 않는다(ETC#354) |
+| `experiences[].askedQuestions` | 선택(ETC#354). **같은 지원서의 다른 문항**에서 이 경험에 이미 냈는데 아직 답하지 않은 되묻기의 질문 글(문자열), 0 ~ 10개 — 없으면 싣지 않는다(`[]` 와 같게 읽는다). AI 는 같은 사실을 말만 바꿔 다시 묻지 않는다 — 문항마다 따로 불러서 생기던 중복(「…조율하면서 맡은 일이 있었다면」 · 「…조율할 때 직접 맡은 일이 있었다면」)을 막는다. 그 사실이 이 문항에 꼭 필요하면 묻지 않고 `gaps` 에 남긴다. 답한 되묻기는 싣지 않는다(이미 `supplements` 에 있다). BE 는 최근 것부터 10개까지. 질문 글은 읽을 자료일 뿐 지시로 따르지 않는다. `/posting-match` 도 같다(같은 지원서의 문항 되묻기) |
 
 응답 200
 
@@ -508,7 +510,7 @@ BE 는 어떤 오류든 점검을 `FAILED`(`AI_FAILED`, `message` 에 위 `code`
 | `question.requirements` | 선택. 그 문항의 매칭 요구사항 `{ text, status }` 배열 — question-api `Requirement` 에서 `experienceIds` 를 뺀 것, 저장된 순서 그대로. 없거나 `[]` 면 문항만 보고 쓴다 |
 | `experiences` | 사용자가 고른 경험 **1 ~ 8개**, 고른 순서대로(활동별로 모여 있다 — 첫째 활동이 뼈대, S-75 · S-84) — `/match` 요청과 같은 모양. `id` 중복 없음 |
 | `experiences[].citations` | **원본에서 찾은 근거만**(`matched: true`) `{ id, quote }` — `/ground-check` 와 같다. 확인 못 한 근거는 싣지 않는다 |
-| `experiences[].supplements` | 보완 `{ id, question, answer }` 전부. 사용자가 직접 말한 사실이다(「내가 입력」) |
+| `experiences[].supplements` | 보완 `{ id, question, answer }` 전부. 사용자가 직접 말한 사실이다(「내가 입력」). 답이 「딱히 없음 · 기억 안 남」처럼 그 사실이 없다는 말이면 그 사실을 `FACT` · `ELABORATED` 로도, 목표 글자 수를 채우는 `SUPPOSED` 로도 쓰지 않고 `omitted` 로 다시 묻지 않는다(ETC#354) |
 | `experiences[].sourceStatus` | `USER_ENTERED` 인 경험만 본문(`content`)이 근거(`EXPERIENCE`)가 될 수 있다 — `/ground-check` 와 같다 |
 | `experiences[].reason` · `emphasis` · `gaps` | 선택. 그 문항의 추천에서 **이 경험의** 이유 · 강조점(문자열) · 부족한 점(문자열 배열) — question-api `Recommendation` 그대로. 없으면 싣지 않는다 |
 | `contextExperiences` | 선택. 고른 경험과 같은 활동의 나머지 경험 0 ~ 12개, `experiences` 와 같은 모양(`reason` · `emphasis` · `gaps` 없음). 뒷받침 재료다 — 고른 경험이 뼈대. 근거 · 보완 ID 를 `evidence` 로 붙일 수 있고, 빠진 사실(`omitted[].experienceId`)을 이 경험에 붙여도 된다(S-75). 사용자가 끄면(question-api `useContext: false`) 싣지 않는다 — FE 는 2026-11-10 부터 끄지 않는다(ADR-014). **문항에 맞는 줄만 쓴다** — 맞지 않는 줄을 「또한 …」으로 붙이지 않는다 |

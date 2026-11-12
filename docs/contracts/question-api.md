@@ -95,7 +95,7 @@ FE ─PUT /api/questions/{id}/answer-draft ▶ BE  쓰는 중인 답 임시 저�
 ```
 
 - `experienceId` — 이 질문이 묻는 경험. 늘 이 문항 `recommendations` 의 경험 중 하나다.
-- `supplementId` — 답했으면 그 보완의 ID(`experience.supplements[]` 에 있다), 아직이면 `null`. 건너뛰기는 서버에 아무것도 보내지 않는 것이라 따로 표시가 없다(SPEC S-23).
+- `supplementId` — 답했으면 그 보완의 ID(`experience.supplements[]` 에 있다), 아직이면 `null`. 건너뛰기는 서버에 아무것도 보내지 않는 것이라 따로 표시가 없다(SPEC S-23 — FE 가 브라우저에만 기억한다). 건너뛴 되묻기도 아직 답하지 않은 것이라 다른 문항 추천의 `askedQuestions`(ai-api 「POST /match」)에 실린다 — 다시 묻지 않는다.
 - `postingLineId` — 공고 기준 경험 찾기(S-93)의 되묻기면 그 공고 줄 ID, 문항 되묻기면 `null`(ETC#326). 공고 되묻기의 `experienceId` 는 그 줄을 받치는 경험이다(문항 추천이 아니다). 답하기는 같은 `POST /api/clarifications/{clarificationId}/answer`.
 - 문항 하나에 0 ~ 3개(SPEC S-22). 경험이 그새 지워졌으면 빠진다.
 

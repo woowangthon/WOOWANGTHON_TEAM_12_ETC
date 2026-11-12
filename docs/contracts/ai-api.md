@@ -1175,7 +1175,7 @@ AI 서버는 받은 `mcpUrl` 로 MCP 에 붙어(`initialize` → `tools/list`) �
 | `text` | 사용자 부탁 그대로(50000자 이하). 자료를 붙여 넣은 부탁이면 `add_source` 의 `text` 는 이 안의 글을 **그대로** 잘라 쓴다 — 요약 · 고쳐 쓰지 않는다 |
 | `context.question` | 지원 화면에서 열었을 때 그 문항 — 아니면 `context: { "question": null }` |
 | `context.question.experiences` | 그 문항에 **지금 걸린 경험**(ETC#300) — 추천 순서대로 추천 경험, 그 뒤 추천엔 없고 초안에만 쓴 경험(S-90 재매칭 뒤 생긴다). 하나는 `{ id, activityName, content, recommended, inDraft }`. 없으면 `[]` · 빼도 `[]` 와 같다(이전 BE 와 맞물리게). 차곡이는 「다른 경험 · 지금 것 말고」 부탁에서 이것을 「지금 고른 경험」으로 보고 되묻지 않는다. 말의 근거(`message` 규칙)에 넣어도 된다. FE 에서 체크한 활동은 BE 가 모르니 싣지 않는다 — 초안에 쓴 경험이 대신한다 |
-| `mcpUrl` | 이 일에만 쓰는 MCP 주소. **내부망 주소**(BE 설정 `MCP_INTERNAL_BASE_URL`) + CHAGOK 토큰. 일이 끝나면 401 이 된다. 로그에 남기지 않는다 |
+| `mcpUrl` | 이 일에만 쓰는 MCP 주소. **내부망 주소**(BE 설정 `MCP_INTERNAL_BASE_URL`) + CHAGOK 토큰. 일이 끝나면 404 가 된다. 로그에 남기지 않는다 |
 | `maxToolCalls` | 도구를 부를 수 있는 최대 횟수(BE 설정, 기본 8). 넘으면 `error` `TOO_MANY_STEPS` |
 
 응답 200 — `Content-Type: application/x-ndjson`. 줄마다 아래 이벤트 하나. **마지막 줄은 늘 `done` · `confirm` · `error` 중 하나**다.
@@ -1194,7 +1194,7 @@ AI 서버는 받은 `mcpUrl` 로 MCP 에 붙어(`initialize` → `tools/list`) �
 | `message` | `text` 300자 이하. **도구 결과에 있는 것만** 말한다 — 없는 경험 · 수치를 지어내지 않고, `actor` · `sourceStatus` 를 바꿔 말하지 않는다(`mcp-api.md` 「읽는 규칙」과 같다). 경험 내용을 길게 옮기지 않는다(FE 가 `result` 로 카드를 그린다) |
 | `confirm` | 쓰기 도구(`readOnlyHint: false`)를 쓰고 싶을 때 — **부르지 않고** 이걸 보내고 끝낸다. `tool` · `arguments`(그 도구의 `inputSchema` 에 맞게) · `label`(무엇을 할지 한 줄). 한 응답에 하나 |
 | `done` | 쓰기 없이 끝났다(찾아 보여 주기만 한 부탁) |
-| `error` | `code` · `message` — `LLM_ERROR` · `LLM_TIMEOUT` · `TOO_MANY_STEPS` · `MCP_UNAVAILABLE`(MCP 에 닿지 못함 · 401) · `INTERNAL_ERROR`. 정해진 답으로 채우지 않는다 |
+| `error` | `code` · `message` — `LLM_ERROR` · `LLM_TIMEOUT` · `TOO_MANY_STEPS` · `MCP_UNAVAILABLE`(MCP 에 닿지 못함 · 404) · `INTERNAL_ERROR`. 정해진 답으로 채우지 않는다 |
 
 - 스트림을 열기 전에 실패하면(요청 모양이 틀림) 다른 엔드포인트처럼 400 `INVALID_REQUEST` + 오류 JSON 이다.
 - 시간: 일 전체를 **110초** 안에 끝내거나 `error` `LLM_TIMEOUT`(`AGENT_TIMEOUT_SECONDS`). BE 는 120초(`CHAGOK_TIMEOUT_SECONDS`)에서 끊는다. 비동기라 Cloudflare 100초와 상관없다.

@@ -16,7 +16,7 @@ FE ─DELETE /api/mcp/connection──────▶ BE  연결 끊기 → 그 
 ```
 
 - 데모는 **Claude 하나**로 확인한다(claude.ai · Claude Desktop 의 커스텀 커넥터, 또는 Claude Code `claude mcp add --transport http <이름> <주소>`). 다른 클라이언트 차이는 보지 않는다.
-- 읽기 도구는 LLM 을 부르지 않는다 — 하루 분석 한도([`auth-api.md`](auth-api.md))에 세지 않는다. 외부 쓰기의 `add_source` 는 분석 1회, `create_application` 은 문항마다 1회로 센다 — 웹과 **같은 서비스 코드**를 부른다. MCP 전용으로 LLM 을 부르는 길을 두지 않는다.
+- 읽기 도구는 LLM 을 부르지 않는다 — 하루 분석 한도([`auth-api.md`](auth-api.md))에 세지 않는다. 외부 쓰기의 `add_source` 는 분석 1회, `create_application` 은 문항마다 1회(공고 요건 줄이 있으면 1회 더)로 센다 — 웹과 **같은 서비스 코드**를 부른다. MCP 전용으로 LLM 을 부르는 길을 두지 않는다.
 
 ## 연결 주소 — 정한 것 (기본값, BE 담당이 시작할 때 바꿀 수 있다)
 
@@ -154,7 +154,7 @@ FE ─DELETE /api/mcp/connection──────▶ BE  연결 끊기 → 그 
 - add_source 의 text 는 사용자가 준 글 그대로다. 요약하거나 고쳐 쓰지 않는다.
 - update_experience 로 고친 경험은 바로 바뀌지만 확인 필요(NEEDS_REVIEW)가 된다. 사용자가 웹에서 맞아요를 누르거나 되돌린다 — 확정됐다고 말하지 않는다.
 - 고치기는 경험 본문만 된다. 수행 주체 · 역량 · 지우기는 웹에서 하도록 안내한다.
-- create_application 의 문항은 사용자가 준 글에 적힌 것만 싣는다. 문항을 지어내지 않는다. 문항마다 분석 1회로 센다.
+- create_application 의 문항은 사용자가 준 글에 적힌 것만 싣는다. 문항을 지어내지 않는다. 문항이 없는 공고면 questions 를 비우고 postingLines 에 공고 요건 줄을 싣는다. 문항마다 분석 1회, 공고 요건 줄이 있으면 1회 더 센다.
 - get_question 의 status 가 ANALYZING 이면 잠시 뒤 다시 부른다. FAILED 면 실패했다고 말하고 추천을 지어내지 않는다.
 - answer_clarification 의 answer 는 사용자가 이 대화에서 그 되묻기에 한 말 그대로다. 사용자 대신 답하거나 경험 · 근거로 채우지 않는다.
 - mcpChange 가 있는 보완은 외부 AI 를 거쳐 아직 확인 전이다. 사용자가 웹에서 맞아요를 누르기 전엔 근거로 쓰이지 않는다.
@@ -253,7 +253,7 @@ FE ─DELETE /api/mcp/connection──────▶ BE  연결 끊기 → 그 
 
 #### `create_application` — 지원 만들기
 
-입력 — `question-api.md` `POST /api/applications` 요청과 같다(`organization` · `organizationType` · `jobRole` · `postingUrl` · `questions` 1 ~ 10개). 검사 규칙도 같다.
+입력 — `question-api.md` `POST /api/applications` 요청과 같다(`organization` · `organizationType` · `jobRole` · `postingUrl` · `questions` **0 ~ 10개** · `postingLines` 0 ~ 40줄 — 둘 다 비면 `INVALID_ARGUMENT`). 검사 규칙도 같다. 문항이 없는 채용 공고는 `questions: []` + 공고 요건 줄로 만든다(S-18 · BE#192 — 2026-11-13 전엔 문항 1개 이상). 줄은 외부 AI 가 공고 글에서 그대로 옮겨 채운다(`ksa` 는 `null` 가능).
 
 결과(확인 뒤 실행) — `{ "applicationId": 21, "questionIds": [41] }`. 문항마다 추천이 뒤에서 돈다 · 문항마다 분석 1회로 센다(그 API 그대로).
 
@@ -343,7 +343,8 @@ FE ─DELETE /api/mcp/connection──────▶ BE  연결 끊기 → 그 
 { "changeId": 58, "applicationId": 21, "questionIds": [41, 43], "status": "ANALYZING", "notice": "추천을 만드는 중이에요 — …" }
 ```
 
-- `POST /api/applications` 와 같은 코드 · 검사 · 한도다 — 문항마다 분석 1회, 남은 횟수가 모자라면 아무것도 저장하지 않는다. 추천은 커밋 뒤 뒤에서 돈다.
+- `POST /api/applications` 와 같은 코드 · 검사 · 한도다 — 문항마다 분석 1회 · 공고 요건 줄이 있으면 공고 기준 경험 찾기 1회(S-93), 남은 횟수가 모자라면 아무것도 저장하지 않는다. 추천 · 공고 기준 경험 찾기는 커밋 뒤 뒤에서 돈다.
+- 문항 0개 + 공고 요건 줄이면 `questionIds: []` 이고 `notice` 는 「공고 요건 줄로 지원을 만들었어요 — 공고 기준 경험 찾기는 웹 지원 화면에서 볼 수 있어요. …」. 공고 요건 줄 · 공고 기준 경험 찾기 결과는 외부 AI 에 싣지 않는다(`question-api.md` `postingLines` — `get_question` 에도 없다).
 - 문항은 사용자가 준 글에 **적힌 것만** 싣는다(R-03 범위 제외). 서버가 확인할 수는 없다.
 
 #### `get_question` — 문항 · 추천 읽기

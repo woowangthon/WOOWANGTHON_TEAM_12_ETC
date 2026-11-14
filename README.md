@@ -67,7 +67,7 @@ flowchart LR
     U[사용자 브라우저] --> FE[FE · Next.js · Vercel]
     FE -->|REST · Cloudflare Tunnel| BE
     MY[사용자의 AI<br/>Claude 등] -->|MCP| BE
-    subgraph OCI 서버 · Docker Compose
+    subgraph OCI["OCI 서버 · Docker Compose"]
         BE[BE · Spring Boot<br/>인증 · 저장 · 하루 한도 · MCP 서버] -->|REST · 내부망| AI[AI 서버 · FastAPI<br/>LLM 호출 · 출력 검사 · 원문 대조]
         BE --> DB[(PostgreSQL)]
         AI -.->|차곡이도 같은 MCP 도구로| BE

@@ -605,7 +605,7 @@ BE 는 어떤 오류든 점검을 `FAILED`(`AI_FAILED`, `message` 에 위 `code`
 
 | HTTP | `code` | 언제 |
 | --- | --- | --- |
-| 400 | `INVALID_REQUEST` | `question.text` 가 없거나 비었음 · `experiences` 가 없음 · 0개 · 4개 이상 · 경험 `id` 중복 · 선택 칸이 있는데 모양이 틀림(`jobRole` 이 목록 밖 값 · `requirements[].status` 가 `requirementStatus` 밖 값 · `gaps` 가 문자열 배열이 아님 · `frame` 이 `draftFrame` 밖 값 · `guidelines` 11개 이상 · 지침 `id` 중복 · 빈 `text` 등) |
+| 400 | `INVALID_REQUEST` | `question.text` 가 없거나 비었음 · `experiences` 가 없음 · 0개 · 9개 이상 · 경험 `id` 중복 · 선택 칸이 있는데 모양이 틀림(`jobRole` 이 목록 밖 값 · `requirements[].status` 가 `requirementStatus` 밖 값 · `gaps` 가 문자열 배열이 아님 · `frame` 이 `draftFrame` 밖 값 · `guidelines` 11개 이상 · 지침 `id` 중복 · 빈 `text` 등) |
 | 413 | `TEXT_TOO_LONG` | 문항 텍스트와 경험 글(선택 칸의 요구사항 · 이유 · 강조점 · 부족한 점 · 지침 포함)을 합친 글자 수가 **100000** 을 넘음(`/match` 와 같은 `MAX_MATCH_CHARS`) |
 | 502 | `LLM_ERROR` | LLM API 호출이 실패함 |
 | 502 | `LLM_INVALID_OUTPUT` | LLM 출력이 위 규칙을 벗어남(다시 시도한 뒤에도) |

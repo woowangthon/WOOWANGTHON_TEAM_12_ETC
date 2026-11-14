@@ -7,7 +7,7 @@ flowchart LR
     U[사용자] --> FE[FE · Next.js · Vercel]
     FE -->|REST| BE
     U -->|Cloudflare Tunnel| BE[BE · Spring Boot]
-    subgraph OCI 서버 · Docker Compose
+    subgraph OCI["OCI 서버 · Docker Compose"]
         BE -->|REST · 내부망| AI[AI 서버 · FastAPI]
         BE --> DB[(PostgreSQL)]
     end

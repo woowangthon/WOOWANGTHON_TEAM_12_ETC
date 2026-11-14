@@ -1055,7 +1055,7 @@ BE 가 AI 에 보내는 것(ai-api 「POST /new-facts」):
 | 필드 | 값 |
 | --- | --- |
 | `activityId` | 붙일 기존 활동 — 그 사용자의 활동. `newActivity` 와 **정확히 하나만** 보낸다 |
-| `newActivity` | 새 활동을 만들어 붙일 때(ETC#260) — `{ "name", "period" }`. `name` 은 비지 않은 문자열(앞뒤 공백을 걷는다), `period` 는 README 「기간」 세 칸 통째로(선택 — 빼면 `{ "start": null, "end": null, "ongoing": false }`). 분류 · 계기는 받지 않는다 — 활동 세부에서 `PATCH /api/activities/{id}` 로 고친다 |
+| `newActivity` | 새 활동을 만들어 붙일 때(ETC#260) — `{ "name", "period" }`. `name` 은 비지 않은 문자열(앞뒤 공백을 걷는다) · 100자까지(활동 이름과 같다), `period` 는 README 「기간」 세 칸 통째로(선택 — 빼면 `{ "start": null, "end": null, "ongoing": false }`). 분류 · 계기는 받지 않는다 — 활동 세부에서 `PATCH /api/activities/{id}` 로 고친다 |
 | `content` | 경험 문장(필수, 비지 않은 문자열) — 사용자가 고친 값 |
 | `actor` | `ME` · `TEAM` · `UNKNOWN`(필수) |
 | `competencies` | 역량 값 배열(선택 — 빼면 `[]`). 「경험 직접 추가」와 같은 규칙 |
@@ -1087,7 +1087,7 @@ BE 가 AI 에 보내는 것(ai-api 「POST /new-facts」):
 - 새 활동은 보통 `Activity` 와 같다 — `category` · `categoryBy` · `note` · `mergeSuggestion` 은 `null`, 원본 자료가 없다. 타임라인 · 세부 · 고치기 · 합치기 · 지우기 규칙이 그대로다. `mergeSuggestion` 은 분석 작업만 붙이므로 이 활동에는 생기지 않는다(나중에 자료로 생긴 활동이 이 활동을 가리킬 수는 있다).
 - 같은 이름 활동이 이미 있어도 막지 않는다 — 새로 만든다(합치기는 사용자 — S-13).
 
-오류: 400 `INVALID_REQUEST`(빈 `content` · 틀린 `actor` · `competencies` 규칙 위반 · `activityId` · `newActivity` 가 둘 다 없거나 둘 다 있음 · `newActivity.name` 이 비었음 · 날짜 형식이 README 「기간」과 다름) · 400 `INVALID_PERIOD`(`start` 가 `end` 보다 늦음 · `ongoing: true` 인데 `end` 가 있음 — 「활동 수정」과 같다) · 404 `NEW_FACT_NOT_FOUND`(없는 후보 · 다시 확정 · 다시 찾기로 지워진 후보) · 404 `ACTIVITY_NOT_FOUND` · 409 `NEW_FACT_ALREADY_DECIDED`(이미 `SAVED` · `DISMISSED` — 경험을 또 만들지 않는다).
+오류: 400 `INVALID_REQUEST`(빈 `content` · 틀린 `actor` · `competencies` 규칙 위반 · `activityId` · `newActivity` 가 둘 다 없거나 둘 다 있음 · `newActivity.name` 이 비었거나 100자를 넘음 · `content` 가 5000자를 넘음 · 날짜 형식이 README 「기간」과 다름) · 400 `INVALID_PERIOD`(`start` 가 `end` 보다 늦음 · `ongoing: true` 인데 `end` 가 있음 — 「활동 수정」과 같다) · 404 `NEW_FACT_NOT_FOUND`(없는 후보 · 다시 확정 · 다시 찾기로 지워진 후보) · 404 `ACTIVITY_NOT_FOUND` · 409 `NEW_FACT_ALREADY_DECIDED`(이미 `SAVED` · `DISMISSED` — 경험을 또 만들지 않는다).
 
 ## POST /api/new-fact-candidates/{candidateId}/dismiss — 저장 안 함
 

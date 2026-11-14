@@ -235,7 +235,7 @@ PDF 를 넣을 때(S-39) — 1쪽은 1 ~ 2줄, 2쪽은 글자가 없어 빠지�
 | 필드 | 값 |
 | --- | --- |
 | `kind` | `TEXT`(붙여넣기) · `FILE`(파일 올리기) |
-| `name` | `FILE` 이면 파일 이름(필수, `.md` · `.txt` · `.pdf` · `.pptx` — 대소문자 무시). 폴더 · Notion ZIP 에서 가져오면(S-62 · S-63) 폴더 안 경로(`볼트/활동/바꿔요-회고.md`), GitHub 에서 가져오면(S-64) `owner/repo (GitHub).md` — `/` · 공백이 들어갈 수 있고 BE 는 받은 그대로 남긴다(지금 동작 그대로 — BE 변경 없음). `TEXT` 면 `null` — BE 가 「붙여넣은 텍스트 2026-11-03 14:05」처럼 이름을 붙인다 |
+| `name` | `FILE` 이면 파일 이름(필수, `.md` · `.txt` · `.pdf` · `.pptx` — 대소문자 무시). 폴더 · Notion ZIP 에서 가져오면(S-62 · S-63) 폴더 안 경로(`볼트/활동/바꿔요-회고.md`), GitHub 에서 가져오면(S-64) `owner/repo (GitHub).md` — `/` · 공백이 들어갈 수 있고 BE 는 받은 그대로 남긴다(지금 동작 그대로 — BE 변경 없음). **300자까지**(Java `String.length()`, JS `length` 와 같다). `TEXT` 면 `null` — BE 가 「붙여넣은 텍스트 2026-11-03 14:05」처럼 이름을 붙인다 |
 | `text` | 원본 텍스트. 공백만 있으면 안 된다. 최대 길이는 아래 한도 |
 | `sections` | `.pdf` · `.pptx` 면 **필수**(1개 이상), 그 밖엔 `null`(빼도 된다). 원소 `{ kind, number, startLine, endLine }` — `kind` 는 `.pdf` 면 `PAGE`, `.pptx` 면 `SLIDE`(README 「값 목록」) · `number` 는 1부터 센 쪽 · 슬라이드 번호 · `startLine` ≤ `endLine` 은 위 「줄 세기」의 줄 번호이고 `text` 의 줄 수를 넘지 않는다. `number` · 줄 둘 다 오름차순이고 구간끼리 겹치지 않는다. BE 는 받은 그대로 원본에 남긴다 |
 | `activityId` | 활동 세부의 「자료 더하기」(S-60, `P2`)일 때 그 활동의 `id`, 그 밖엔 `null`(빼도 된다). 아래 「활동에 자료 더하기」 |
@@ -254,7 +254,7 @@ PDF 를 넣을 때(S-39) — 1쪽은 1 ~ 2줄, 2쪽은 글자가 없어 빠지�
 | 400 | `EMPTY_TEXT` | `text` 가 비었거나 공백뿐 |
 | 400 | `UNSUPPORTED_FILE_TYPE` | `FILE` 인데 이름이 `.md` · `.txt` · `.pdf` · `.pptx` 가 아님 |
 | 400 | `INVALID_SECTIONS` | `.pdf` · `.pptx` 인데 `sections` 가 없거나 비었음 · `kind` 가 확장자와 안 맞음 · 줄 번호가 `text` 를 벗어나거나 겹치거나 순서가 틀림 · `.md` · `.txt` · `TEXT` 인데 `sections` 가 비지 않음 |
-| 400 | `INVALID_REQUEST` | 필드가 없거나 `kind` 값이 틀림 |
+| 400 | `INVALID_REQUEST` | 필드가 없거나 `kind` 값이 틀림 · `name` 이 300자를 넘음 |
 | 404 | `ACTIVITY_NOT_FOUND` | `activityId` 가 없는 활동(남의 활동 · 이미 합쳐진 활동 포함) — 원본을 저장하지 않는다 |
 | 409 | `SOURCE_DUPLICATE` | 같은 글자의 원본이 이미 있음(S-69, `P2`) — 원본을 저장하지 않고 횟수도 세지 않는다. 아래 「같은 자료 알아보기」 |
 | 413 | `TEXT_TOO_LONG` | `text` 가 한도를 넘음 |
@@ -334,7 +334,7 @@ PDF 를 넣을 때(S-39) — 1쪽은 1 ~ 2줄, 2쪽은 글자가 없어 빠지�
 
 | HTTP | `code` | 언제 |
 | --- | --- | --- |
-| 400 | `INVALID_REQUEST` | `sources` 가 없거나 0개 · 10개 넘음 · 원소에 `activityId` 가 있음 · 원소 필드가 없거나 `kind` 값이 틀림 |
+| 400 | `INVALID_REQUEST` | `sources` 가 없거나 0개 · 10개 넘음 · 원소에 `activityId` 가 있음 · 원소 필드가 없거나 `kind` 값이 틀림 · 원소 `name` 이 300자를 넘음 |
 | 400 | `EMPTY_TEXT` · `UNSUPPORTED_FILE_TYPE` · `INVALID_SECTIONS` | 원소 하나가 `POST /api/sources` 의 같은 규칙을 어김 |
 | 413 | `TEXT_TOO_LONG` | 원소 하나의 `text` 가 50000자를 넘음(한도는 파일마다 — 합이 아니다) |
 | 429 | `DAILY_LIMIT_EXCEEDED` | 오늘 남은 분석 횟수가 `sources` 개수보다 적음 — 하나도 넣지 않는다([`auth-api.md`](auth-api.md)) |
@@ -716,7 +716,7 @@ FE 는 `jobId` 를 들고 있다가(새로고침 대비 주소 · 브라우저 �
 
 | 필드 | 값 |
 | --- | --- |
-| `name` | 비지 않은 문자열 |
+| `name` | 비지 않은 문자열 · **100자까지**(지원처 이름과 같다) |
 | `period` | README 「기간」 — 세 칸 통째로 |
 | `category` | 활동 분류(S-57, `P1`) — README 「값 목록」 `activityCategory` 또는 `null`(비우기). 비우면 `categoryBy` 도 `null` |
 | `note` | 그때의 나(S-34, `P1`) — 문자열 또는 `null`. 앞뒤 공백을 걷은 뒤 **최대 200자**(Java `String.length()`, JS `length` 와 같다) · **줄바꿈(`\n` · `\r`) 없음**. `null` 이나 걷은 뒤 빈 문자열이면 계기를 지운다(`note: null`). **빼면 그대로** — `null` 을 보낸 것과 다르다(BE 는 필드가 왔는지를 가린다) |
@@ -744,7 +744,7 @@ FE 는 `jobId` 를 들고 있다가(새로고침 대비 주소 · 브라우저 �
 
 | HTTP | `code` | 언제 |
 | --- | --- | --- |
-| 400 | `INVALID_REQUEST` | `name` 이 비었음 · 날짜 형식이 README 「기간」과 다름 · `note` 가 200자를 넘거나 줄바꿈이 있음 · `note` 가 문자열 · `null` 이 아님 · `category` 가 목록에 없음 |
+| 400 | `INVALID_REQUEST` | `name` 이 비었거나 100자를 넘음 · 날짜 형식이 README 「기간」과 다름 · `note` 가 200자를 넘거나 줄바꿈이 있음 · `note` 가 문자열 · `null` 이 아님 · `category` 가 목록에 없음 |
 | 400 | `INVALID_PERIOD` | `start` 가 `end` 보다 늦음 · `ongoing: true` 인데 `end` 가 있음 |
 | 404 | `ACTIVITY_NOT_FOUND` | 없는 활동 |
 
@@ -782,7 +782,7 @@ FE 는 `jobId` 를 들고 있다가(새로고침 대비 주소 · 브라우저 �
 
 | 필드 | 값 |
 | --- | --- |
-| `content` | 비지 않은 문자열 |
+| `content` | 비지 않은 문자열 · **5000자까지**(외부 AI `update_experience` 와 같다) |
 | `competencies` | 역량 값 배열 — **통째로 바꾼다**(빼면 그대로). `[]` 이면 역량을 지운다. 순서가 다르면 바뀐 것으로 본다 |
 | `actor` | `ME` · `TEAM` · `UNKNOWN` |
 
@@ -810,7 +810,7 @@ FE 는 `jobId` 를 들고 있다가(새로고침 대비 주소 · 브라우저 �
 }
 ```
 
-오류: 400 `INVALID_REQUEST` 빈 `content` · 틀린 `actor` 값 · `competencies` 가 목록 밖 값 · 중복 · 4개 이상 · `null` · 404 `EXPERIENCE_NOT_FOUND`
+오류: 400 `INVALID_REQUEST` 빈 `content` · `content` 가 5000자를 넘음 · 틀린 `actor` 값 · `competencies` 가 목록 밖 값 · 중복 · 4개 이상 · `null` · 404 `EXPERIENCE_NOT_FOUND`
 
 ## PUT /api/experiences/{experienceId}/saved — 경험 저장 · 빼기 (`P2`)
 
@@ -856,7 +856,7 @@ FE 는 `jobId` 를 들고 있다가(새로고침 대비 주소 · 브라우저 �
 
 | 필드 | 값 |
 | --- | --- |
-| `content` | 비지 않은 문자열(필수) |
+| `content` | 비지 않은 문자열(필수) · **5000자까지** |
 | `competencies` | 역량 값 배열(선택 — 빼면 `[]`) |
 | `actor` | `ME` · `TEAM` · `UNKNOWN`(필수 — 화면에서 미리 고를 값은 FE 가 정한다) |
 
@@ -875,7 +875,7 @@ FE 는 `jobId` 를 들고 있다가(새로고침 대비 주소 · 브라우저 �
 }
 ```
 
-오류: 400 `INVALID_REQUEST` 빈 `content` · 틀린 `actor` 값 · `competencies` 가 목록 밖 값 · 중복 · 4개 이상 · `null` · 404 `ACTIVITY_NOT_FOUND`
+오류: 400 `INVALID_REQUEST` 빈 `content` · `content` 가 5000자를 넘음 · 틀린 `actor` 값 · `competencies` 가 목록 밖 값 · 중복 · 4개 이상 · `null` · 404 `ACTIVITY_NOT_FOUND`
 
 ## DELETE /api/experiences/{experienceId} — 경험 지우기
 
